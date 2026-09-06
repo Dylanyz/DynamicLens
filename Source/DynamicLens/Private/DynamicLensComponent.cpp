@@ -565,6 +565,12 @@ void UDynamicLensComponent::ApplyLook(UCineCameraComponent* Cam, const FDynamicL
 	// --- image circle mask
 	if (CircleRadiusNorm > 0.f)
 	{
+		if (CircleMID && !CircleMID->Parent)
+		{
+			// base material deleted/rebuilt under us: a parentless instance renders nothing and can drop the whole chain
+			if (bCircleApplied) Cam->RemoveBlendable(CircleMID);
+			CircleMID = nullptr; bCircleApplied = false;
+		}
 		if (!CircleMID)
 		{
 			if (UMaterialInterface* Mat = ImageCircleMaterial.LoadSynchronous())
@@ -701,10 +707,13 @@ void UDynamicLensComponent::ClearEffect()
 	}
 	RestoreAccumulationDOF();
 	AppliedMID = nullptr;
+	CircleMID = nullptr;          // recreated on the next apply (the base material may have been rebuilt)
 	bCircleApplied = false;
 	bSVEActive = false;
 	bStrippedForeign = false;
 	AppliedCamera = nullptr;
+	LastCircleRadius = -1.f;
+	bHasLastEval = false;
 	LastOverscanFactor = 1.f;
 	LastVignette = 0.f;
 	ImageCircleRadius = 0.f;

@@ -41,10 +41,23 @@ Assets land in the plugin's own content (`/DynamicLens/Profiles`, `/DynamicLens/
   visibility at the corner, barrel radius/length, image-circle radius, profile coverage, notes.
 
 ## Preset asset
-Distortion (profile, amount, breathing, out-of-range clamp/extrapolate, wide boost), Image Circle (on/off, edge softness),
+Distortion (profile, amount, breathing, out-of-range clamp/extrapolate, wide boost), Image Circle (on/off, edge softness, and an
+**Edge** block for a real-looking rim: falloff power, opacity, centre offset, ellipticity, waviness, fine breakup, chromatic
+aberration (blue rim), radial scatter, optional full-frame mask texture you paint/scan yourself),
 Vignette (Physical: cos⁴ + barrel clipping / Manual curves), Bokeh (Physical: blades + barrel from specs, cat's-eye
-strength / Manual), Swirl (Petzval amount, falloff, exclusion box, fade by f-stop), Accumulation DOF (drive on/off,
-spherical aberration, coma, blade rotation). Tooltips and hard clamps everywhere.
+strength / Manual), Iris (blade count from **Profile / Camera / Custom**, blade curvature override, bokeh squeeze from
+**Profile / Camera / Custom**, blade rotation), Swirl (Petzval amount, falloff, exclusion box, fade by f-stop), Accumulation
+DOF (drive on/off, spherical aberration, coma). Tooltips and hard clamps everywhere.
+
+`DL_Lanthimos_Favourite_6mm_Frame` reproduces the film's framing (full frame, only the corners roll off): a 6 mm
+equidistant image only reaches the corners of a 1.85:1 gate if the corner sits within ~78° off-axis (the most a
+rectilinear Unreal render can source at overscan 2), so the profile's native gate is 14.4 x 7.78 mm (the 35 mm scan
+blown up ~1.7x) - click Match Camera To Profile and set Overscan Fixed 2.0. The plain `DL_Lanthimos_Favourite_6mm`
+shows the whole 23 mm circle on a 35 mm gate.
+
+The Poor Things 4 mm and The Favourite presets carry edge values measured from stills (see `Tools/data/presets.json`
+"notes"): the 4 mm rolls off over ~25% of the circle radius with a blue rim at the very edge and sits 5% left / 3% high of
+centre; the 6 mm has no rim at all, only corners rolling off over ~45% of the radius, top darker than bottom.
 
 ## Profile asset
 Type, coverage summary (read-only), native sensor + squeeze + image circle, the data, and physical specs:
@@ -73,6 +86,9 @@ PoorThings_Porthole_4mm (OpTex 4mm S16 on 35), PoorThings_Lab_8mm, PoorThings_Pe
 * Fisheyes beyond ~80° off-axis can't be rendered by a rectilinear source; the image circle is black there. A 16:9
   source runs out vertically first — use a 4:3 / open-gate filmback (Match Camera To Profile) for the biggest circle.
 * Editor viewport needs Realtime on (Ctrl+R) for the component to tick; renders always tick.
+* Black Eye cameras: their actors are Cine Camera actors and the dynamic FOV is written to the cine camera's focal length,
+  so add the component to the Black Eye camera blueprint like any other camera. The component ticks after its owning
+  actor, so the distortion follows the FOV in the same frame.
 * Accumulation DOF: if the camera actor also has an `AccumulationDOF` component (5.8 plugin), the component drives its
   bokeh texture with a procedural N-gon iris (blade count + rotation from the profile/preset) and passes spherical
   aberration / coma through; the user's own values are restored when the effect is disabled. Cat's-eye clipping is

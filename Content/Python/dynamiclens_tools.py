@@ -343,19 +343,28 @@ float wob = 1.0 + Wobble * (0.7 * sin(WobbleLobes * th + WobbleSeed) + 0.3 * sin
 float R = max(Radius * wob, 1e-3);
 float soft = saturate(Softness);
 float band = max(R * soft, 1e-4);
-// fine breakup of the band: value noise in screen space
-float2 q = float2(UV.x, UV.y / asp) * NoiseScale;
-float2 qi = floor(q), qf = frac(q); qf = qf * qf * (3.0 - 2.0 * qf);
-float h00 = frac(sin(dot(qi, float2(127.1, 311.7))) * 43758.5453);
-float h10 = frac(sin(dot(qi + float2(1, 0), float2(127.1, 311.7))) * 43758.5453);
-float h01 = frac(sin(dot(qi + float2(0, 1), float2(127.1, 311.7))) * 43758.5453);
-float h11 = frac(sin(dot(qi + float2(1, 1), float2(127.1, 311.7))) * 43758.5453);
-float n = lerp(lerp(h00, h10, qf.x), lerp(h01, h11, qf.x), qf.y) - 0.5;
-float rn = r + EdgeNoise * band * 1.5 * n;
-// per-channel radius: blue reaches further out than red (lateral CA at the rim)
+// fine breakup of the band: two octaves of value noise in screen space (polar so it hugs the rim)
+float n = 0.0;
+{
+    float2 q = float2(th * 8.0, r * 4.0) * NoiseScale * 0.125;
+    float amp = 0.65;
+    for (int o = 0; o < 2; ++o)
+    {
+        float2 qi = floor(q), qf = frac(q); qf = qf * qf * (3.0 - 2.0 * qf);
+        float h00 = frac(sin(dot(qi, float2(127.1, 311.7))) * 43758.5453);
+        float h10 = frac(sin(dot(qi + float2(1, 0), float2(127.1, 311.7))) * 43758.5453);
+        float h01 = frac(sin(dot(qi + float2(0, 1), float2(127.1, 311.7))) * 43758.5453);
+        float h11 = frac(sin(dot(qi + float2(1, 1), float2(127.1, 311.7))) * 43758.5453);
+        n += amp * (lerp(lerp(h00, h10, qf.x), lerp(h01, h11, qf.x), qf.y) - 0.5);
+        q = q * 2.7 + 17.0; amp *= 0.5;
+    }
+}
+float rn = r + EdgeNoise * band * 0.6 * n;
+// per-channel outer radius: the band starts at the same place for every colour and blue reaches further out than red
+// (lateral CA at the rim), so the tint only appears in the last part of the falloff
+float inner = R * (1.0 - soft);
 float3 Rc = R * float3(1.0 - ChromaticAberration, 1.0, 1.0 + ChromaticAberration);
-float3 inner = Rc * (1.0 - soft);
-float3 t = smoothstep(inner, max(Rc, inner + 1e-4), rn.xxx);
+float3 t = smoothstep(inner.xxx, max(Rc, inner + 1e-4), rn.xxx);
 t = pow(t, max(FalloffPower, 0.01));
 float3 m = 1.0 - t * saturate(Opacity);
 // scatter: inside the band the picture smears radially and lifts a little (light spreading in the edge glass)
@@ -365,14 +374,18 @@ if (Scatter > 0.001 && tb > 0.001)
 {
     float2 dir = (r > 1e-4) ? p / r : float2(1, 0);
     dir.y *= max(Ellipticity, 0.01) * asp;             // back to screen units (uv x scale = 0.5 per unit)
-    float2 step = dir * band * 0.5 * Scatter * 0.6;    // radial blur length, screen uv
+    // short radial smear plus a little tangential spread: a glow, not spokes
+    float2 tng = float2(-dir.y, dir.x);
+    float len = band * 0.5 * Scatter * 0.35;          // screen uv
     float3 acc = 0;
-    acc += SceneTextureLookup(UV - step * 1.0, 14, false).rgb;
-    acc += SceneTextureLookup(UV - step * 0.5, 14, false).rgb;
-    acc += SceneTextureLookup(UV + step * 0.5, 14, false).rgb;
-    acc += SceneTextureLookup(UV + step * 1.0, 14, false).rgb;
-    float3 blur = acc * 0.25;
-    col = lerp(col, blur * (1.0 + 0.35 * Scatter), tb * Scatter);
+    [unroll] for (int k = 0; k < 8; ++k)
+    {
+        float u = (k + 0.5) / 8.0 * 2.0 - 1.0;         // -1..1 along the radius
+        float v = sin(u * 7.0) * 0.35;                  // small side-step so taps don't line up
+        acc += SceneTextureLookup(UV + (dir * u + tng * v) * len, 14, false).rgb;
+    }
+    float3 blur = acc / 8.0;
+    col = lerp(col, blur * (1.0 + 0.15 * Scatter), tb * Scatter);
 }
 float maskv = Texture2DSample(Mask, MaskSampler, UV).r;
 m *= lerp(1.0, maskv, saturate(MaskStrength));
