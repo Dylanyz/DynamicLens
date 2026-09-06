@@ -354,10 +354,13 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 		if (DriveSTMap(Cam, Eval, Focal, Focus, W, H, WFull, HFull, Needed, State, Circle))
 		{
 			Applied = (Resolved.Overscan.Mode == EDynamicLensOverscanMode::Fixed) ? Resolved.Overscan.FixedOverscan : DynamicApplied(Needed);
-			if (Needed > Applied + 1e-3f)
-			{
-				MinCircle(Applied / Needed);   // approximation: the map's border needs Needed, the centre needs 1
-			}
+			// the edge of what the render can show, computed every frame at the overscan ceiling so it exists
+			// continuously (outside the corners while there are pixels, sweeping inward at the picture's own rate as
+			// the lens asks for more than the ceiling gives) instead of switching on at the corners
+			const float Ceiling = (Resolved.Overscan.Mode == EDynamicLensOverscanMode::Fixed) ? Resolved.Overscan.FixedOverscan : Resolved.Overscan.MaxOverscan;
+			const float CornerR = FMath::Sqrt(1.f + FMath::Square(H / W));
+			MinCircle(CornerR * FMath::Max(Ceiling, 1.f) / FMath::Max(Needed, 1.f));   // approximation: the map's border needs Needed, the centre needs 1
+			MinCircle(Circle);                                                         // where the extrapolated map data ends
 		}
 		else
 		{
@@ -368,10 +371,9 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	{
 		DriveParametric(Cam, Eval, Focal, W, H, Needed, State);
 		Applied = (Resolved.Overscan.Mode == EDynamicLensOverscanMode::Fixed) ? Resolved.Overscan.FixedOverscan : DynamicApplied(Needed);
-		if (Needed > Applied + 1e-3f)
-		{
-			MinCircle(DynamicLensMath::ValidCircleRadius(Eval.Params, Focal / W, Focal / H, Applied));
-		}
+		// the edge of what the render can show (see the ST-map branch): always present, continuous in focal length
+		const float Ceiling = (Resolved.Overscan.Mode == EDynamicLensOverscanMode::Fixed) ? Resolved.Overscan.FixedOverscan : Resolved.Overscan.MaxOverscan;
+		MinCircle(DynamicLensMath::ValidCircleRadius(Eval.Params, Focal / W, Focal / H, FMath::Max(Ceiling, 1.f)));
 	}
 
 	Applied = FMath::Clamp(Applied, 1.f, 2.f);
