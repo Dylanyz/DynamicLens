@@ -62,7 +62,7 @@ def import_profiles(profile_dir=None, save=True):
 def _apply_specs(asset, specs):
     """physical / native-format fields shared by every profile type (see presets.json profile_specs)."""
     for k, conv in [("front_diameter_mm", float), ("iris_blades", int), ("blade_curvature", float), ("max_aperture", float), ("pupil_visible_at_image_circle", float),
-                    ("image_circle_mm", float), ("squeeze", float)]:
+                    ("image_circle_mm", float), ("squeeze", float), ("nominal_focal_mm", float)]:
         if k in specs:
             asset.set_editor_property(k, conv(specs[k]))
     if "native_sensor_mm" in specs:
@@ -110,12 +110,16 @@ def import_presets(preset_file=None, save=True):
         if prof is None:
             raise RuntimeError(f"profile DLP_{p['profile']} missing; run import_profiles() first")
         asset.set_editor_property("description", p.get("label", name))
-        asset.set_editor_property("profile", prof)
-        asset.set_editor_property("amount", float(p.get("amount", 1.0)))
-        asset.set_editor_property("breathing", float(p.get("breathing", 1.0)))
-        asset.set_editor_property("out_of_range", getattr(unreal.DynamicLensRangeMode, p.get("out_of_range", "Clamp").upper()))
-        asset.set_editor_property("image_circle", bool(p.get("image_circle", True)))
-        asset.set_editor_property("image_circle_softness", float(p.get("image_circle_softness", 0.05)))
+        wb = p.get("wide_boost")
+        dd = {"profile": prof, "amount": float(p.get("amount", 1.0)), "breathing": float(p.get("breathing", 1.0)),
+              "out_of_range": getattr(unreal.DynamicLensRangeMode, p.get("out_of_range", "Clamp").upper()),
+              "lock_focal_length": bool(p.get("lock_focal", False))}
+        _set_struct(asset, "distortion", dd)
+        d_s = asset.get_editor_property("distortion")
+        w = d_s.get_editor_property("wide_boost")
+        for k, v in {"enabled": wb is not None, **({"below_mm": float(wb["below_mm"]), "full_mm": float(wb["full_mm"]), "k1": float(wb.get("k1", 0)), "k2": float(wb.get("k2", 0))} if wb else {})}.items():
+            w.set_editor_property(k, v)
+        d_s.set_editor_property("wide_boost", w); asset.set_editor_property("distortion", d_s)
         e = p.get("image_circle_edge") or {}
         ee = {}
         for src, dst in [("falloff_power", "falloff_power"), ("opacity", "opacity"), ("ellipticity", "ellipticity"), ("wobble", "wobble"),
@@ -127,9 +131,19 @@ def import_presets(preset_file=None, save=True):
             ee["wobble_lobes"] = int(e["wobble_lobes"])
         if "center_offset" in e:
             ee["center_offset"] = unreal.Vector2D(*e["center_offset"])
-        _set_struct(asset, "image_circle_edge", ee)
-        wb = p.get("wide_boost")
-        _set_struct(asset, "wide_boost", {"enabled": wb is not None, **({"below_mm": float(wb["below_mm"]), "full_mm": float(wb["full_mm"]), "k1": float(wb.get("k1", 0)), "k2": float(wb.get("k2", 0))} if wb else {})})
+        ic = asset.get_editor_property("image_circle")
+        ic.set_editor_property("enabled", bool(p.get("image_circle", True)))
+        ic.set_editor_property("softness", float(p.get("image_circle_softness", 0.05)))
+        edge = ic.get_editor_property("edge")
+        for k, v in ee.items():
+            edge.set_editor_property(k, v)
+        ic.set_editor_property("edge", edge); asset.set_editor_property("image_circle", ic)
+        o = p.get("overscan") or {}
+        oo = {"mode": getattr(unreal.DynamicLensOverscanMode, o.get("mode", "Dynamic").upper())}
+        if "max" in o: oo["max_overscan"] = float(o["max"])
+        if "fixed" in o: oo["fixed_overscan"] = float(o["fixed"])
+        if "scale_resolution" in o: oo["scale_resolution_with_overscan"] = bool(o["scale_resolution"])
+        _set_struct(asset, "overscan", oo)
         v = p.get("vignette")
         vv = {"enabled": v is not None}
         if v:
@@ -263,7 +277,7 @@ def import_tiedtke(root=TIEDTKE_ROOT, save=True, series_filter=None):
         if save:
             unreal.EditorAssetLibrary.save_loaded_asset(prof)
         preset = _create_data_asset("DL_T_" + name, PRESET_PKG + "/Tiedtke", unreal.DynamicLensPreset)
-        preset.set_editor_property("profile", prof)
+        _set_struct(preset, "distortion", {"profile": prof, "lock_focal_length": True})
         preset.set_editor_property("description", f"tiedtke {name.replace('_', ' ')} {squeeze:g}x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.")
         if save:
             unreal.EditorAssetLibrary.save_loaded_asset(preset)

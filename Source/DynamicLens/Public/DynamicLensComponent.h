@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "DynamicLensTypes.h"
+#include "Engine/EngineTypes.h"
 #include "LensDistortionModelHandlerBase.h"
 #include "DynamicLensComponent.generated.h"
 
@@ -24,15 +25,6 @@ enum class EDynamicLensRenderMode : uint8
 	TemporalSuperResolution UMETA(DisplayName = "Inside TSR (sharpest)"),
 };
 
-/** How the render is enlarged so the distorted frame has source pixels out to its corners. */
-UENUM(BlueprintType)
-enum class EDynamicLensOverscanMode : uint8
-{
-	/** Exactly what this frame needs, recomputed every frame (up to Max Overscan). Movie Render Queue/Graph read the camera's overscan once per shot, so for zoom pulls in renders prefer Fixed. */
-	Dynamic UMETA(DisplayName = "Dynamic (per frame)"),
-	/** A constant overscan for the whole shot. Safe for renders; anything the frame needs beyond it goes black at the edges (image circle). */
-	Fixed UMETA(DisplayName = "Fixed"),
-};
 
 /** How a profile measured on one sensor is applied to a camera with another sensor. */
 UENUM(BlueprintType)
@@ -94,21 +86,45 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Sensor")
 	EDynamicLensSensorFit SensorFit = EDynamicLensSensorFit::Scale;
 
-	/** How the render is enlarged for the distortion. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Overscan")
-	EDynamicLensOverscanMode OverscanMode = EDynamicLensOverscanMode::Dynamic;
+	// --- per-camera overrides ---------------------------------------------------------------
+	/** Override the preset's Distortion block for this camera only (ticking it copies the preset's values in; the preset asset is never changed). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Overrides", meta = (InlineEditConditionToggle))
+	bool bOverrideDistortion = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Overrides", meta = (EditCondition = "bOverrideDistortion", DisplayName = "Distortion"))
+	FDynamicLensDistortion Distortion;
 
-	/** Dynamic: never overscan more than this factor (1.5 = 50% wider). Beyond it the corners go black instead of costing render time. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Overscan", meta = (EditCondition = "OverscanMode == EDynamicLensOverscanMode::Dynamic", ClampMin = "1.0", ClampMax = "2.0"))
-	float MaxOverscan = 1.5f;
+	/** Override the preset's Image Circle block for this camera only. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Overrides", meta = (InlineEditConditionToggle))
+	bool bOverrideImageCircle = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Overrides", meta = (EditCondition = "bOverrideImageCircle", DisplayName = "Image Circle"))
+	FDynamicLensImageCircle ImageCircle;
 
-	/** Fixed: the constant overscan factor for the shot (1.2 = 20% wider render). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Overscan", meta = (EditCondition = "OverscanMode == EDynamicLensOverscanMode::Fixed", ClampMin = "1.0", ClampMax = "2.0"))
-	float FixedOverscan = 1.2f;
+	/** Override the preset's Vignette block for this camera only. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Overrides", meta = (InlineEditConditionToggle))
+	bool bOverrideVignette = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Overrides", meta = (EditCondition = "bOverrideVignette", DisplayName = "Vignette"))
+	FDynamicLensVignette Vignette;
 
-	/** Render the extra overscan pixels so the final frame keeps its full resolution (GPU cost grows with overscan squared). Off keeps the render cheaper but slightly softer at the edges. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Overscan")
-	bool bScaleResolutionWithOverscan = true;
+	/** Override the preset's Bokeh block for this camera only. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Overrides", meta = (InlineEditConditionToggle))
+	bool bOverrideBokeh = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Overrides", meta = (EditCondition = "bOverrideBokeh", DisplayName = "Bokeh"))
+	FDynamicLensBokeh Bokeh;
+
+	/** Override the preset's Overscan block for this camera only. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Overrides", meta = (InlineEditConditionToggle))
+	bool bOverrideOverscan = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Overrides", meta = (EditCondition = "bOverrideOverscan", DisplayName = "Overscan"))
+	FDynamicLensOverscan Overscan;
+
+	// --- save as preset ---------------------------------------------------------------------
+	/** Name of the preset asset that Save As New Preset creates (empty = <current preset>_Copy). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Save As Preset")
+	FString NewPresetName;
+
+	/** Folder the new preset asset is saved to. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Save As Preset", meta = (ContentDir))
+	FDirectoryPath NewPresetFolder;
 
 	/** How the distortion is rendered. Post Process Material is the safe default. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Advanced")
@@ -159,6 +175,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Lens")
 	void ClearEffect();
 
+	/** The preset's settings with this camera's overrides applied: what is actually evaluated. */
+	UFUNCTION(BlueprintPure, Category = "Dynamic Lens")
+	FDynamicLensSettings ResolveSettings() const;
+
+	/** Copy every block from the preset into the override blocks (without turning them on), so you can start editing from the preset's values. */
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Dynamic Lens|Overrides")
+	void CopyAllFromPreset();
+
+	/** Write the resolved settings (preset + overrides) to a new preset asset, then point this component at it and clear the overrides. */
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Dynamic Lens|Save As Preset")
+	void SaveAsNewPreset();
+
 	//~ UActorComponent
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
@@ -171,6 +199,7 @@ public:
 #endif
 
 private:
+	bool HasLens() const { return Preset != nullptr || bOverrideDistortion; }
 	void Apply(UCineCameraComponent* Cam);
 	void EnsureHandler();
 	bool DriveParametric(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float W, float H, float& OutNeededOverscan, FLensDistortionState& OutState);
@@ -186,6 +215,8 @@ private:
 	void RestoreAccumulationDOF();
 	UActorComponent* FindAccumulationDOF() const;
 
+	/** Settings resolved by the last Apply (preset + overrides). */
+	UPROPERTY(Transient) FDynamicLensSettings Resolved;
 	UPROPERTY(Transient) TObjectPtr<ULensDistortionModelHandlerBase> Handler;
 	UPROPERTY(Transient) TObjectPtr<ULensFile> TransientLensFile;
 	UPROPERTY(Transient) TObjectPtr<UTexture2D> ProjectionMap;

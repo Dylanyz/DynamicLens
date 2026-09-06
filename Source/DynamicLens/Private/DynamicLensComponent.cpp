@@ -4,6 +4,10 @@
 #include "CameraCalibrationSubsystem.h"
 #include "CineCameraComponent.h"
 #include "Engine/Engine.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Misc/PackageName.h"
+#include "UObject/Package.h"
+#include "UObject/SavePackage.h"
 #include "Engine/Texture2D.h"
 #include "TextureResource.h"
 #include "LensDistortionModelHandlerBase.h"
@@ -41,7 +45,8 @@ UDynamicLensComponent::UDynamicLensComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bStartWithTickEnabled = true;
-	PrimaryComponentTick.TickGroup = TG_PostUpdateWork;   // after Sequencer has written focal length / focus
+	PrimaryComponentTick.TickGroup = TG_PostUpdateWork;
+	NewPresetFolder.Path = TEXT("/Game/DynamicLens/Presets");   // after Sequencer has written focal length / focus
 	bTickInEditor = true;
 	bAutoActivate = true;
 	ImageCircleMaterial = TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/DynamicLens/Materials/M_DL_ImageCircle.M_DL_ImageCircle")));
@@ -78,7 +83,7 @@ void UDynamicLensComponent::BeginPlay()
 	// Movie Render Queue/Graph read the camera's overscan once when a shot starts: make sure it is already there.
 	if (UCineCameraComponent* Cam = GetTargetCamera())
 	{
-		if (bEnabled && Preset)
+		if (bEnabled && HasLens())
 		{
 			Apply(Cam);
 		}
@@ -101,7 +106,22 @@ void UDynamicLensComponent::BeginDestroy()
 void UDynamicLensComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	const FName Name = PropertyChangedEvent.GetPropertyName();
-	if (Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, bEnabled) ||
+	const FName Member = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : Name;
+	// ticking an override copies the preset's block in, so editing starts from the preset's values
+	if (Preset)
+	{
+		if (Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, bOverrideDistortion) && bOverrideDistortion) Distortion = Preset->Distortion;
+		if (Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, bOverrideImageCircle) && bOverrideImageCircle) ImageCircle = Preset->ImageCircle;
+		if (Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, bOverrideVignette) && bOverrideVignette) Vignette = Preset->Vignette;
+		if (Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, bOverrideBokeh) && bOverrideBokeh) Bokeh = Preset->Bokeh;
+		if (Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, bOverrideOverscan) && bOverrideOverscan) Overscan = Preset->Overscan;
+	}
+	if (Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, bOverrideDistortion) ||
+		Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, bOverrideOverscan) ||
+		Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, bOverrideImageCircle) ||
+		Member == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, Distortion) ||
+		Member == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, Overscan) ||
+		Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, bEnabled) ||
 		Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, RenderMode) ||
 		Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, bApplyBokeh) ||
 		Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, bApplyVignette) ||
@@ -130,7 +150,7 @@ void UDynamicLensComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	UCineCameraComponent* Cam = GetTargetCamera();
-	if (!Cam || !bEnabled || !Preset)
+	if (!Cam || !bEnabled || !HasLens())
 	{
 		ClearEffect();
 		return;
@@ -145,8 +165,8 @@ void UDynamicLensComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 void UDynamicLensComponent::MatchCameraToProfile()
 {
 	UCineCameraComponent* Cam = GetTargetCamera();
-	if (!Cam || !Preset || !Preset->Profile) return;
-	const UDynamicLensProfile* P = Preset->Profile;
+	const UDynamicLensProfile* P = ResolveSettings().Distortion.Profile;
+	if (!Cam || !P) return;
 #if WITH_EDITOR
 	Cam->Modify();
 #endif
@@ -155,6 +175,10 @@ void UDynamicLensComponent::MatchCameraToProfile()
 	Cam->Filmback.SensorHeight = P->NativeSensorMm.Y;
 	Cam->Filmback.SensorAspectRatio = Cam->Filmback.SensorWidth / FMath::Max(Cam->Filmback.SensorHeight, 0.01f);
 	Cam->LensSettings.SqueezeFactor = Squeeze;
+	if (const float Locked = P->GetLockedFocal(Cam->CurrentFocalLength); Locked > KINDA_SMALL_NUMBER)
+	{
+		Cam->SetCurrentFocalLength(Locked);
+	}
 	Cam->CropSettings.AspectRatio = 0.f;
 	ClearEffect();
 	TransientLensFile = nullptr;
@@ -165,6 +189,15 @@ void UDynamicLensComponent::MatchCameraToProfile()
 
 void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 {
+	Resolved = ResolveSettings();
+	if (Resolved.Distortion.bLockFocalLength && Resolved.Distortion.Profile)
+	{
+		const float Locked = Resolved.Distortion.Profile->GetLockedFocal(Cam->CurrentFocalLength);
+		if (Locked > KINDA_SMALL_NUMBER && !FMath::IsNearlyEqual(Cam->CurrentFocalLength, Locked, 1e-3f))
+		{
+			Cam->SetCurrentFocalLength(Locked);
+		}
+	}
 	const float Focal = FMath::Max(Cam->CurrentFocalLength, 0.1f);
 	const float Focus = FMath::Max(Cam->CurrentFocusDistance, 1.f);
 	const float FStop = Cam->CurrentAperture;
@@ -179,7 +212,7 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	}
 	W = FMath::Max(W, 0.01f); H = FMath::Max(H, 0.01f);
 
-	FDynamicLensEval Eval = Preset->Evaluate(Focal, Focus, FStop, W, H, AmountMultiplier, Cam->LensSettings.DiaphragmBladeCount, Cam->LensSettings.SqueezeFactor);
+	FDynamicLensEval Eval = Resolved.Evaluate(Focal, Focus, FStop, W, H, AmountMultiplier, Cam->LensSettings.DiaphragmBladeCount, Cam->LensSettings.SqueezeFactor);
 	Eval.VignetteIntensity = FMath::Clamp(Eval.VignetteIntensity * VignetteMultiplier, 0.f, 1.f);
 	Eval.Petzval *= SwirlMultiplier;
 
@@ -196,7 +229,7 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	Notes.Reset();
 	EnsureHandler();
 
-	const UDynamicLensProfile* Profile = Preset->Profile;
+	const UDynamicLensProfile* Profile = Resolved.Distortion.Profile;
 	const EDynamicLensProfileType Type = Profile ? Profile->Type : EDynamicLensProfileType::Parametric;
 
 	FLensDistortionState State;
@@ -209,7 +242,7 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	if (Type == EDynamicLensProfileType::Projection && Profile)
 	{
 		// fisheye maths: the whole frame wants as much source as it can get; the image circle takes the rest
-		Applied = (OverscanMode == EDynamicLensOverscanMode::Fixed) ? FixedOverscan : MaxOverscan;
+		Applied = (Resolved.Overscan.Mode == EDynamicLensOverscanMode::Fixed) ? Resolved.Overscan.FixedOverscan : Resolved.Overscan.MaxOverscan;
 		float Circle = 0.f;
 		if (DriveProjection(Cam, Eval, Focal, W, H, Applied, Needed, State, Circle))
 		{
@@ -221,7 +254,7 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 		float Circle = 0.f;
 		if (DriveSTMap(Cam, Eval, Focal, Focus, W, H, Needed, State, Circle))
 		{
-			Applied = (OverscanMode == EDynamicLensOverscanMode::Fixed) ? FixedOverscan : FMath::Min(Needed, MaxOverscan);
+			Applied = (Resolved.Overscan.Mode == EDynamicLensOverscanMode::Fixed) ? Resolved.Overscan.FixedOverscan : FMath::Min(Needed, Resolved.Overscan.MaxOverscan);
 			if (Needed > Applied + 1e-3f)
 			{
 				MinCircle(Applied / Needed);   // approximation: the map's border needs Needed, the centre needs 1
@@ -235,7 +268,7 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	else
 	{
 		DriveParametric(Cam, Eval, Focal, W, H, Needed, State);
-		Applied = (OverscanMode == EDynamicLensOverscanMode::Fixed) ? FixedOverscan : FMath::Min(Needed, MaxOverscan);
+		Applied = (Resolved.Overscan.Mode == EDynamicLensOverscanMode::Fixed) ? Resolved.Overscan.FixedOverscan : FMath::Min(Needed, Resolved.Overscan.MaxOverscan);
 		if (Needed > Applied + 1e-3f)
 		{
 			MinCircle(DynamicLensMath::ValidCircleRadius(Eval.Params, Focal / W, Focal / H, Applied));
@@ -250,7 +283,7 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	if (CircleRadius > 0.f && CircleRadius < CornerNorm)
 	{
 		const float S = CircleRadius / CornerNorm;
-		const FDynamicLensEval EdgeEval = Preset->Evaluate(Focal, Focus, FStop, W * S, H * S, AmountMultiplier, Cam->LensSettings.DiaphragmBladeCount, Cam->LensSettings.SqueezeFactor);
+		const FDynamicLensEval EdgeEval = Resolved.Evaluate(Focal, Focus, FStop, W * S, H * S, AmountMultiplier, Cam->LensSettings.DiaphragmBladeCount, Cam->LensSettings.SqueezeFactor);
 		Eval.VignetteIntensity = FMath::Clamp(EdgeEval.VignetteIntensity * VignetteMultiplier, 0.f, 1.f);
 		Eval.CornerPupilVisible = EdgeEval.CornerPupilVisible;
 		Eval.CornerFieldAngleDeg = EdgeEval.CornerFieldAngleDeg;
@@ -297,7 +330,7 @@ bool UDynamicLensComponent::DriveParametric(UCineCameraComponent* Cam, const FDy
 
 bool UDynamicLensComponent::DriveSTMap(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float Focus, float W, float H, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRadius)
 {
-	const UDynamicLensProfile* Profile = Preset->Profile;
+	const UDynamicLensProfile* Profile = Resolved.Distortion.Profile;
 	const int32 Index = Profile->FindNearestSTMap(Focal);
 	if (Index < 0) return false;
 	const FDynamicLensSTMapEntry& Entry = Profile->STMaps[Index];
@@ -350,7 +383,7 @@ bool UDynamicLensComponent::DriveSTMap(UCineCameraComponent* Cam, const FDynamic
 
 bool UDynamicLensComponent::DriveProjection(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float W, float H, float AppliedOverscan, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRadius)
 {
-	const UDynamicLensProfile* Profile = Preset->Profile;
+	const UDynamicLensProfile* Profile = Resolved.Distortion.Profile;
 	const float ThetaMax = FMath::DegreesToRadians(FMath::Clamp(Profile->MaxFieldAngleDeg, 10.f, 110.f));
 	const float O = FMath::Clamp(AppliedOverscan, 1.f, 2.f);
 	const EDynamicLensProjection Proj = Profile->Projection;
@@ -446,10 +479,10 @@ void UDynamicLensComponent::ApplyRendering(UCineCameraComponent* Cam, const FLen
 {
 	const float CamOverscan = FMath::Clamp(AppliedOverscan - 1.f, 0.f, 1.f);
 	Cam->Overscan = CamOverscan;
-	Cam->bScaleResolutionWithOverscan = bScaleResolutionWithOverscan;
+	Cam->bScaleResolutionWithOverscan = Resolved.Overscan.bScaleResolutionWithOverscan;
 	bOverscanTouched = true;
 	Handler->SetOverscanFactor(CamOverscan + 1.f);   // material and camera must agree (same as Epic's LensComponent)
-	if (Preset->Profile == nullptr || Preset->Profile->Type == EDynamicLensProfileType::Parametric)
+	if (Resolved.Distortion.Profile == nullptr || Resolved.Distortion.Profile->Type == EDynamicLensProfileType::Parametric)
 	{
 		Handler->ProcessCurrentDistortion();
 	}
@@ -717,6 +750,83 @@ void UDynamicLensComponent::ClearEffect()
 	LastOverscanFactor = 1.f;
 	LastVignette = 0.f;
 	ImageCircleRadius = 0.f;
+}
+
+// ------------------------------------------------------------------------------------------------ settings / presets
+
+FDynamicLensSettings UDynamicLensComponent::ResolveSettings() const
+{
+	FDynamicLensSettings S = Preset ? Preset->GetSettings() : FDynamicLensSettings();
+	if (bOverrideDistortion)  S.Distortion = Distortion;
+	if (bOverrideImageCircle) S.ImageCircle = ImageCircle;
+	if (bOverrideVignette)    S.Vignette = Vignette;
+	if (bOverrideBokeh)       S.Bokeh = Bokeh;
+	if (bOverrideOverscan)    S.Overscan = Overscan;
+	return S;
+}
+
+void UDynamicLensComponent::CopyAllFromPreset()
+{
+	if (!Preset) return;
+#if WITH_EDITOR
+	Modify();
+#endif
+	Distortion = Preset->Distortion; ImageCircle = Preset->ImageCircle; Vignette = Preset->Vignette; Bokeh = Preset->Bokeh; Overscan = Preset->Overscan;
+}
+
+void UDynamicLensComponent::SaveAsNewPreset()
+{
+#if WITH_EDITOR
+	FString Name = NewPresetName.TrimStartAndEnd();
+	if (Name.IsEmpty())
+	{
+		Name = Preset ? Preset->GetName() + TEXT("_Copy") : TEXT("DL_Custom");
+	}
+	for (TCHAR& C : Name) { if (!FChar::IsAlnum(C) && C != TEXT('_') && C != TEXT('-')) C = TEXT('_'); }
+	FString Folder = NewPresetFolder.Path.IsEmpty() ? TEXT("/Game/DynamicLens/Presets") : NewPresetFolder.Path;
+	Folder.RemoveFromEnd(TEXT("/"));
+	if (!Folder.StartsWith(TEXT("/"))) Folder = TEXT("/Game/") + Folder;
+
+	FString PackageName = Folder / Name;
+	if (!FPackageName::IsValidLongPackageName(PackageName))
+	{
+		Notes = FString::Printf(TEXT("Save As New Preset: '%s' is not a valid asset path."), *PackageName);
+		return;
+	}
+	// don't overwrite: number the name if it exists
+	{
+		const FString Base = PackageName; int32 N = 1;
+		while (FPackageName::DoesPackageExist(PackageName)) { PackageName = FString::Printf(TEXT("%s_%d"), *Base, ++N); }
+		Name = FPackageName::GetShortName(PackageName);
+	}
+
+	UPackage* Pkg = CreatePackage(*PackageName);
+	Pkg->FullyLoad();
+	UDynamicLensPreset* NewPreset = NewObject<UDynamicLensPreset>(Pkg, FName(*Name), RF_Public | RF_Standalone);
+	NewPreset->SetSettings(ResolveSettings());
+	NewPreset->Description = Preset ? FString::Printf(TEXT("From %s (%s), edited on %s."), *Preset->GetName(), *Preset->Description, *GetOwner()->GetActorNameOrLabel())
+	                                : FString::Printf(TEXT("Saved from %s."), *GetOwner()->GetActorNameOrLabel());
+	FAssetRegistryModule::AssetCreated(NewPreset);
+	Pkg->MarkPackageDirty();
+
+	FSavePackageArgs Args;
+	Args.TopLevelFlags = RF_Public | RF_Standalone;
+	Args.SaveFlags = SAVE_NoError;
+	const FString FileName = FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension());
+	if (!UPackage::SavePackage(Pkg, NewPreset, *FileName, Args))
+	{
+		Notes = FString::Printf(TEXT("Save As New Preset: could not save %s."), *PackageName);
+		return;
+	}
+	Modify();
+	Preset = NewPreset;
+	bOverrideDistortion = bOverrideImageCircle = bOverrideVignette = bOverrideBokeh = bOverrideOverscan = false;
+	NewPresetName.Reset();
+	ClearEffect();
+	TransientLensFile = nullptr;
+	LensFileSTMapIndex = -1;
+	Notes = FString::Printf(TEXT("Saved %s and switched this camera to it."), *PackageName);
+#endif
 }
 
 // ------------------------------------------------------------------------------------------------ accumulation DOF

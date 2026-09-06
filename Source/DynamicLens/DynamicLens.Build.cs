@@ -13,6 +13,7 @@ public class DynamicLens : ModuleRules
 			"Engine",
 			"CinematicCamera",
 			"CameraCalibrationCore",
+			"AssetRegistry",
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]

@@ -168,6 +168,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Projection", meta = (EditCondition = "Type == EDynamicLensProfileType::Projection", ClampMin = "10.0", ClampMax = "110.0"))
 	float MaxFieldAngleDeg = 90.f;
 
+	/** Focal length of the lens if it is a prime (mm). 0 = zoom / any focal length. With "Lock Focal Length" on the component the camera is held here; Match Camera To Profile also sets it. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile", meta = (ClampMin = "0.0", ClampMax = "2000.0", UIMin = "0.0", UIMax = "300.0"))
+	float NominalFocalMm = 0.f;
+
 	// --- physical specs (from the manufacturer's data sheet) --------------------------------------
 	/** Diameter of the front of the lens barrel in mm (data sheet "front diameter"; 114 for ARRI Master Primes, 95 for Zeiss Supreme). Sets where cat's-eye clipping starts. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Physical", meta = (ClampMin = "10.0", ClampMax = "300.0", UIMin = "50.0", UIMax = "160.0"))
@@ -192,6 +196,10 @@ public:
 	/** Distortion at any focal length (mm) and focus distance (cm). Parametric profiles only; clamps outside the measured range. */
 	UFUNCTION(BlueprintPure, Category = "Dynamic Lens")
 	FDynamicLensParams Evaluate(float FocalMm, float InFocusCm) const;
+
+	/** Focal length a locked camera should sit at: the nominal prime, or for ST-map series the measured prime nearest to FocalMm. 0 = don't lock. */
+	UFUNCTION(BlueprintPure, Category = "Dynamic Lens")
+	float GetLockedFocal(float FocalMm) const;
 
 	/** Shortest and longest focal length the data covers (0,0 = any). */
 	UFUNCTION(BlueprintPure, Category = "Dynamic Lens")
@@ -312,6 +320,16 @@ struct DYNAMICLENS_API FDynamicLensVignette
 	/** Manual: how much of the vignette disappears when stopped down to F Stop Closed. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vignette|Manual", meta = (EditCondition = "bEnabled && Mode == EDynamicLensLayerMode::Manual", ClampMin = "0.0", ClampMax = "1.0"))
 	float StopDownFade = 0.7f;
+};
+
+/** How the render is enlarged so the distorted frame has source pixels out to its corners. */
+UENUM(BlueprintType)
+enum class EDynamicLensOverscanMode : uint8
+{
+	/** Exactly what this frame needs, recomputed every frame (up to Max Overscan). Movie Render Queue/Graph read the camera's overscan once per shot, so for zoom pulls in renders prefer Fixed. */
+	Dynamic UMETA(DisplayName = "Dynamic (per frame)"),
+	/** A constant overscan for the whole shot. Safe for renders; anything the frame needs beyond it goes black at the edges (image circle). */
+	Fixed UMETA(DisplayName = "Fixed"),
 };
 
 /** Where a bokeh value comes from. */
@@ -523,6 +541,108 @@ struct DYNAMICLENS_API FDynamicLensEval
 	UPROPERTY(BlueprintReadOnly, Category = "Dynamic Lens") FDynamicLensImageCircleEdge Edge;
 };
 
+/** Which lens, and how much of its measured distortion to use. */
+USTRUCT(BlueprintType)
+struct DYNAMICLENS_API FDynamicLensDistortion
+{
+	GENERATED_BODY()
+
+	/** Lens series that drives the distortion, and whose physical specs drive bokeh/vignette. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
+	TObjectPtr<UDynamicLensProfile> Profile;
+
+	/** Prime lenses: hold the camera's focal length at the profile's nominal focal length every frame (ST-map series: the nearest measured prime). Off = the camera's focal length is used as-is. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
+	bool bLockFocalLength = false;
+
+	/** Multiplier on all distortion coefficients (parametric profiles). 1 = the measured lens, 0 = straight lines, 2 = twice the bend. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion", meta = (ClampMin = "0.0", ClampMax = "5.0", UIMin = "0.0", UIMax = "3.0"))
+	float Amount = 1.f;
+
+	/** Multiplier on the focus-dependent part of the distortion (lens breathing). 0 = no change with focus, 1 = measured, 2 = exaggerated. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion", meta = (ClampMin = "0.0", ClampMax = "5.0", UIMin = "0.0", UIMax = "2.0"))
+	float Breathing = 1.f;
+
+	/** What to do when the camera's focal length is outside the profile's measured range. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
+	EDynamicLensRangeMode OutOfRange = EDynamicLensRangeMode::Clamp;
+
+	/** Creative layer, not measured data: extra barrel distortion that ramps in below a chosen focal length, for a fisheye feel at the wide end of a spherical lens. Off in the measured presets. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion|Wide Boost", meta = (ShowOnlyInnerProperties))
+	FDynamicLensWideBoost WideBoost;
+};
+
+/** The black edge of a lens that does not cover the sensor (fisheyes, S16 glass on 35), and the pixels the overscan can't provide. */
+USTRUCT(BlueprintType)
+struct DYNAMICLENS_API FDynamicLensImageCircle
+{
+	GENERATED_BODY()
+
+	/** Show the lens's image circle: black beyond the circle, like a lens that doesn't cover the sensor (Poor Things 4mm). Uses the profile's Image Circle Mm and the render's overscan limit. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle")
+	bool bEnabled = true;
+
+	/** Width of the rolloff band as a fraction of the circle radius (hard porthole 0.05; Poor Things 4 mm measured 0.25; The Favourite corners 0.45). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle", meta = (EditCondition = "bEnabled", ClampMin = "0.0", ClampMax = "1.0"))
+	float Softness = 0.05f;
+
+	/** Imperfections of the black edge: falloff shape, off-centre, waviness, breakup, chromatic rim, scatter, optional mask asset. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle", meta = (EditCondition = "bEnabled"))
+	FDynamicLensImageCircleEdge Edge;
+};
+
+/** How much extra picture is rendered so the distorted frame has pixels out to its corners. */
+USTRUCT(BlueprintType)
+struct DYNAMICLENS_API FDynamicLensOverscan
+{
+	GENERATED_BODY()
+
+	/** Dynamic = exactly what each frame needs (capped). Fixed = a constant for the shot: use this for renders with zoom pulls (Movie Render Queue/Graph read overscan once per shot) and for fisheyes. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overscan")
+	EDynamicLensOverscanMode Mode = EDynamicLensOverscanMode::Dynamic;
+
+	/** Dynamic: never overscan more than this factor (1.5 = 50% wider render). Beyond it the corners go black instead of costing render time. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overscan", meta = (EditCondition = "Mode == EDynamicLensOverscanMode::Dynamic", ClampMin = "1.0", ClampMax = "2.0"))
+	float MaxOverscan = 1.5f;
+
+	/** Fixed: the constant overscan factor (1.2 = 20% wider render; fisheyes want 2.0). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overscan", meta = (EditCondition = "Mode == EDynamicLensOverscanMode::Fixed", ClampMin = "1.0", ClampMax = "2.0"))
+	float FixedOverscan = 1.2f;
+
+	/** Render the extra overscan pixels so the final frame keeps its full resolution (GPU cost grows with overscan squared). Off keeps the render cheaper but slightly softer at the edges. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overscan")
+	bool bScaleResolutionWithOverscan = true;
+};
+
+/** Everything that defines a look. A preset asset stores one; a component can override any block for its own camera. */
+USTRUCT(BlueprintType)
+struct DYNAMICLENS_API FDynamicLensSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion", meta = (ShowOnlyInnerProperties))
+	FDynamicLensDistortion Distortion;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle", meta = (ShowOnlyInnerProperties))
+	FDynamicLensImageCircle ImageCircle;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vignette", meta = (ShowOnlyInnerProperties))
+	FDynamicLensVignette Vignette;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bokeh", meta = (ShowOnlyInnerProperties))
+	FDynamicLensBokeh Bokeh;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overscan", meta = (ShowOnlyInnerProperties))
+	FDynamicLensOverscan Overscan;
+
+	/**
+	 * Resolve the look for a camera state.
+	 * SensorWmm/SensorHmm: effective sensor (after squeeze and crop). AmountMultiplier scales Amount (per-component control).
+	 * CameraBlades / CameraSqueeze: the Cine Camera's Lens Settings, used when a bokeh source is set to Camera.
+	 */
+	FDynamicLensEval Evaluate(float FocalMm, float FocusCm, float FStop, float SensorWmm, float SensorHmm, float AmountMultiplier = 1.f, int32 CameraBlades = 0, float CameraSqueeze = 1.f) const;
+};
+
 /**
  * A look: a lens profile plus creative layers (amount, breathing, wide-end boost, vignette, bokeh).
  * Save presets as assets and pick them on a Dynamic Lens component.
@@ -537,51 +657,35 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Preset", meta = (MultiLine = "true"))
 	FString Description;
 
-	/** Lens series that drives the distortion, and whose physical specs drive bokeh/vignette. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
-	TObjectPtr<UDynamicLensProfile> Profile;
-
-	/** Multiplier on all distortion coefficients (parametric profiles). 1 = the measured lens, 0 = straight lines, 2 = twice the bend. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion", meta = (ClampMin = "0.0", ClampMax = "5.0", UIMin = "0.0", UIMax = "3.0"))
-	float Amount = 1.f;
-
-	/** Multiplier on the focus-dependent part of the distortion (lens breathing). 0 = no change with focus, 1 = measured, 2 = exaggerated. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion", meta = (ClampMin = "0.0", ClampMax = "5.0", UIMin = "0.0", UIMax = "2.0"))
-	float Breathing = 1.f;
-
-	/** What to do when the camera's focal length is outside the profile's measured range. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
-	EDynamicLensRangeMode OutOfRange = EDynamicLensRangeMode::Clamp;
-
-	/** Extra barrel below a chosen focal length, for a fisheye feel at the wide end. */
+	/** Which lens, and how much of its distortion. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion", meta = (ShowOnlyInnerProperties))
-	FDynamicLensWideBoost WideBoost;
+	FDynamicLensDistortion Distortion;
 
-	/** Show the lens's image circle: hard black beyond the circle, like a lens that doesn't cover the sensor (Poor Things 4mm). Uses the profile's Image Circle Mm and the render's overscan limit. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle")
-	bool bImageCircle = true;
-
-	/** Softness of the image-circle edge as a fraction of its radius (real lenses: 0.02–0.1). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle", meta = (EditCondition = "bImageCircle", ClampMin = "0.0", ClampMax = "1.0"))
-	float ImageCircleSoftness = 0.05f;
-
-	/** Imperfections of the black edge: falloff shape, off-centre, waviness, breakup, optional mask asset. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle", meta = (EditCondition = "bImageCircle"))
-	FDynamicLensImageCircleEdge ImageCircleEdge;
+	/** The black edge of a lens that doesn't cover the sensor. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle", meta = (ShowOnlyInnerProperties))
+	FDynamicLensImageCircle ImageCircle;
 
 	/** Vignette that follows focal length and aperture. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vignette", meta = (ShowOnlyInnerProperties))
 	FDynamicLensVignette Vignette;
 
-	/** Bokeh character (iris blades, cat's eye, swirl). */
+	/** Bokeh character (iris, cat's eye, swirl, accumulation DOF). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bokeh", meta = (ShowOnlyInnerProperties))
 	FDynamicLensBokeh Bokeh;
 
-	/**
-	 * Resolve the preset for a camera state.
-	 * SensorWmm/SensorHmm: effective sensor (after squeeze and crop). AmountMultiplier scales Amount (per-component control).
-	 * CameraBlades / CameraSqueeze: the Cine Camera's Lens Settings, used when a bokeh source is set to Camera.
-	 */
+	/** How much extra picture is rendered for the distortion. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overscan", meta = (ShowOnlyInnerProperties))
+	FDynamicLensOverscan Overscan;
+
+	/** All blocks as one settings value (what a component resolves against its overrides). */
+	UFUNCTION(BlueprintPure, Category = "Dynamic Lens")
+	FDynamicLensSettings GetSettings() const;
+
+	/** Replace all blocks. */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Lens")
+	void SetSettings(const FDynamicLensSettings& In);
+
+	/** Resolve the preset for a camera state (see FDynamicLensSettings::Evaluate). */
 	UFUNCTION(BlueprintPure, Category = "Dynamic Lens")
 	FDynamicLensEval Evaluate(float FocalMm, float FocusCm, float FStop, float SensorWmm, float SensorHmm, float AmountMultiplier = 1.f, int32 CameraBlades = 0, float CameraSqueeze = 1.f) const;
 };

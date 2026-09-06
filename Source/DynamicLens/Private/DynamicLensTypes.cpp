@@ -184,6 +184,17 @@ bool UDynamicLensProfile::IsValidProfile() const
 	return false;
 }
 
+float UDynamicLensProfile::GetLockedFocal(float FocalMm) const
+{
+	if (NominalFocalMm > KINDA_SMALL_NUMBER) return NominalFocalMm;
+	if (Type == EDynamicLensProfileType::STMap && STMaps.Num())
+	{
+		const int32 I = FindNearestSTMap(FocalMm);
+		if (I >= 0) return STMaps[I].FocalMm;
+	}
+	return 0.f;
+}
+
 void UDynamicLensProfile::GetFocalRange(float& MinMm, float& MaxMm) const
 {
 	MinMm = MaxMm = 0.f;
@@ -239,6 +250,7 @@ float UDynamicLensProfile::ComputeBarrelLengthMm(float FocalMm, float BarrelRadi
 
 void UDynamicLensProfile::RefreshCoverage()
 {
+	const FString PrimeText = (NominalFocalMm > KINDA_SMALL_NUMBER) ? FString::Printf(TEXT("prime %.4g mm | "), NominalFocalMm) : FString();
 	float MinMm, MaxMm; GetFocalRange(MinMm, MaxMm);
 	FString Focal;
 	switch (Type)
@@ -247,7 +259,7 @@ void UDynamicLensProfile::RefreshCoverage()
 	case EDynamicLensProfileType::STMap: Focal = FString::Printf(TEXT("%d ST maps %.0f–%.0f mm (primes, nearest is used)"), STMaps.Num(), MinMm, MaxMm); break;
 	case EDynamicLensProfileType::Projection: Focal = FString::Printf(TEXT("any focal length, %s up to %.0f° off-axis"), *StaticEnum<EDynamicLensProjection>()->GetDisplayNameTextByValue((int64)Projection).ToString(), MaxFieldAngleDeg); break;
 	}
-	Coverage = FString::Printf(TEXT("%s | sensor %.2f x %.2f mm%s | image circle %.1f mm"), *Focal, NativeSensorMm.X, NativeSensorMm.Y,
+	Coverage = FString::Printf(TEXT("%s%s | sensor %.2f x %.2f mm%s | image circle %.1f mm"), *PrimeText, *Focal, NativeSensorMm.X, NativeSensorMm.Y,
 		Squeeze > 1.001f ? *FString::Printf(TEXT(" (%.1fx anamorphic)"), Squeeze) : TEXT(""), EffectiveImageCircleMm());
 }
 
@@ -289,7 +301,7 @@ FDynamicLensParams UDynamicLensProfile::Evaluate(float FocalMm, float InFocusCm)
 
 // ------------------------------------------------------------------------------------------------ preset
 
-FDynamicLensEval UDynamicLensPreset::Evaluate(float FocalMm, float FocusCm, float FStop, float SensorWmm, float SensorHmm, float AmountMultiplier, int32 CameraBlades, float CameraSqueeze) const
+FDynamicLensEval FDynamicLensSettings::Evaluate(float FocalMm, float FocusCm, float FStop, float SensorWmm, float SensorHmm, float AmountMultiplier, int32 CameraBlades, float CameraSqueeze) const
 {
 	FDynamicLensEval E;
 	const float Focal = FMath::Max(FocalMm, 0.1f);
@@ -304,6 +316,7 @@ FDynamicLensEval UDynamicLensPreset::Evaluate(float FocalMm, float FocusCm, floa
 
 	// data-sheet specs (blades, squeeze, front diameter, image circle) are valid whenever a profile is assigned;
 	// only the distortion tables need IsValidProfile()
+	const UDynamicLensProfile* Profile = Distortion.Profile;
 	const bool bProfile = Profile != nullptr;
 	const bool bParametric = bProfile && Profile->Type == EDynamicLensProfileType::Parametric && Profile->IsValidProfile();
 
@@ -311,13 +324,13 @@ FDynamicLensEval UDynamicLensPreset::Evaluate(float FocalMm, float FocusCm, floa
 	if (bParametric)
 	{
 		float MinMm, MaxMm; Profile->GetFocalRange(MinMm, MaxMm);
-		const float EvalFocal = (OutOfRange == EDynamicLensRangeMode::Clamp) ? FMath::Clamp(Focal, MinMm, MaxMm) : Focal;
+		const float EvalFocal = (Distortion.OutOfRange == EDynamicLensRangeMode::Clamp) ? FMath::Clamp(Focal, MinMm, MaxMm) : Focal;
 		auto AtFocal = [&](float F)
 		{
-			return FDynamicLensParams::Lerp(Profile->Evaluate(F, 1e6f), Profile->Evaluate(F, Focus), Breathing);
+			return FDynamicLensParams::Lerp(Profile->Evaluate(F, 1e6f), Profile->Evaluate(F, Focus), Distortion.Breathing);
 		};
 		E.Params = AtFocal(EvalFocal);
-		if (OutOfRange == EDynamicLensRangeMode::Extrapolate && Profile->Rows.Num() >= 2 && (Focal < MinMm || Focal > MaxMm))
+		if (Distortion.OutOfRange == EDynamicLensRangeMode::Extrapolate && Profile->Rows.Num() >= 2 && (Focal < MinMm || Focal > MaxMm))
 		{
 			const int32 N = Profile->Rows.Num();
 			const float F0 = (Focal < MinMm) ? Profile->Rows[0].FocalMm : Profile->Rows[N - 2].FocalMm;
@@ -326,16 +339,16 @@ FDynamicLensEval UDynamicLensPreset::Evaluate(float FocalMm, float FocusCm, floa
 			E.Params = FDynamicLensParams::Lerp(AtFocal(F0), AtFocal(F1), T);
 		}
 	}
-	const float TotalAmount = Amount * FMath::Max(AmountMultiplier, 0.f);
+	const float TotalAmount = Distortion.Amount * FMath::Max(AmountMultiplier, 0.f);
 	E.Params.K1 *= TotalAmount; E.Params.K2 *= TotalAmount; E.Params.K3 *= TotalAmount;
 	E.Params.P1 *= TotalAmount; E.Params.P2 *= TotalAmount;
 
-	if (WideBoost.bEnabled)
+	if (Distortion.WideBoost.bEnabled)
 	{
-		const float Span = FMath::Max(WideBoost.BelowMm - WideBoost.FullMm, 0.001f);
-		const float T = Smooth01((WideBoost.BelowMm - Focal) / Span);
-		E.Params.K1 += WideBoost.K1 * T;
-		E.Params.K2 += WideBoost.K2 * T;
+		const float Span = FMath::Max(Distortion.WideBoost.BelowMm - Distortion.WideBoost.FullMm, 0.001f);
+		const float T = Smooth01((Distortion.WideBoost.BelowMm - Focal) / Span);
+		E.Params.K1 += Distortion.WideBoost.K1 * T;
+		E.Params.K2 += Distortion.WideBoost.K2 * T;
 	}
 	{
 		const float CornerR = FMath::Sqrt(FMath::Square(0.5f * SW / Focal) + FMath::Square(0.5f * SH / Focal));
@@ -351,10 +364,10 @@ FDynamicLensEval UDynamicLensPreset::Evaluate(float FocalMm, float FocusCm, floa
 	E.CornerPupilVisible = (BarrelLen > 0.f) ? DynamicLensMath::DiscOverlapFraction(0.5f * PupilDiameter, EffRadius, BarrelLen * TanCorner) : 1.f;
 
 	// --- image circle (normalized: 1 = half the frame width)
-	E.bImageCircle = bImageCircle;
-	E.ImageCircleSoftness = ImageCircleSoftness;
-	E.Edge = ImageCircleEdge;
-	if (bImageCircle && bProfile && Profile->ImageCircleMm > KINDA_SMALL_NUMBER)
+	E.bImageCircle = ImageCircle.bEnabled;
+	E.ImageCircleSoftness = ImageCircle.Softness;
+	E.Edge = ImageCircle.Edge;
+	if (ImageCircle.bEnabled && bProfile && Profile->ImageCircleMm > KINDA_SMALL_NUMBER)
 	{
 		E.ImageCircleRadiusNorm = Profile->ImageCircleMm / SW;
 	}
@@ -422,4 +435,21 @@ FDynamicLensEval UDynamicLensPreset::Evaluate(float FocalMm, float FocusCm, floa
 		E.BladeRotationDeg = Bokeh.BladeRotationDeg;
 	}
 	return E;
+}
+
+FDynamicLensSettings UDynamicLensPreset::GetSettings() const
+{
+	FDynamicLensSettings S;
+	S.Distortion = Distortion; S.ImageCircle = ImageCircle; S.Vignette = Vignette; S.Bokeh = Bokeh; S.Overscan = Overscan;
+	return S;
+}
+
+void UDynamicLensPreset::SetSettings(const FDynamicLensSettings& In)
+{
+	Distortion = In.Distortion; ImageCircle = In.ImageCircle; Vignette = In.Vignette; Bokeh = In.Bokeh; Overscan = In.Overscan;
+}
+
+FDynamicLensEval UDynamicLensPreset::Evaluate(float FocalMm, float FocusCm, float FStop, float SensorWmm, float SensorHmm, float AmountMultiplier, int32 CameraBlades, float CameraSqueeze) const
+{
+	return GetSettings().Evaluate(FocalMm, FocusCm, FStop, SensorWmm, SensorHmm, AmountMultiplier, CameraBlades, CameraSqueeze);
 }
