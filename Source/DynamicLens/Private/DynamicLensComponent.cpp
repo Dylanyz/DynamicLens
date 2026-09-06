@@ -16,6 +16,8 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
+#include "DynamicLensLibrary.h"
+#include "AssetRegistry/AssetData.h"
 #include "Models/SphericalLensModel.h"
 #include "SphericalLensDistortionModelHandler.h"
 
@@ -211,6 +213,14 @@ void UDynamicLensComponent::MatchCameraToProfile()
 	{
 		Cam->SetCurrentFocalLength(Locked);
 	}
+	else
+	{
+		float MinMm, MaxMm; P->GetFocalRange(MinMm, MaxMm);
+		if (MaxMm > MinMm && (Cam->CurrentFocalLength < MinMm || Cam->CurrentFocalLength > MaxMm))
+		{
+			Cam->SetCurrentFocalLength(FMath::Clamp(Cam->CurrentFocalLength, MinMm, MaxMm));   // a zoom: stay inside what was measured
+		}
+	}
 	Cam->CropSettings.AspectRatio = 0.f;
 	ClearEffect();
 	TransientLensFile = nullptr;
@@ -275,6 +285,24 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	float CircleRadius = Eval.ImageCircleRadiusNorm;   // 0 = no circle
 
 	auto MinCircle = [&](float R) { if (R > 0.f) CircleRadius = (CircleRadius > 0.f) ? FMath::Min(CircleRadius, R) : R; };
+	// Dynamic overscan: round up to a step and only shrink by whole steps, so breathing doesn't resize the render every frame
+	auto DynamicApplied = [&](float NeededIn)
+	{
+		const float MaxO = FMath::Max(Resolved.Overscan.MaxOverscan, 1.f);
+		float V = FMath::Clamp(NeededIn, 1.f, MaxO);
+		const float Step = Resolved.Overscan.DynamicStep;
+		if (Step > 1e-4f)
+		{
+			V = 1.f + FMath::CeilToFloat((V - 1.f) / Step - 1e-4f) * Step;
+			if (LastDynamicOverscan > 0.f && V < LastDynamicOverscan && NeededIn > LastDynamicOverscan - Step)
+			{
+				V = LastDynamicOverscan;   // hysteresis: hold until the need drops a full step
+			}
+			V = FMath::Min(V, MaxO);
+		}
+		LastDynamicOverscan = V;
+		return V;
+	};
 
 	if (Type == EDynamicLensProfileType::Projection && Profile)
 	{
@@ -291,7 +319,7 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 		float Circle = 0.f;
 		if (DriveSTMap(Cam, Eval, Focal, Focus, W, H, Needed, State, Circle))
 		{
-			Applied = (Resolved.Overscan.Mode == EDynamicLensOverscanMode::Fixed) ? Resolved.Overscan.FixedOverscan : FMath::Min(Needed, Resolved.Overscan.MaxOverscan);
+			Applied = (Resolved.Overscan.Mode == EDynamicLensOverscanMode::Fixed) ? Resolved.Overscan.FixedOverscan : DynamicApplied(Needed);
 			if (Needed > Applied + 1e-3f)
 			{
 				MinCircle(Applied / Needed);   // approximation: the map's border needs Needed, the centre needs 1
@@ -305,7 +333,7 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	else
 	{
 		DriveParametric(Cam, Eval, Focal, W, H, Needed, State);
-		Applied = (Resolved.Overscan.Mode == EDynamicLensOverscanMode::Fixed) ? Resolved.Overscan.FixedOverscan : FMath::Min(Needed, Resolved.Overscan.MaxOverscan);
+		Applied = (Resolved.Overscan.Mode == EDynamicLensOverscanMode::Fixed) ? Resolved.Overscan.FixedOverscan : DynamicApplied(Needed);
 		if (Needed > Applied + 1e-3f)
 		{
 			MinCircle(DynamicLensMath::ValidCircleRadius(Eval.Params, Focal / W, Focal / H, Applied));
@@ -385,6 +413,28 @@ bool UDynamicLensComponent::DriveSTMap(UCineCameraComponent* Cam, const FDynamic
 			Notes += TEXT("Sensor larger than the profile's: scaled instead of cropped. ");
 		}
 	}
+	// the map only covers its own frame: extend it (extrapolated displacement) so the overscan area has data,
+	// then present it to the lens file as a map for a larger sensor that the camera crops the centre of
+	UTexture* MapToUse = Entry.Map;
+	float Scale = 1.f;
+	if (Entry.NeededOverscan > 1.005f)
+	{
+		Scale = FMath::Clamp(Entry.NeededOverscan * 1.1f, 1.2f, 2.f);
+		if (TObjectPtr<UTexture2D>* Found = ExtendedMaps.Find(Entry.Map))
+		{
+			MapToUse = *Found;
+		}
+		else if (UTexture2D* Ext = UDynamicLensLibrary::BuildExtendedSTMap(Cast<UTexture2D>(Entry.Map), Entry.MapFormat.PixelOrigin == ECalibratedMapPixelOrigin::BottomLeft, Scale, 1024))
+		{
+			ExtendedMaps.Add(Entry.Map, Ext);
+			MapToUse = Ext;
+		}
+		else
+		{
+			Scale = 1.f;   // no source data (cooked build): use the map as is
+		}
+	}
+	LensSensor *= Scale;
 	const FVector2D FxFy(Entry.FocalMm / LensSensor.X, Entry.FocalMm / LensSensor.Y);
 
 	if (!TransientLensFile || LensFileSTMapIndex != Index || !LensFileSensor.Equals(LensSensor, 1e-3) || !LensFileFxFy.Equals(FxFy, 1e-4))
@@ -395,7 +445,7 @@ bool UDynamicLensComponent::DriveSTMap(UCineCameraComponent* Cam, const FDynamic
 		TransientLensFile->LensInfo.SqueezeFactor = 1.f;
 		TransientLensFile->DataMode = ELensDataMode::STMap;
 		FSTMapInfo Info;
-		Info.DistortionMap = Entry.Map;
+		Info.DistortionMap = MapToUse;
 		Info.MapFormat = Entry.MapFormat;
 		TransientLensFile->AddSTMapPoint(0.f, 0.f, Info);
 		FFocalLengthInfo FL; FL.FxFy = FxFy;
@@ -411,6 +461,10 @@ bool UDynamicLensComponent::DriveSTMap(UCineCameraComponent* Cam, const FDynamic
 	OutState = Handler->GetCurrentDistortionState();
 	OutNeededOverscan = FMath::Clamp(FMath::Max(Handler->GetOverscanFactor(), Entry.NeededOverscan), 1.f, 4.f);
 	OutCircleRadius = 0.f;
+	if (Scale > 1.f && OutNeededOverscan > Scale + 1e-3f)
+	{
+		OutCircleRadius = Scale / OutNeededOverscan;   // beyond the extrapolated data: black, not smeared
+	}
 	if (FMath::Abs(Entry.FocalMm - Focal) > 0.5f)
 	{
 		Notes += FString::Printf(TEXT("Nearest ST map is %.0f mm (camera at %.1f mm). "), Entry.FocalMm, Focal);
@@ -792,10 +846,47 @@ void UDynamicLensComponent::ClearEffect()
 	AppliedCamera = nullptr;
 	LastCircleRadius = -1.f;
 	bHasLastEval = false;
+	LastDynamicOverscan = 0.f;
 	LastOverscanFactor = 1.f;
 	LastVignette = 0.f;
 	ImageCircleRadius = 0.f;
 }
+
+// ------------------------------------------------------------------------------------------------ preset stepping
+
+void UDynamicLensComponent::StepPreset(int32 Direction)
+{
+	FAssetRegistryModule& ARM = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	TArray<FAssetData> Assets;
+	FARFilter Filter;
+	Filter.ClassPaths.Add(UDynamicLensPreset::StaticClass()->GetClassPathName());
+	Filter.bRecursiveClasses = true;
+	ARM.Get().GetAssets(Filter, Assets);
+	if (Assets.Num() == 0) return;
+	Assets.Sort([](const FAssetData& A, const FAssetData& B) { return A.PackageName.LexicalLess(B.PackageName); });
+	int32 Cur = -1;
+	if (Preset)
+	{
+		const FName CurPkg = Preset->GetOutermost()->GetFName();
+		for (int32 I = 0; I < Assets.Num(); ++I) { if (Assets[I].PackageName == CurPkg) { Cur = I; break; } }
+	}
+	const int32 Next = (Cur < 0) ? (Direction > 0 ? 0 : Assets.Num() - 1) : (Cur + Direction + Assets.Num()) % Assets.Num();
+	UDynamicLensPreset* NewPreset = Cast<UDynamicLensPreset>(Assets[Next].GetAsset());
+	if (!NewPreset || NewPreset == Preset) return;
+#if WITH_EDITOR
+	Modify();
+#endif
+	Preset = NewPreset;
+	ClearEffect();
+	TransientLensFile = nullptr;
+	LensFileSTMapIndex = -1;
+	if (bMatchCameraOnPresetChange) MatchCameraToProfile();
+	UpdateProfileInfo();
+	if (UCineCameraComponent* Cam = GetTargetCamera(); Cam && bEnabled) Apply(Cam);
+}
+
+void UDynamicLensComponent::PreviousPreset() { StepPreset(-1); }
+void UDynamicLensComponent::NextPreset() { StepPreset(+1); }
 
 // ------------------------------------------------------------------------------------------------ settings / presets
 

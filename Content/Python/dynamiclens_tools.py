@@ -114,7 +114,7 @@ def import_presets(preset_file=None, save=True, only=None):
         asset.set_editor_property("description", p.get("label", name))
         wb = p.get("wide_boost")
         dd = {"profile": prof, "amount": float(p.get("amount", 1.0)), "breathing": float(p.get("breathing", 1.0)),
-              "out_of_range": getattr(unreal.DynamicLensRangeMode, p.get("out_of_range", "Clamp").upper()),
+              "out_of_range": getattr(unreal.DynamicLensRangeMode, {"Clamp": "CLAMP", "Extrapolate": "EXTRAPOLATE", "ClampRaw": "CLAMP_RAW"}[p.get("out_of_range", "Clamp")]),
               "lock_focal_length": bool(p.get("lock_focal", False))}
         _set_struct(asset, "distortion", dd)
         d_s = asset.get_editor_property("distortion")
@@ -151,6 +151,7 @@ def import_presets(preset_file=None, save=True, only=None):
         if "max" in o: oo["max_overscan"] = float(o["max"])
         if "fixed" in o: oo["fixed_overscan"] = float(o["fixed"])
         if "scale_resolution" in o: oo["scale_resolution_with_overscan"] = bool(o["scale_resolution"])
+        if "step" in o: oo["dynamic_step"] = float(o["step"])
         _set_struct(asset, "overscan", oo)
         v = p.get("vignette")
         vv = {"enabled": v is not None}

@@ -708,6 +708,26 @@
     "petzval_falloff": 1.0,
     "swirl_fades_by_fstop": 5.6
    }
+  },
+  "C_Vintage_Raw": {
+   "label": "Vintage with the raw-clamp behaviour of v0.6: below 12 mm the 12 mm coefficients are applied unscaled, which is far stronger than any real lens (the look Dylan liked at 6 mm). Physically wrong; kept on purpose.",
+   "profile": "AD_ARRI_Master",
+   "amount": 1.3,
+   "breathing": 1.3,
+   "out_of_range": "ClampRaw",
+   "image_circle": true,
+   "vignette": {
+    "mode": "Physical",
+    "natural_falloff": 0.8,
+    "mechanical_strength": 1.5
+   },
+   "bokeh": {
+    "mode": "Physical",
+    "cats_eye_strength": 1.6,
+    "petzval": 1.2,
+    "petzval_falloff": 1.5,
+    "swirl_fades_by_fstop": 4.0
+   }
   }
  },
  "notes": {

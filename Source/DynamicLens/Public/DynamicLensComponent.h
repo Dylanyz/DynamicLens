@@ -175,6 +175,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Dynamic Lens")
 	UCineCameraComponent* GetTargetCamera() const;
 
+	/** Switch to the previous preset asset (alphabetical, all Dynamic Lens Preset assets in the project and plugin). */
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Dynamic Lens")
+	void PreviousPreset();
+
+	/** Switch to the next preset asset (alphabetical, all Dynamic Lens Preset assets in the project and plugin). */
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Dynamic Lens")
+	void NextPreset();
+
 	/** Set the camera's filmback, squeeze and crop to the preset profile's native format (the sensor the lens data was made for). */
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Dynamic Lens")
 	void MatchCameraToProfile();
@@ -211,6 +219,7 @@ public:
 #endif
 
 private:
+	void StepPreset(int32 Direction);
 	bool HasLens() const { return Preset != nullptr || bOverrideDistortion; }
 	void Apply(UCineCameraComponent* Cam);
 	void EnsureHandler();
@@ -229,10 +238,14 @@ private:
 
 	/** Settings resolved by the last Apply (preset + overrides). */
 	UPROPERTY(Transient) FDynamicLensSettings Resolved;
+	float LastDynamicOverscan = 0.f;
 	UPROPERTY(Transient) TWeakObjectPtr<const UDynamicLensProfile> InfoProfile;
 	UPROPERTY(Transient) TObjectPtr<ULensDistortionModelHandlerBase> Handler;
 	UPROPERTY(Transient) TObjectPtr<ULensFile> TransientLensFile;
 	UPROPERTY(Transient) TObjectPtr<UTexture2D> ProjectionMap;
+	/** ST maps extrapolated beyond their frame so overscan has data (built on demand, editor only). Key = source map. */
+	UPROPERTY(Transient) TMap<TObjectPtr<UTexture>, TObjectPtr<UTexture2D>> ExtendedMaps;
+	float ExtendedMapScale = 1.f;
 	UPROPERTY(Transient) TObjectPtr<UTexture2D> IrisTexture;
 	UPROPERTY(Transient) TWeakObjectPtr<UActorComponent> AccumulationDOF;
 	int32 IrisTexKey = -1;

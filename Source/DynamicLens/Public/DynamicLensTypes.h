@@ -232,10 +232,12 @@ public:
 UENUM(BlueprintType)
 enum class EDynamicLensRangeMode : uint8
 {
-	/** Hold the distortion shape of the nearest measured lens (12 mm keeps its 12 mm coefficients at 8 mm). Safe, no surprises. */
-	Clamp UMETA(DisplayName = "Clamp to measured range"),
-	/** Let the coefficients extrapolate beyond the measured range. Wilder wide end; coefficients are still limited so the image never folds over. */
-	Extrapolate UMETA(DisplayName = "Extrapolate"),
+	/** Hold the coefficients of the nearest measured focal length and rescale them to the camera's focal length, so the picture shows that lens's distortion pattern (in millimetres on the sensor) - sane and smooth outside the range. */
+	Clamp UMETA(DisplayName = "Clamp (rescaled)"),
+	/** Extrapolate the trend of the two nearest measured focal lengths (can run away far outside the range). */
+	Extrapolate,
+	/** Hold the nearest focal length's coefficients as they are and apply them at the camera's field of view. Physically wrong outside the range but wildly stronger at wide focal lengths - kept for looks built on it (DL_C_Vintage_Raw). */
+	ClampRaw UMETA(DisplayName = "Clamp (raw coefficients)"),
 };
 
 /** Extra barrel distortion blended in below a focal length, for a deliberate fisheye feel at the wide end. */
@@ -643,6 +645,10 @@ struct DYNAMICLENS_API FDynamicLensOverscan
 	/** Dynamic: never overscan more than this factor (1.5 = 50% wider render). Beyond it the corners go black instead of costing render time. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overscan", meta = (EditCondition = "Mode == EDynamicLensOverscanMode::Dynamic", ClampMin = "1.0", ClampMax = "2.0"))
 	float MaxOverscan = 1.5f;
+
+	/** Dynamic: round the needed overscan up to this step (0.02 = 2%) and only shrink when it drops a full step, so focus breathing and small zooms don't resize the render every frame (each resize resets temporal anti-aliasing and pops). 0 = exact every frame. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overscan", meta = (EditCondition = "Mode == EDynamicLensOverscanMode::Dynamic", ClampMin = "0.0", ClampMax = "0.25", UIMin = "0.0", UIMax = "0.1"))
+	float DynamicStep = 0.02f;
 
 	/** Fixed: the constant overscan factor (1.2 = 20% wider render; fisheyes want 2.0). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overscan", meta = (EditCondition = "Mode == EDynamicLensOverscanMode::Fixed", ClampMin = "1.0", ClampMax = "2.0"))

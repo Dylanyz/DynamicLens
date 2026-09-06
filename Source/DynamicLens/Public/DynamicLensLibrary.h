@@ -49,6 +49,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Lens")
 	static bool ReadSTMapSamples(UTexture2D* Map, int32 Cols, int32 Rows, TArray<float>& OutUV);
 
+	/**
+	 * Build a transient copy of an ST map that covers Extend x the map's frame (1.4 = 40% wider), extrapolating the
+	 * displacement field linearly beyond the border so an overscanned render has data instead of a smeared edge.
+	 * Editor only (reads the texture source); returns null elsewhere. Same channel semantics and pixel origin as the input.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Lens|Import")
+	static UTexture2D* BuildExtendedSTMap(UTexture2D* Map, bool bBottomLeftOrigin, float Extend, int32 OutWidth = 1024);
+
 	/** Recompute the read-only coverage string of a profile. */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Lens")
 	static void RefreshProfile(UDynamicLensProfile* Profile);

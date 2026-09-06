@@ -4,6 +4,7 @@
 #include "DynamicLensComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/Texture2D.h"
+#include "TextureResource.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "LensFile.h"
@@ -189,4 +190,103 @@ bool UDynamicLensLibrary::ReadSTMapSamples(UTexture2D* Map, int32 Cols, int32 Ro
 void UDynamicLensLibrary::RefreshProfile(UDynamicLensProfile* Profile)
 {
 	if (Profile) Profile->RefreshCoverage();
+}
+
+
+UTexture2D* UDynamicLensLibrary::BuildExtendedSTMap(UTexture2D* Map, bool bBottomLeftOrigin, float Extend, int32 OutWidth)
+{
+#if WITH_EDITORONLY_DATA
+	if (!Map || !Map->Source.IsValid() || Extend <= 1.001f) return nullptr;
+	const int32 SW = Map->Source.GetSizeX(), SH = Map->Source.GetSizeY();
+	if (SW < 8 || SH < 8) return nullptr;
+	const ETextureSourceFormat Fmt = Map->Source.GetFormat();
+	const uint8* Data = Map->Source.LockMipReadOnly(0);
+	if (!Data) return nullptr;
+	const int32 Bpp = Map->Source.GetBytesPerPixel();
+
+	// pull the source into a float grid at up to 1440 wide (the fields are smooth; this is plenty)
+	const int32 Skip = FMath::Max(1, SW / 1440);
+	const int32 GW = SW / Skip, GH = SH / Skip;
+	TArray<FVector2f> Grid; Grid.SetNumUninitialized(GW * GH);
+	for (int32 J = 0; J < GH; ++J)
+	{
+		for (int32 I = 0; I < GW; ++I)
+		{
+			const uint8* Px = Data + ((J * Skip) * SW + I * Skip) * Bpp;
+			float R = 0.f, G = 0.f;
+			switch (Fmt)
+			{
+			case TSF_RGBA32F: R = reinterpret_cast<const float*>(Px)[0]; G = reinterpret_cast<const float*>(Px)[1]; break;
+			case TSF_RGBA16F: R = reinterpret_cast<const FFloat16*>(Px)[0].GetFloat(); G = reinterpret_cast<const FFloat16*>(Px)[1].GetFloat(); break;
+			case TSF_BGRA8: R = Px[2] / 255.f; G = Px[1] / 255.f; break;
+			default: break;
+			}
+			Grid[J * GW + I] = FVector2f(R, G);
+		}
+	}
+	Map->Source.UnlockMip(0);
+
+	// sample the grid at a UV in the map's own convention (v up if bottom-left origin)
+	auto Sample = [&](float U, float V) -> FVector2f
+	{
+		const float Row = bBottomLeftOrigin ? (1.f - V) : V;
+		const float X = FMath::Clamp(U * GW - 0.5f, 0.f, GW - 1.f), Y = FMath::Clamp(Row * GH - 0.5f, 0.f, GH - 1.f);
+		const int32 X0 = FMath::FloorToInt(X), Y0 = FMath::FloorToInt(Y);
+		const int32 X1 = FMath::Min(X0 + 1, GW - 1), Y1 = FMath::Min(Y0 + 1, GH - 1);
+		const float Tx = X - X0, Ty = Y - Y0;
+		const FVector2f A = FMath::Lerp(Grid[Y0 * GW + X0], Grid[Y0 * GW + X1], Tx);
+		const FVector2f B = FMath::Lerp(Grid[Y1 * GW + X0], Grid[Y1 * GW + X1], Tx);
+		return FMath::Lerp(A, B, Ty);
+	};
+	// displacement D(p) = F(p) - p, extrapolated linearly outside [0,1]^2 from the border's value and gradient
+	auto Displacement = [&](FVector2f P) -> FVector2f
+	{
+		const FVector2f Pb(FMath::Clamp(P.X, 0.f, 1.f), FMath::Clamp(P.Y, 0.f, 1.f));
+		FVector2f D = Sample(Pb.X, Pb.Y) - Pb;
+		const float Dx = 4.f / GW, Dy = 4.f / GH;
+		if (P.X != Pb.X)
+		{
+			const float Inner = (P.X > 1.f) ? Pb.X - Dx : Pb.X + Dx;
+			const FVector2f Din = Sample(Inner, Pb.Y) - FVector2f(Inner, Pb.Y);
+			D += (D - Din) / (Pb.X - Inner) * (P.X - Pb.X);
+		}
+		if (P.Y != Pb.Y)
+		{
+			const float Inner = (P.Y > 1.f) ? Pb.Y - Dy : Pb.Y + Dy;
+			const FVector2f Din = Sample(Pb.X, Inner) - FVector2f(Pb.X, Inner);
+			D += (D - Din) / (Pb.Y - Inner) * (P.Y - Pb.Y);
+		}
+		return D;
+	};
+
+	const int32 OW = FMath::Clamp(OutWidth, 64, 4096);
+	const int32 OH = FMath::Max(8, FMath::RoundToInt(OW * (float)SH / SW));
+	UTexture2D* Out = UTexture2D::CreateTransient(OW, OH, PF_G32R32F);
+	Out->SRGB = false;
+	Out->Filter = TF_Bilinear;
+	Out->AddressX = TA_Clamp;
+	Out->AddressY = TA_Clamp;
+	Out->NeverStream = true;
+	FTexture2DMipMap& Mip = Out->GetPlatformData()->Mips[0];
+	float* Dst = static_cast<float*>(Mip.BulkData.Lock(LOCK_READ_WRITE));
+	for (int32 J = 0; J < OH; ++J)
+	{
+		const float RowV = (J + 0.5f) / OH;
+		const float Ve = bBottomLeftOrigin ? (1.f - RowV) : RowV;      // position of this texel in the extended frame
+		for (int32 I = 0; I < OW; ++I)
+		{
+			const float Ue = (I + 0.5f) / OW;
+			const FVector2f P(0.5f + (Ue - 0.5f) * Extend, 0.5f + (Ve - 0.5f) * Extend);   // in the original frame
+			const FVector2f F = P + Displacement(P);
+			const FVector2f Fe(0.5f + (F.X - 0.5f) / Extend, 0.5f + (F.Y - 0.5f) / Extend);  // back to the extended frame
+			float* Px = Dst + 2 * (J * OW + I);
+			Px[0] = Fe.X; Px[1] = Fe.Y;
+		}
+	}
+	Mip.BulkData.Unlock();
+	Out->UpdateResource();
+	return Out;
+#else
+	return nullptr;
+#endif
 }

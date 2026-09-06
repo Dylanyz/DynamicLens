@@ -328,12 +328,21 @@ FDynamicLensEval FDynamicLensSettings::Evaluate(float FocalMm, float FocusCm, fl
 	if (bParametric)
 	{
 		float MinMm, MaxMm; Profile->GetFocalRange(MinMm, MaxMm);
-		const float EvalFocal = (Distortion.OutOfRange == EDynamicLensRangeMode::Clamp) ? FMath::Clamp(Focal, MinMm, MaxMm) : Focal;
+		const float EvalFocal = (Distortion.OutOfRange != EDynamicLensRangeMode::Extrapolate) ? FMath::Clamp(Focal, MinMm, MaxMm) : Focal;
 		auto AtFocal = [&](float F)
 		{
 			return FDynamicLensParams::Lerp(Profile->Evaluate(F, 1e6f), Profile->Evaluate(F, Focus), Distortion.Breathing);
 		};
 		E.Params = AtFocal(EvalFocal);
+		if (Distortion.OutOfRange == EDynamicLensRangeMode::Clamp && !FMath::IsNearlyEqual(EvalFocal, Focal, 1e-3f))
+		{
+			// coefficients live in focal-length-normalised coordinates (r = r_mm / f): keep the clamped lens's pattern in
+			// millimetres by rescaling them to this focal length. r_c = r * (f / f_c) -> K1 * s^2, K2 * s^4, K3 * s^6, P * s
+			const float S = Focal / FMath::Max(EvalFocal, 0.01f);
+			const float S2 = S * S;
+			E.Params.K1 *= S2; E.Params.K2 *= S2 * S2; E.Params.K3 *= S2 * S2 * S2;
+			E.Params.P1 *= S; E.Params.P2 *= S;
+		}
 		if (Distortion.OutOfRange == EDynamicLensRangeMode::Extrapolate && Profile->Rows.Num() >= 2 && (Focal < MinMm || Focal > MaxMm))
 		{
 			const int32 N = Profile->Rows.Num();
