@@ -76,8 +76,21 @@ FDynamicLensParams DynamicLensMath::MakeMonotonic(const FDynamicLensParams& P, f
 float DynamicLensMath::RadialInverse(float Rd, const FDynamicLensParams& P, float MaxRadius)
 {
 	if (Rd <= 0.f) return 0.f;
+	// the polynomial is only monotonic up to some radius (beyond it barrel distortion folds back): search the rising
+	// part only, otherwise a folded value at MaxRadius reads as "unreachable" and the overscan is reported as infinite
 	float Lo = 0.f, Hi = MaxRadius;
-	if (RadialForward(Hi, P) < Rd) return Hi;   // out of the monotonic range: cap
+	{
+		const int32 Steps = 64;
+		float Prev = 0.f;
+		for (int32 I = 1; I <= Steps; ++I)
+		{
+			const float R = MaxRadius * I / Steps;
+			const float F = RadialForward(R, P);
+			if (F < Prev) { Hi = MaxRadius * (I - 1) / Steps; break; }
+			Prev = F;
+		}
+	}
+	if (RadialForward(Hi, P) < Rd) return Hi;   // genuinely beyond what the lens maps: cap
 	for (int32 I = 0; I < 40; ++I)
 	{
 		const float Mid = 0.5f * (Lo + Hi);

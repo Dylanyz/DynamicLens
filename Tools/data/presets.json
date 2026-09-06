@@ -259,11 +259,11 @@
    }
   },
   "C_Vintage": {
-   "label": "Master profile with a mild Petzval swirl, stronger cat's eye and vignette.",
+   "label": "Master profile with a mild Petzval swirl, stronger cat's eye and vignette. Below 12 mm the 12 mm coefficients are applied unscaled (raw clamp), so the barrel keeps growing as you zoom out and the edge mask sweeps in - the look Dylan liked; physically the wide end is a guess.",
    "profile": "AD_ARRI_Master",
    "amount": 1.3,
    "breathing": 1.3,
-   "out_of_range": "Clamp",
+   "out_of_range": "ClampRaw",
    "image_circle": true,
    "vignette": {
     "mode": "Physical",
@@ -710,7 +710,7 @@
    }
   },
   "C_Vintage_Raw": {
-   "label": "Vintage with the raw-clamp behaviour of v0.6: below 12 mm the 12 mm coefficients are applied unscaled, which is far stronger than any real lens (the look Dylan liked at 6 mm). Physically wrong; kept on purpose.",
+   "label": "Identical to DL_C_Vintage (kept from when Vintage used the rescaled clamp).",
    "profile": "AD_ARRI_Master",
    "amount": 1.3,
    "breathing": 1.3,
