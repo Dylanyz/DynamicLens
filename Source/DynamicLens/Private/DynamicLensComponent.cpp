@@ -1053,7 +1053,9 @@ void UDynamicLensComponent::UpdateProfileInfo()
 		return;
 	}
 	const float Squeeze = FMath::Max(P->Squeeze, 1.f);
-	const float Locked = P->GetLockedFocal(LastFocalMm > 0.f ? LastFocalMm : 35.f);
+	const UCineCameraComponent* InfoCam = GetTargetCamera();
+	const float CamFocal = InfoCam ? InfoCam->CurrentFocalLength : (LastFocalMm > 0.f ? LastFocalMm : 35.f);
+	const float Locked = P->GetLockedFocal(CamFocal);
 	FString Info = FString::Printf(TEXT("%s\n%s\nMatch Camera To Profile sets: filmback %.2f x %.2f mm (%.2f:1), squeeze %.2gx, crop off%s."),
 		*P->Label, *P->Coverage,
 		P->NativeSensorMm.X / Squeeze, P->NativeSensorMm.Y, (P->NativeSensorMm.X / FMath::Max(P->NativeSensorMm.Y, 0.01f)), Squeeze,
@@ -1062,7 +1064,7 @@ void UDynamicLensComponent::UpdateProfileInfo()
 	const TArray<float> Focals = MeasuredFocals();
 	if (Focals.Num() > 1)
 	{
-		const float Cur = (LastFocalMm > 0.f) ? LastFocalMm : 0.f;
+		const float Cur = CamFocal;
 		FString List;
 		for (float F : Focals)
 		{

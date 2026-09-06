@@ -114,6 +114,19 @@ rolling corners), L_PoorThings_Petzval_58 / _85 (round Waterhouse iris, swirl), 
   fisheye (the porthole), Nikkor 8 mm, Zeiss Master Zoom 16.5-110, Angenieux Optimo, Petzval 58/85.
 Sources: Kodak and Cinematography World interviews with Robbie Ryan (links in the profiles' Source fields).
 
+## How the tiedtke ST maps became profiles
+`dynamiclens_tools.import_tiedtke()` walks the pack's Lens File assets under `/Game/CinematicTemplate/Lenses`. Each
+series folder (e.g. `Panavision_C_Series_2x`) becomes one ST-map profile; each Lens File in it is one prime. Per prime:
+the focal length is read from the file name (`_35mm`), the ST-map texture referenced by the Lens File is duplicated into
+the plugin (`Profiles/Tiedtke/Textures`), its channel layout and pixel origin are copied from the Lens File's map
+format, and the map's needed overscan is measured from its border. The series' squeeze comes from the folder name
+(`_2x`, `_1_8x`, `_1_5x`) and the native frame is tiedtke's 46 x 18.66 mm desqueezed 2.39 gate. At runtime the profile
+just picks the prime nearest the camera's focal length (`Lock Focal Length` snaps to it); there is no interpolation
+between primes, because the maps are measurements, not a model. Physical specs (front diameter, blades, pupil
+visibility) are placeholders for these profiles and are flagged as such. Zoom lens files (Optimo 44-440, PS Technik
+35-70) have no focal in the file name and are skipped. `Tools/fit_stmaps.py` holds the parked attempt to fit these maps
+with a polynomial model; the residuals were too large to be useful.
+
 ## ST maps and overscan
 An ST map only describes its own frame; an overscanned render asks for source pixels outside it, and Epic's processor
 clamps to the border (a smeared band at the edges). The component extrapolates each map's displacement field beyond
