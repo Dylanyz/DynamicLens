@@ -31,7 +31,8 @@ Assets land in the plugin's own content (`/DynamicLens/Profiles`, `/DynamicLens/
 ## Component (on the camera)
 * `Enabled`, `Preset` (asset dropdown), `Profile Info` (read-only: the lens, its coverage, and exactly what Match Camera
   To Profile would set, plus the measured focal lengths with the current one in brackets), `Match Camera` (auto on preset
-  change + which of filmback / squeeze / crop / focal length the match writes), `Amount Multiplier` - keyable in
+  change, which of filmback / squeeze / crop / focal length the match writes, and whether the override groups are
+  refreshed with the preset's values), `Amount Multiplier` - keyable in
   Sequencer. Buttons: `Previous Preset` / `Next Preset` (alphabetical through every preset asset), `Previous Focal` /
   `Next Focal` (step through the profile's measured focal lengths), `Match Camera To Profile`, `Copy All From Preset`,
   `Save As New Preset`.
@@ -120,7 +121,11 @@ the frame into a transient extended map (linear in the border gradient, editor o
 and presents it as a map for a larger sensor that the camera crops the centre of. Epic's blend shader crops without
 rescaling the values, so the extended map stores displacement in the camera frame's units, and the needed overscan is
 measured densely from the map's border rather than taken from Epic's 8-point estimate. Beyond the extension the image
-circle takes over.
+circle takes over. tiedtke's maps are clamped to [0,1] where the source leaves the frame (up to 7% of the width on
+some primes): those texels carry no information, so the extension finds the unclamped rectangle and extrapolates across
+the band. A camera crop always sees the centre of the map. The plugin also raises the Camera Calibration plugin's
+displacement map resolution from Epic's 256 to 2048 at startup when a project still has the default (cvar
+`DynamicLens.DisplacementMapResolution`; 256 shows as soft, stepped edges).
 
 ## Known limits
 * Fisheyes beyond ~80° off-axis can't be rendered by a rectilinear source; the image circle is black there. A 16:9
