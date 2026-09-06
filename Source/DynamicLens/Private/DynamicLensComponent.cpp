@@ -163,6 +163,10 @@ void UDynamicLensComponent::PostEditChangeProperty(FPropertyChangedEvent& Proper
 	{
 		MatchCameraToProfile();
 	}
+	else if (Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, Preset) && MatchCamera.bRefreshOverrides)
+	{
+		CopyAllFromPreset();
+	}
 	if (Member == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, Camera))
 	{
 		if (UCineCameraComponent* Cam = GetTargetCamera()) PushCameraQuick(Cam);
@@ -240,6 +244,10 @@ void UDynamicLensComponent::MatchCameraToProfile()
 	{
 		Cam->CropSettings.AspectRatio = 0.f;
 	}
+	if (MatchCamera.bRefreshOverrides)
+	{
+		CopyAllFromPreset();
+	}
 	PullCameraQuick(Cam);
 	ClearEffect();
 	TransientLensFile = nullptr;
@@ -273,6 +281,7 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	// effective sensor: anamorphic squeeze widens the desqueezed image, a crop preset trims it
 	float W = Cam->Filmback.SensorWidth * FMath::Max(Cam->LensSettings.SqueezeFactor, 0.01f);
 	float H = Cam->Filmback.SensorHeight;
+	const float WFull = FMath::Max(W, 0.01f), HFull = FMath::Max(H, 0.01f);   // the whole sensor, before any crop
 	const float CropAspect = Cam->CropSettings.AspectRatio;
 	if (CropAspect > KINDA_SMALL_NUMBER && H > KINDA_SMALL_NUMBER)
 	{
@@ -342,7 +351,7 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	else if (Type == EDynamicLensProfileType::STMap && Profile)
 	{
 		float Circle = 0.f;
-		if (DriveSTMap(Cam, Eval, Focal, Focus, W, H, Needed, State, Circle))
+		if (DriveSTMap(Cam, Eval, Focal, Focus, W, H, WFull, HFull, Needed, State, Circle))
 		{
 			Applied = (Resolved.Overscan.Mode == EDynamicLensOverscanMode::Fixed) ? Resolved.Overscan.FixedOverscan : DynamicApplied(Needed);
 			if (Needed > Applied + 1e-3f)
@@ -418,18 +427,19 @@ bool UDynamicLensComponent::DriveParametric(UCineCameraComponent* Cam, const FDy
 	return true;
 }
 
-bool UDynamicLensComponent::DriveSTMap(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float Focus, float W, float H, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRadius)
+bool UDynamicLensComponent::DriveSTMap(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float Focus, float W, float H, float WFull, float HFull, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRadius)
 {
 	const UDynamicLensProfile* Profile = Resolved.Distortion.Profile;
 	const int32 Index = Profile->FindNearestSTMap(Focal);
 	if (Index < 0) return false;
 	const FDynamicLensSTMapEntry& Entry = Profile->STMaps[Index];
 
-	// sensor fit: Crop keeps the map at the lens's physical scale (camera sensor must fit inside), Scale stretches it
-	FVector2D LensSensor = FVector2D(W, H);
+	// sensor fit: Crop keeps the map at the lens's physical scale (camera sensor must fit inside), Scale stretches it.
+	// A camera crop (Cropped Aspect Ratio) always sees the centre of the map: the map covers the whole sensor.
+	FVector2D LensSensor = FVector2D(WFull, HFull);
 	if (SensorFit == EDynamicLensSensorFit::Crop)
 	{
-		if (W <= Profile->NativeSensorMm.X + 1e-3f && H <= Profile->NativeSensorMm.Y + 1e-3f)
+		if (WFull <= Profile->NativeSensorMm.X + 1e-3f && HFull <= Profile->NativeSensorMm.Y + 1e-3f)
 		{
 			LensSensor = Profile->NativeSensorMm;
 		}
@@ -914,6 +924,7 @@ void UDynamicLensComponent::StepPreset(int32 Direction)
 	TransientLensFile = nullptr;
 	LensFileSTMapIndex = -1;
 	if (MatchCamera.bOnPresetChange) MatchCameraToProfile();
+	else if (MatchCamera.bRefreshOverrides) CopyAllFromPreset();
 	UpdateProfileInfo();
 	if (UCineCameraComponent* Cam = GetTargetCamera(); Cam && bEnabled) Apply(Cam);
 }

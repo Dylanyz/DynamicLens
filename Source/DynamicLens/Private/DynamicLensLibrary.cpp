@@ -237,6 +237,12 @@ UTexture2D* UDynamicLensLibrary::BuildExtendedSTMap(UTexture2D* Map, bool bBotto
 	while (R > GW / 2 && !ColValid(R)) --R;
 	while (T < GH / 2 && !RowValid(T)) ++T;
 	while (B > GH / 2 && !RowValid(B)) --B;
+	// the clamp has a soft ramp of a few texels: keep clear of it
+	const int32 Guard = FMath::Max(2, GW / 400);
+	if (L > 0) L = FMath::Min(L + Guard, GW / 2);
+	if (R < GW - 1) R = FMath::Max(R - Guard, GW / 2);
+	if (T > 0) T = FMath::Min(T + Guard, GH / 2);
+	if (B < GH - 1) B = FMath::Max(B - Guard, GH / 2);
 	auto RowToV = [&](int32 J) { const float Rv = (J + 0.5f) / GH; return bBottomLeftOrigin ? (1.f - Rv) : Rv; };
 	const FVector2f DomMin((L + 0.5f) / GW, FMath::Min(RowToV(T), RowToV(B)));
 	const FVector2f DomMax((R + 0.5f) / GW, FMath::Max(RowToV(T), RowToV(B)));
@@ -258,7 +264,8 @@ UTexture2D* UDynamicLensLibrary::BuildExtendedSTMap(UTexture2D* Map, bool bBotto
 	{
 		const FVector2f Pb(FMath::Clamp(P.X, DomMin.X, DomMax.X), FMath::Clamp(P.Y, DomMin.Y, DomMax.Y));
 		FVector2f D = Sample(Pb.X, Pb.Y) - Pb;
-		const float Dx = FMath::Min(4.f / GW, 0.25f * (DomMax.X - DomMin.X)), Dy = FMath::Min(4.f / GH, 0.25f * (DomMax.Y - DomMin.Y));
+		// gradient over a 1.5% baseline: a few-texel baseline picks up sampling noise and the clamp ramp
+		const float Dx = FMath::Min(FMath::Max(4.f / GW, 0.015f), 0.25f * (DomMax.X - DomMin.X)), Dy = FMath::Min(FMath::Max(4.f / GH, 0.015f), 0.25f * (DomMax.Y - DomMin.Y));
 		if (P.X != Pb.X)
 		{
 			const float Inner = (P.X > Pb.X) ? Pb.X - Dx : Pb.X + Dx;

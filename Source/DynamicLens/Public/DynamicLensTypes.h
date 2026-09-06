@@ -374,6 +374,10 @@ struct DYNAMICLENS_API FDynamicLensMatchOptions
 	/** Set the focal length to the profile's prime (or bring a zoom into its measured range). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Match")
 	bool bFocalLength = true;
+
+	/** Also refresh the component's Override blocks with the preset's values (they stay off unless ticked), so they always show the current lens. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Match")
+	bool bRefreshOverrides = true;
 };
 
 /** The camera settings you touch most, mirrored here so they sit next to the lens. Editing writes to the Cine Camera component; the camera stays the source of truth. */

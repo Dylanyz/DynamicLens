@@ -67,7 +67,7 @@ public:
 	FDynamicLensMatchOptions MatchCamera;
 
 	/** The camera settings you touch most (focal length, aperture, focus, crop, filmback, squeeze), mirrored from the Cine Camera component. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Camera", meta = (DisplayName = "Camera", ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens", meta = (DisplayName = "Camera"))
 	FDynamicLensCameraQuick Camera;
 
 	/** Scales the preset's distortion amount for this camera only. 1 = as the preset. Keyable in Sequencer. */
@@ -245,7 +245,7 @@ private:
 	void Apply(UCineCameraComponent* Cam);
 	void EnsureHandler();
 	bool DriveParametric(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float W, float H, float& OutNeededOverscan, FLensDistortionState& OutState);
-	bool DriveSTMap(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float Focus, float W, float H, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRadius);
+	bool DriveSTMap(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float Focus, float W, float H, float WFull, float HFull, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRadius);
 	bool DriveProjection(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float W, float H, float AppliedOverscan, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRadius);
 	void ApplyRendering(UCineCameraComponent* Cam, const FLensDistortionState& State, float AppliedOverscan);
 	void ApplyLook(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float CircleRadiusNorm, float Aspect);
