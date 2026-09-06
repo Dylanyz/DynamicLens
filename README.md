@@ -110,3 +110,9 @@ Tools/data/raw               dump of Andy Davis's 31 Lens Files
 Tools/data/profiles          fitted grids (Tools/build_profiles.py)
 Tools/data/presets.json      profile specs, fisheye profiles, presets (with sources)
 ```
+
+## Credits
+* **tiedtke** - the ST-map profiles under `Content/Profiles/Tiedtke` (and their textures) are built from his free
+  *Real Cinema Lenses* pack: real lens grids shot on an ARRI Mini and converted to ST maps in Nuke.
+  https://tiedtke.gumroad.com/l/realcinemalenses?layout=profile
+* **Andy Davis (Imagery for Media)** - ARRI/Zeiss Master Prime and Zeiss Supreme distortion grids (VFX RnD Lens Files).
