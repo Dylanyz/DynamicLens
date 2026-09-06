@@ -75,7 +75,11 @@ Five blocks, all with tooltips and hard clamps:
   camera squeeze and compensates the filmback width so the framing does not move.
 * **Overscan**: Dynamic (what the frame needs at this focal length over the whole focus range, so a focus pull never
   resizes the render; rounded up to `Dynamic Step` (2%) with hysteresis for zooms; capped by max) or Fixed (constant for the shot - renders with zoom pulls, and
-  fisheyes, which ship with Fixed 2.0). Beyond the available overscan the frame goes black at the edges.
+  fisheyes, which ship with Fixed 2.0). Beyond the available overscan the frame goes black at the edges: the limit of
+  what the render can show is the distorted image of the overscanned source rectangle, so the mask is an ellipse fitted
+  to its extents, computed every frame at the overscan ceiling. It sits outside the corners while there are pixels and
+  sweeps inward at the picture's own rate as you zoom out, like a lens that stops covering the gate; the profile's
+  physical image circle takes over whenever it is the tighter of the two.
 
 ## Profile asset
 Type, coverage summary (read-only), native sensor + squeeze + image circle, the data, and physical specs:
