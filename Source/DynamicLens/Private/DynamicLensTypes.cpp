@@ -289,7 +289,7 @@ FDynamicLensParams UDynamicLensProfile::Evaluate(float FocalMm, float InFocusCm)
 
 // ------------------------------------------------------------------------------------------------ preset
 
-FDynamicLensEval UDynamicLensPreset::Evaluate(float FocalMm, float FocusCm, float FStop, float SensorWmm, float SensorHmm, float AmountMultiplier) const
+FDynamicLensEval UDynamicLensPreset::Evaluate(float FocalMm, float FocusCm, float FStop, float SensorWmm, float SensorHmm, float AmountMultiplier, int32 CameraBlades, float CameraSqueeze) const
 {
 	FDynamicLensEval E;
 	const float Focal = FMath::Max(FocalMm, 0.1f);
@@ -351,6 +351,7 @@ FDynamicLensEval UDynamicLensPreset::Evaluate(float FocalMm, float FocusCm, floa
 	// --- image circle (normalized: 1 = half the frame width)
 	E.bImageCircle = bImageCircle;
 	E.ImageCircleSoftness = ImageCircleSoftness;
+	E.Edge = ImageCircleEdge;
 	if (bImageCircle && bProfile && Profile->ImageCircleMm > KINDA_SMALL_NUMBER)
 	{
 		E.ImageCircleRadiusNorm = Profile->ImageCircleMm / SW;
@@ -383,16 +384,30 @@ FDynamicLensEval UDynamicLensPreset::Evaluate(float FocalMm, float FocusCm, floa
 	{
 		if (Bokeh.Mode == EDynamicLensLayerMode::Physical)
 		{
-			E.Blades = bProfile ? Profile->IrisBlades : 9;
 			E.BarrelRadiusMm = (CatsEye > KINDA_SMALL_NUMBER && BarrelLen > 0.f) ? EffRadius : 0.f;
 			E.BarrelLengthMm = (CatsEye > KINDA_SMALL_NUMBER) ? BarrelLen : 0.f;
 		}
 		else
 		{
-			E.Blades = Bokeh.Blades;
 			E.BarrelRadiusMm = Bokeh.BarrelRadiusMm;
 			E.BarrelLengthMm = Bokeh.BarrelLengthMm;
 		}
+		// iris: count, shape and squeeze each from the profile, the camera or the preset
+		switch (Bokeh.BladeSource)
+		{
+		case EDynamicLensValueSource::Camera:  E.Blades = (CameraBlades >= 4) ? CameraBlades : (bProfile ? Profile->IrisBlades : 9); break;
+		case EDynamicLensValueSource::Custom:  E.Blades = Bokeh.Blades; break;
+		default:                               E.Blades = bProfile ? Profile->IrisBlades : 9; break;
+		}
+		E.Blades = FMath::Clamp(E.Blades, 4, 16);
+		E.BladeCurvature = FMath::Clamp(Bokeh.bOverrideBladeCurvature ? Bokeh.BladeCurvature : (bProfile ? Profile->BladeCurvature : 0.f), 0.f, 1.f);
+		switch (Bokeh.SqueezeSource)
+		{
+		case EDynamicLensValueSource::Camera:  E.BokehSqueeze = CameraSqueeze; break;
+		case EDynamicLensValueSource::Custom:  E.BokehSqueeze = Bokeh.Squeeze; break;
+		default:                               E.BokehSqueeze = bProfile ? Profile->Squeeze : 1.f; break;
+		}
+		E.BokehSqueeze = FMath::Clamp(E.BokehSqueeze, 1.f, 2.f);
 		const float OpenStop = bProfile ? Profile->MaxAperture : 1.4f;
 		const float Fade = 1.f - Smooth01((Stop - OpenStop) / FMath::Max(Bokeh.SwirlFadesByFStop - OpenStop, 0.001f));
 		E.Petzval = Bokeh.Petzval * Fade;

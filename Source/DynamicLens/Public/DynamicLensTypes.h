@@ -177,6 +177,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Physical", meta = (ClampMin = "4", ClampMax = "16"))
 	int32 IrisBlades = 9;
 
+	/** Blade shape: 0 = straight blades (polygon highlights), 1 = fully rounded (circular at every stop). Data sheets say "rounded" for most modern cine primes; 0.5 is a reasonable "rounded" value. Applies to Accumulation DOF's iris texture exactly, and to Unreal's DOF by rounding up the effective blade count. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Physical", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float BladeCurvature = 0.f;
+
 	/** Widest aperture (T-stop) of the series, e.g. 1.3 for Master Primes. Used to normalise "wide open". */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Physical", meta = (ClampMin = "0.7", ClampMax = "22.0"))
 	float MaxAperture = 1.3f;
@@ -310,6 +314,91 @@ struct DYNAMICLENS_API FDynamicLensVignette
 	float StopDownFade = 0.7f;
 };
 
+/** Where a bokeh value comes from. */
+UENUM(BlueprintType)
+enum class EDynamicLensValueSource : uint8
+{
+	/** From the lens profile (data sheet). */
+	Profile,
+	/** From the Cine Camera component (Lens Settings: diaphragm blade count / squeeze factor). */
+	Camera,
+	/** The value set here in the preset. */
+	Custom
+};
+
+/**
+ * Imperfections of the black image-circle edge. Real lens edges (The Favourite's 6 mm, Poor Things' 4 mm) are not a
+ * perfect circle: the falloff is wide and uneven, the circle sits a little off-centre, and the boundary is soft and
+ * slightly ragged. Everything here is in fractions of the circle radius / frame, so it scales with focal length.
+ */
+USTRUCT(BlueprintType)
+struct DYNAMICLENS_API FDynamicLensImageCircleEdge
+{
+	GENERATED_BODY()
+
+	/** Shape of the falloff across the soft band. 1 = smooth S-curve, 2+ = stays bright longer then drops fast (mechanical vignette), <1 = darkens early. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge", meta = (ClampMin = "0.25", ClampMax = "4.0", UIMin = "0.5", UIMax = "3.0"))
+	float FalloffPower = 1.f;
+
+	/** How black the edge gets. 1 = full black beyond the circle; 0.9 leaves a faint image (light leaking round a gate). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float Opacity = 1.f;
+
+	/** Offset of the circle centre from the frame centre, as a fraction of half the frame width (x) / height (y). A real 6 mm on a 35 mm gate sits a few percent off. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Geometry", meta = (ClampMin = "-0.3", ClampMax = "0.3", UIMin = "-0.1", UIMax = "0.1"))
+	FVector2D CenterOffset = FVector2D::ZeroVector;
+
+	/** Vertical / horizontal radius ratio. 1 = round; 0.95 = slightly squashed (lens or gate not perfectly square to the sensor). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Geometry", meta = (ClampMin = "0.5", ClampMax = "2.0", UIMin = "0.8", UIMax = "1.25"))
+	float Ellipticity = 1.f;
+
+	/** Low-frequency waviness of the circle radius (fraction of the radius). 0 = perfect circle; 0.02-0.05 = the edge wanders a little around the frame. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Geometry", meta = (ClampMin = "0.0", ClampMax = "0.3", UIMin = "0.0", UIMax = "0.1"))
+	float Wobble = 0.f;
+
+	/** How many bumps the waviness has around the circle. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Geometry", meta = (ClampMin = "1", ClampMax = "12"))
+	int32 WobbleLobes = 3;
+
+	/** Rotates / re-seeds the waviness so two lenses don't look identical. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Geometry", meta = (ClampMin = "0.0", ClampMax = "360.0"))
+	float WobbleSeed = 0.f;
+
+	/** Colour fringing on the rim: the blue channel's circle is this fraction of the radius larger than the red one (lateral chromatic aberration is extreme at the edge of a fisheye - the blue ring on Poor Things' 4 mm). 0.01-0.03 is what the stills show. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Optics", meta = (ClampMin = "0.0", ClampMax = "0.1", UIMin = "0.0", UIMax = "0.05"))
+	float ChromaticAberration = 0.f;
+
+	/** Light scatter in the soft band: the picture smears radially and glows a little before it goes dark, instead of just dimming. 0 = plain darkening, 1 = strong optical rolloff. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Optics", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float Scatter = 0.f;
+
+	/** Fine breakup of the soft band (grain-like raggedness of the boundary), 0-1. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Texture", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float EdgeNoise = 0.f;
+
+	/** Size of the breakup: cells across the frame width. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Texture", meta = (ClampMin = "4.0", ClampMax = "512.0", UIMin = "16.0", UIMax = "256.0"))
+	float NoiseScale = 96.f;
+
+	/** Optional full-frame mask (your own asset: a scan or paint of a real lens edge, dust, gate hairs). Multiplied over the picture in screen space; white = untouched. Linear, R channel. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Texture")
+	TSoftObjectPtr<UTexture2D> MaskTexture;
+
+	/** How strongly the mask is applied (0 = ignored). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Texture", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float MaskStrength = 1.f;
+
+	bool Equals(const FDynamicLensImageCircleEdge& O) const
+	{
+		return FMath::IsNearlyEqual(FalloffPower, O.FalloffPower) && FMath::IsNearlyEqual(Opacity, O.Opacity)
+			&& CenterOffset.Equals(O.CenterOffset, 1e-4) && FMath::IsNearlyEqual(Ellipticity, O.Ellipticity)
+			&& FMath::IsNearlyEqual(Wobble, O.Wobble) && WobbleLobes == O.WobbleLobes && FMath::IsNearlyEqual(WobbleSeed, O.WobbleSeed)
+			&& FMath::IsNearlyEqual(EdgeNoise, O.EdgeNoise) && FMath::IsNearlyEqual(NoiseScale, O.NoiseScale)
+			&& FMath::IsNearlyEqual(ChromaticAberration, O.ChromaticAberration) && FMath::IsNearlyEqual(Scatter, O.Scatter)
+			&& MaskTexture == O.MaskTexture && FMath::IsNearlyEqual(MaskStrength, O.MaskStrength);
+	}
+};
+
 /** Bokeh character through Unreal 5.8's depth-of-field controls: iris blades, cat's-eye barrel clipping, Petzval swirl. */
 USTRUCT(BlueprintType)
 struct DYNAMICLENS_API FDynamicLensBokeh
@@ -328,9 +417,29 @@ struct DYNAMICLENS_API FDynamicLensBokeh
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bokeh|Cat's Eye", meta = (EditCondition = "bEnabled && Mode == EDynamicLensLayerMode::Physical", ClampMin = "0.0", ClampMax = "4.0", UIMin = "0.0", UIMax = "2.0"))
 	float CatsEyeStrength = 1.f;
 
-	/** Manual: number of iris blades. Shapes out-of-focus highlights (9 = ARRI Master Prime, 11–16 = rounder). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bokeh|Iris", meta = (EditCondition = "bEnabled && Mode == EDynamicLensLayerMode::Manual", ClampMin = "4", ClampMax = "16"))
+	/** Where the blade count comes from: the lens profile (data sheet), the Cine Camera's Lens Settings, or the custom value below. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bokeh|Iris", meta = (EditCondition = "bEnabled"))
+	EDynamicLensValueSource BladeSource = EDynamicLensValueSource::Profile;
+
+	/** Custom number of iris blades. Shapes out-of-focus highlights (9 = ARRI Master Prime, 11-16 = rounder). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bokeh|Iris", meta = (EditCondition = "bEnabled && BladeSource == EDynamicLensValueSource::Custom", ClampMin = "4", ClampMax = "16"))
 	int32 Blades = 9;
+
+	/** Override the profile's blade shape. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bokeh|Iris", meta = (EditCondition = "bEnabled", InlineEditConditionToggle))
+	bool bOverrideBladeCurvature = false;
+
+	/** Blade shape: 0 = straight blades (polygon highlights), 1 = fully rounded (circular). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bokeh|Iris", meta = (EditCondition = "bOverrideBladeCurvature", ClampMin = "0.0", ClampMax = "1.0"))
+	float BladeCurvature = 0.f;
+
+	/** Anamorphic bokeh: where the squeeze of out-of-focus highlights comes from - the profile's squeeze (2 for a 2x anamorphic), the camera's Lens Settings squeeze, or the custom value below. Highlights become ovals this many times taller than wide. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bokeh|Iris", meta = (EditCondition = "bEnabled"))
+	EDynamicLensValueSource SqueezeSource = EDynamicLensValueSource::Profile;
+
+	/** Custom bokeh squeeze (1 = round, 2 = 2x anamorphic ovals). Unreal's DOF accepts 1-2. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bokeh|Iris", meta = (EditCondition = "bEnabled && SqueezeSource == EDynamicLensValueSource::Custom", ClampMin = "1.0", ClampMax = "2.0"))
+	float Squeeze = 1.f;
 
 	/** Manual: radius of the lens barrel in mm. Smaller than the aperture cone = bokeh clipped into cat's eyes toward the edges. 0 disables. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bokeh|Cat's Eye", meta = (EditCondition = "bEnabled && Mode == EDynamicLensLayerMode::Manual", ClampMin = "0.0", ClampMax = "200.0", UIMin = "0.0", UIMax = "80.0"))
@@ -406,6 +515,12 @@ struct DYNAMICLENS_API FDynamicLensEval
 	UPROPERTY(BlueprintReadOnly, Category = "Dynamic Lens") float SphericalAberration = 0.f;
 	UPROPERTY(BlueprintReadOnly, Category = "Dynamic Lens") float Coma = 0.f;
 	UPROPERTY(BlueprintReadOnly, Category = "Dynamic Lens") float BladeRotationDeg = 0.f;
+	/** Resolved blade shape (0 straight - 1 round). */
+	UPROPERTY(BlueprintReadOnly, Category = "Dynamic Lens") float BladeCurvature = 0.f;
+	/** Resolved bokeh squeeze (1 = round). */
+	UPROPERTY(BlueprintReadOnly, Category = "Dynamic Lens") float BokehSqueeze = 1.f;
+	/** Image-circle edge imperfections, as set in the preset. */
+	UPROPERTY(BlueprintReadOnly, Category = "Dynamic Lens") FDynamicLensImageCircleEdge Edge;
 };
 
 /**
@@ -450,6 +565,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle", meta = (EditCondition = "bImageCircle", ClampMin = "0.0", ClampMax = "1.0"))
 	float ImageCircleSoftness = 0.05f;
 
+	/** Imperfections of the black edge: falloff shape, off-centre, waviness, breakup, optional mask asset. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle", meta = (EditCondition = "bImageCircle"))
+	FDynamicLensImageCircleEdge ImageCircleEdge;
+
 	/** Vignette that follows focal length and aperture. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vignette", meta = (ShowOnlyInnerProperties))
 	FDynamicLensVignette Vignette;
@@ -461,9 +580,10 @@ public:
 	/**
 	 * Resolve the preset for a camera state.
 	 * SensorWmm/SensorHmm: effective sensor (after squeeze and crop). AmountMultiplier scales Amount (per-component control).
+	 * CameraBlades / CameraSqueeze: the Cine Camera's Lens Settings, used when a bokeh source is set to Camera.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Dynamic Lens")
-	FDynamicLensEval Evaluate(float FocalMm, float FocusCm, float FStop, float SensorWmm, float SensorHmm, float AmountMultiplier = 1.f) const;
+	FDynamicLensEval Evaluate(float FocalMm, float FocusCm, float FStop, float SensorWmm, float SensorHmm, float AmountMultiplier = 1.f, int32 CameraBlades = 0, float CameraSqueeze = 1.f) const;
 };
 
 namespace DynamicLensMath

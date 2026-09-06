@@ -61,7 +61,7 @@ def import_profiles(profile_dir=None, save=True):
 
 def _apply_specs(asset, specs):
     """physical / native-format fields shared by every profile type (see presets.json profile_specs)."""
-    for k, conv in [("front_diameter_mm", float), ("iris_blades", int), ("max_aperture", float), ("pupil_visible_at_image_circle", float),
+    for k, conv in [("front_diameter_mm", float), ("iris_blades", int), ("blade_curvature", float), ("max_aperture", float), ("pupil_visible_at_image_circle", float),
                     ("image_circle_mm", float), ("squeeze", float)]:
         if k in specs:
             asset.set_editor_property(k, conv(specs[k]))
@@ -116,6 +116,18 @@ def import_presets(preset_file=None, save=True):
         asset.set_editor_property("out_of_range", getattr(unreal.DynamicLensRangeMode, p.get("out_of_range", "Clamp").upper()))
         asset.set_editor_property("image_circle", bool(p.get("image_circle", True)))
         asset.set_editor_property("image_circle_softness", float(p.get("image_circle_softness", 0.05)))
+        e = p.get("image_circle_edge") or {}
+        ee = {}
+        for src, dst in [("falloff_power", "falloff_power"), ("opacity", "opacity"), ("ellipticity", "ellipticity"), ("wobble", "wobble"),
+                         ("wobble_seed", "wobble_seed"), ("edge_noise", "edge_noise"), ("noise_scale", "noise_scale"),
+                         ("chromatic_aberration", "chromatic_aberration"), ("scatter", "scatter"), ("mask_strength", "mask_strength")]:
+            if src in e:
+                ee[dst] = float(e[src])
+        if "wobble_lobes" in e:
+            ee["wobble_lobes"] = int(e["wobble_lobes"])
+        if "center_offset" in e:
+            ee["center_offset"] = unreal.Vector2D(*e["center_offset"])
+        _set_struct(asset, "image_circle_edge", ee)
         wb = p.get("wide_boost")
         _set_struct(asset, "wide_boost", {"enabled": wb is not None, **({"below_mm": float(wb["below_mm"]), "full_mm": float(wb["full_mm"]), "k1": float(wb.get("k1", 0)), "k2": float(wb.get("k2", 0))} if wb else {})})
         v = p.get("vignette")
@@ -137,6 +149,16 @@ def import_presets(preset_file=None, save=True):
                     bb[dst] = conv(b[src])
             if "swirl_exclusion_box" in b:
                 bb["swirl_exclusion_box"] = unreal.Vector2D(*b["swirl_exclusion_box"])
+            for src, dst, conv in [("blade_rotation_deg", "blade_rotation_deg", float), ("spherical_aberration", "spherical_aberration", float), ("coma", "coma", float),
+                                   ("squeeze", "squeeze", float), ("drive_accumulation_dof", "drive_accumulation_dof", bool)]:
+                if src in b:
+                    bb[dst] = conv(b[src])
+            for src, dst in [("blade_source", "blade_source"), ("squeeze_source", "squeeze_source")]:
+                if src in b:
+                    bb[dst] = getattr(unreal.DynamicLensValueSource, b[src].upper())
+            if "blade_curvature" in b:
+                bb["override_blade_curvature"] = True
+                bb["blade_curvature"] = float(b["blade_curvature"])
         _set_struct(asset, "bokeh", bb)
         if save:
             unreal.EditorAssetLibrary.save_loaded_asset(asset)
@@ -254,8 +276,11 @@ MATERIAL_PKG = "/DynamicLens/Materials"
 
 
 def build_image_circle_material(save=True, force=False):
-    """Creates /DynamicLens/Materials/M_DL_ImageCircle: a post-process mask (after tonemapping) that blacks out the frame beyond a
-    centred circle. Parameters: Radius (1 = half the frame width), Softness (fraction of the radius), Aspect (W/H)."""
+    """Creates /DynamicLens/Materials/M_DL_ImageCircle: a post-process mask (after tonemapping) that darkens the frame beyond the
+    lens's image circle with the imperfections of a real edge (FDynamicLensImageCircleEdge). Scalar parameters:
+    Radius (1 = half the frame width), Softness (fraction of the radius), Aspect (W/H), FalloffPower, Opacity, CenterX/CenterY
+    (fraction of half frame), Ellipticity, Wobble/WobbleLobes/WobbleSeed, EdgeNoise/NoiseScale, ChromaticAberration, Scatter,
+    MaskStrength; texture parameter Mask (full-frame multiplier, default white)."""
     path = f"{MATERIAL_PKG}/M_DL_ImageCircle"
     if unreal.EditorAssetLibrary.does_asset_exist(path) and not force:
         return unreal.load_asset(path)
@@ -269,34 +294,90 @@ def build_image_circle_material(save=True, force=False):
     scene = mel.create_material_expression(mat, unreal.MaterialExpressionSceneTexture, -700, -200)
     scene.set_editor_property("scene_texture_id", unreal.SceneTextureId.PPI_POST_PROCESS_INPUT0)
     uv = mel.create_material_expression(mat, unreal.MaterialExpressionScreenPosition, -700, 0)
+    scalar_defaults = [("Radius", 0.9), ("Softness", 0.05), ("Aspect", 1.7778), ("FalloffPower", 1.0), ("Opacity", 1.0),
+                       ("CenterX", 0.0), ("CenterY", 0.0), ("Ellipticity", 1.0), ("Wobble", 0.0), ("WobbleLobes", 3.0), ("WobbleSeed", 0.0),
+                       ("EdgeNoise", 0.0), ("NoiseScale", 96.0), ("ChromaticAberration", 0.0), ("Scatter", 0.0), ("MaskStrength", 0.0)]
     params = {}
-    for i, (nm, default) in enumerate([("Radius", 0.9), ("Softness", 0.05), ("Aspect", 1.7778)]):
-        pnode = mel.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -700, 150 + 100 * i)
+    for i, (nm, default) in enumerate(scalar_defaults):
+        pnode = mel.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -700, 150 + 70 * i)
         pnode.set_editor_property("parameter_name", nm)
         pnode.set_editor_property("default_value", default)
         params[nm] = pnode
-    custom = mel.create_material_expression(mat, unreal.MaterialExpressionCustom, -300, 0)
-    custom.set_editor_property("code", "float2 p = float2((UV.x - 0.5) * 2.0, (UV.y - 0.5) * 2.0 / max(Aspect, 0.01));\n"
-                                       "float r = length(p);\n"
-                                       "float inner = Radius * (1.0 - saturate(Softness));\n"
-                                       "float m = 1.0 - smoothstep(inner, max(Radius, inner + 1e-4), r);\n"
-                                       "return Scene * m;")
+    mask = mel.create_material_expression(mat, unreal.MaterialExpressionTextureObjectParameter, -700, 150 + 70 * len(scalar_defaults))
+    mask.set_editor_property("parameter_name", "Mask")
+    white = unreal.load_asset("/Engine/EngineResources/WhiteSquareTexture")
+    if white:
+        mask.set_editor_property("texture", white)
+    custom = mel.create_material_expression(mat, unreal.MaterialExpressionCustom, -200, 0)
+    custom.set_editor_property("code", IMAGE_CIRCLE_HLSL)
     custom.set_editor_property("output_type", unreal.CustomMaterialOutputType.CMOT_FLOAT3)
     custom.set_editor_property("description", "ImageCircle")
+    names = ["Scene", "UV"] + [nm for nm, _ in scalar_defaults] + ["Mask"]
     inputs = []
-    for nm in ("Scene", "UV", "Radius", "Softness", "Aspect"):
+    for nm in names:
         ci = unreal.CustomInput(); ci.set_editor_property("input_name", nm); inputs.append(ci)
     custom.set_editor_property("inputs", inputs)
     mel.connect_material_expressions(scene, "Color", custom, "Scene")
     mel.connect_material_expressions(uv, "", custom, "UV")
-    for nm in ("Radius", "Softness", "Aspect"):
+    for nm, _ in scalar_defaults:
         mel.connect_material_expressions(params[nm], "", custom, nm)
+    mel.connect_material_expressions(mask, "", custom, "Mask")
     mel.connect_material_property(custom, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     mel.recompile_material(mat)
     if save:
         unreal.EditorAssetLibrary.save_loaded_asset(mat)
     _log("built " + path)
     return mat
+
+
+# HLSL of the image-circle Custom node. Normalized frame coordinates: x = -1..1 across the width, y scaled by the aspect.
+# Falloff band = Radius*(1-Softness) .. Radius; the mask, the scatter blur and the per-channel radius all live in that band.
+IMAGE_CIRCLE_HLSL = """
+float asp = max(Aspect, 0.01);
+float2 p = float2((UV.x - 0.5) * 2.0 - CenterX, ((UV.y - 0.5) * 2.0 - CenterY) / asp);
+p.y /= max(Ellipticity, 0.01);
+float r = length(p);
+float th = atan2(p.y, p.x);
+// waviness of the radius (two harmonics so it does not look like a gear)
+float wob = 1.0 + Wobble * (0.7 * sin(WobbleLobes * th + WobbleSeed) + 0.3 * sin((2.0 * WobbleLobes + 1.0) * th + 2.3 * WobbleSeed));
+float R = max(Radius * wob, 1e-3);
+float soft = saturate(Softness);
+float band = max(R * soft, 1e-4);
+// fine breakup of the band: value noise in screen space
+float2 q = float2(UV.x, UV.y / asp) * NoiseScale;
+float2 qi = floor(q), qf = frac(q); qf = qf * qf * (3.0 - 2.0 * qf);
+float h00 = frac(sin(dot(qi, float2(127.1, 311.7))) * 43758.5453);
+float h10 = frac(sin(dot(qi + float2(1, 0), float2(127.1, 311.7))) * 43758.5453);
+float h01 = frac(sin(dot(qi + float2(0, 1), float2(127.1, 311.7))) * 43758.5453);
+float h11 = frac(sin(dot(qi + float2(1, 1), float2(127.1, 311.7))) * 43758.5453);
+float n = lerp(lerp(h00, h10, qf.x), lerp(h01, h11, qf.x), qf.y) - 0.5;
+float rn = r + EdgeNoise * band * 1.5 * n;
+// per-channel radius: blue reaches further out than red (lateral CA at the rim)
+float3 Rc = R * float3(1.0 - ChromaticAberration, 1.0, 1.0 + ChromaticAberration);
+float3 inner = Rc * (1.0 - soft);
+float3 t = smoothstep(inner, max(Rc, inner + 1e-4), rn.xxx);
+t = pow(t, max(FalloffPower, 0.01));
+float3 m = 1.0 - t * saturate(Opacity);
+// scatter: inside the band the picture smears radially and lifts a little (light spreading in the edge glass)
+float tb = smoothstep(R * (1.0 - soft), R, r);
+float3 col = Scene;
+if (Scatter > 0.001 && tb > 0.001)
+{
+    float2 dir = (r > 1e-4) ? p / r : float2(1, 0);
+    dir.y *= max(Ellipticity, 0.01) * asp;             // back to screen units (uv x scale = 0.5 per unit)
+    float2 step = dir * band * 0.5 * Scatter * 0.6;    // radial blur length, screen uv
+    float3 acc = 0;
+    acc += SceneTextureLookup(UV - step * 1.0, 14, false).rgb;
+    acc += SceneTextureLookup(UV - step * 0.5, 14, false).rgb;
+    acc += SceneTextureLookup(UV + step * 0.5, 14, false).rgb;
+    acc += SceneTextureLookup(UV + step * 1.0, 14, false).rgb;
+    float3 blur = acc * 0.25;
+    col = lerp(col, blur * (1.0 + 0.35 * Scatter), tb * Scatter);
+}
+float maskv = Texture2DSample(Mask, MaskSampler, UV).r;
+m *= lerp(1.0, maskv, saturate(MaskStrength));
+return col * m;
+"""
 
 
 def import_all(tiedtke=True):

@@ -160,6 +160,7 @@ public:
 	void ClearEffect();
 
 	//~ UActorComponent
+	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
@@ -226,6 +227,7 @@ private:
 		bool bBarrelRadius = false; float BarrelRadius = 0.f;
 		bool bBarrelLength = false; float BarrelLength = 0.f;
 		bool bVignette = false; float Vignette = 0.f;
+		bool bSqueeze = false; float Squeeze = 1.f;
 		float Overscan = 0.f; bool bCropOverscan = false; bool bScaleRes = false;
 	} Backup;
 

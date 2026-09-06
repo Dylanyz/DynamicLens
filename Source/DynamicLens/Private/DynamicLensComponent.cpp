@@ -21,6 +21,20 @@ namespace
 	const FName CircleParamRadius(TEXT("Radius"));
 	const FName CircleParamSoftness(TEXT("Softness"));
 	const FName CircleParamAspect(TEXT("Aspect"));
+	const FName CircleParamFalloff(TEXT("FalloffPower"));
+	const FName CircleParamOpacity(TEXT("Opacity"));
+	const FName CircleParamCenterX(TEXT("CenterX"));
+	const FName CircleParamCenterY(TEXT("CenterY"));
+	const FName CircleParamEllipticity(TEXT("Ellipticity"));
+	const FName CircleParamWobble(TEXT("Wobble"));
+	const FName CircleParamWobbleLobes(TEXT("WobbleLobes"));
+	const FName CircleParamWobbleSeed(TEXT("WobbleSeed"));
+	const FName CircleParamEdgeNoise(TEXT("EdgeNoise"));
+	const FName CircleParamNoiseScale(TEXT("NoiseScale"));
+	const FName CircleParamMaskStrength(TEXT("MaskStrength"));
+	const FName CircleParamMask(TEXT("Mask"));
+	const FName CircleParamCA(TEXT("ChromaticAberration"));
+	const FName CircleParamScatter(TEXT("Scatter"));
 }
 
 UDynamicLensComponent::UDynamicLensComponent()
@@ -46,6 +60,16 @@ void UDynamicLensComponent::OnUnregister()
 {
 	ClearEffect();
 	Super::OnUnregister();
+}
+
+void UDynamicLensComponent::OnRegister()
+{
+	Super::OnRegister();
+	if (AActor* Owner = GetOwner())
+	{
+		// procedural camera rigs (Black Eye etc.) set FOV / focal length in the actor tick: run after it, same frame
+		AddTickPrerequisiteActor(Owner);
+	}
 }
 
 void UDynamicLensComponent::BeginPlay()
@@ -155,7 +179,7 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	}
 	W = FMath::Max(W, 0.01f); H = FMath::Max(H, 0.01f);
 
-	FDynamicLensEval Eval = Preset->Evaluate(Focal, Focus, FStop, W, H, AmountMultiplier);
+	FDynamicLensEval Eval = Preset->Evaluate(Focal, Focus, FStop, W, H, AmountMultiplier, Cam->LensSettings.DiaphragmBladeCount, Cam->LensSettings.SqueezeFactor);
 	Eval.VignetteIntensity = FMath::Clamp(Eval.VignetteIntensity * VignetteMultiplier, 0.f, 1.f);
 	Eval.Petzval *= SwirlMultiplier;
 
@@ -226,7 +250,7 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	if (CircleRadius > 0.f && CircleRadius < CornerNorm)
 	{
 		const float S = CircleRadius / CornerNorm;
-		const FDynamicLensEval EdgeEval = Preset->Evaluate(Focal, Focus, FStop, W * S, H * S, AmountMultiplier);
+		const FDynamicLensEval EdgeEval = Preset->Evaluate(Focal, Focus, FStop, W * S, H * S, AmountMultiplier, Cam->LensSettings.DiaphragmBladeCount, Cam->LensSettings.SqueezeFactor);
 		Eval.VignetteIntensity = FMath::Clamp(EdgeEval.VignetteIntensity * VignetteMultiplier, 0.f, 1.f);
 		Eval.CornerPupilVisible = EdgeEval.CornerPupilVisible;
 		Eval.CornerFieldAngleDeg = EdgeEval.CornerFieldAngleDeg;
@@ -499,6 +523,7 @@ void UDynamicLensComponent::CaptureLook(UCineCameraComponent* Cam)
 	Backup.bBarrelRadius = P.bOverride_DepthOfFieldBarrelRadius; Backup.BarrelRadius = P.DepthOfFieldBarrelRadius;
 	Backup.bBarrelLength = P.bOverride_DepthOfFieldBarrelLength; Backup.BarrelLength = P.DepthOfFieldBarrelLength;
 	Backup.bVignette = P.bOverride_VignetteIntensity; Backup.Vignette = P.VignetteIntensity;
+	Backup.bSqueeze = P.bOverride_DepthOfFieldSqueezeFactor; Backup.Squeeze = P.DepthOfFieldSqueezeFactor;
 	Backup.Overscan = Cam->Overscan; Backup.bCropOverscan = Cam->bCropOverscan; Backup.bScaleRes = Cam->bScaleResolutionWithOverscan;
 	bLookCaptured = true;
 }
@@ -517,6 +542,7 @@ void UDynamicLensComponent::RestoreLook(UCineCameraComponent* Cam)
 		P.bOverride_DepthOfFieldBarrelRadius = Backup.bBarrelRadius; P.DepthOfFieldBarrelRadius = Backup.BarrelRadius;
 		P.bOverride_DepthOfFieldBarrelLength = Backup.bBarrelLength; P.DepthOfFieldBarrelLength = Backup.BarrelLength;
 		P.bOverride_VignetteIntensity = Backup.bVignette; P.VignetteIntensity = Backup.Vignette;
+		P.bOverride_DepthOfFieldSqueezeFactor = Backup.bSqueeze; P.DepthOfFieldSqueezeFactor = Backup.Squeeze;
 	}
 	if (bOverscanTouched)
 	{
@@ -553,11 +579,31 @@ void UDynamicLensComponent::ApplyLook(UCineCameraComponent* Cam, const FDynamicL
 				Cam->AddOrUpdateBlendable(CircleMID, 1.f);
 				bCircleApplied = true;
 			}
-			if (!FMath::IsNearlyEqual(LastCircleRadius, CircleRadiusNorm, 1e-4f) || !bHasLastEval)
+			const bool bEdgeChanged = !bHasLastEval || !LastEval.Edge.Equals(Eval.Edge) || !FMath::IsNearlyEqual(LastEval.ImageCircleSoftness, Eval.ImageCircleSoftness);
+			if (!FMath::IsNearlyEqual(LastCircleRadius, CircleRadiusNorm, 1e-4f) || bEdgeChanged)
 			{
+				const FDynamicLensImageCircleEdge& Ed = Eval.Edge;
 				CircleMID->SetScalarParameterValue(CircleParamRadius, CircleRadiusNorm);
 				CircleMID->SetScalarParameterValue(CircleParamSoftness, Eval.ImageCircleSoftness);
 				CircleMID->SetScalarParameterValue(CircleParamAspect, Aspect);
+				CircleMID->SetScalarParameterValue(CircleParamFalloff, Ed.FalloffPower);
+				CircleMID->SetScalarParameterValue(CircleParamOpacity, Ed.Opacity);
+				CircleMID->SetScalarParameterValue(CircleParamCenterX, Ed.CenterOffset.X);
+				CircleMID->SetScalarParameterValue(CircleParamCenterY, Ed.CenterOffset.Y);
+				CircleMID->SetScalarParameterValue(CircleParamEllipticity, Ed.Ellipticity);
+				CircleMID->SetScalarParameterValue(CircleParamWobble, Ed.Wobble);
+				CircleMID->SetScalarParameterValue(CircleParamWobbleLobes, (float)Ed.WobbleLobes);
+				CircleMID->SetScalarParameterValue(CircleParamWobbleSeed, FMath::DegreesToRadians(Ed.WobbleSeed));
+				CircleMID->SetScalarParameterValue(CircleParamEdgeNoise, Ed.EdgeNoise);
+				CircleMID->SetScalarParameterValue(CircleParamNoiseScale, Ed.NoiseScale);
+				CircleMID->SetScalarParameterValue(CircleParamCA, Ed.ChromaticAberration);
+				CircleMID->SetScalarParameterValue(CircleParamScatter, Ed.Scatter);
+				UTexture2D* MaskTex = Ed.MaskTexture.IsNull() ? nullptr : Ed.MaskTexture.LoadSynchronous();
+				CircleMID->SetScalarParameterValue(CircleParamMaskStrength, MaskTex ? Ed.MaskStrength : 0.f);
+				if (MaskTex)
+				{
+					CircleMID->SetTextureParameterValue(CircleParamMask, MaskTex);
+				}
 				LastCircleRadius = CircleRadiusNorm;
 			}
 		}
@@ -573,7 +619,10 @@ void UDynamicLensComponent::ApplyLook(UCineCameraComponent* Cam, const FDynamicL
 	{
 		if (!bHasLastEval) return false;
 		if (LastEval.bBokeh != bDoBokeh || LastEval.bVignette != bDoVignette) return false;
+		if (!LastEval.Edge.Equals(Eval.Edge) || !FMath::IsNearlyEqual(LastEval.ImageCircleSoftness, Eval.ImageCircleSoftness)) return false;
 		if (bDoBokeh && (LastEval.Blades != Eval.Blades ||
+			!FMath::IsNearlyEqual(LastEval.BladeCurvature, Eval.BladeCurvature, 1e-3f) ||
+			!FMath::IsNearlyEqual(LastEval.BokehSqueeze, Eval.BokehSqueeze, 1e-3f) ||
 			!FMath::IsNearlyEqual(LastEval.BarrelRadiusMm, Eval.BarrelRadiusMm, 1e-3f) ||
 			!FMath::IsNearlyEqual(LastEval.BarrelLengthMm, Eval.BarrelLengthMm, 1e-3f) ||
 			!FMath::IsNearlyEqual(LastEval.Petzval, Eval.Petzval, 1e-3f) ||
@@ -588,7 +637,10 @@ void UDynamicLensComponent::ApplyLook(UCineCameraComponent* Cam, const FDynamicL
 	FPostProcessSettings& P = Cam->PostProcessSettings;
 	if (bDoBokeh)
 	{
-		P.bOverride_DepthOfFieldBladeCount = true; P.DepthOfFieldBladeCount = FMath::Clamp(Eval.Blades, 4, 16);
+		// Unreal's DOF only knows a blade count: rounded blades read as "more blades"
+		const int32 EffBlades = FMath::RoundToInt(FMath::Lerp((float)Eval.Blades, 16.f, Eval.BladeCurvature));
+		P.bOverride_DepthOfFieldBladeCount = true; P.DepthOfFieldBladeCount = FMath::Clamp(EffBlades, 4, 16);
+		P.bOverride_DepthOfFieldSqueezeFactor = true; P.DepthOfFieldSqueezeFactor = FMath::Clamp(Eval.BokehSqueeze, 1.f, 2.f);
 		P.bOverride_DepthOfFieldPetzvalBokeh = true; P.DepthOfFieldPetzvalBokeh = Eval.Petzval;
 		P.bOverride_DepthOfFieldPetzvalBokehFalloff = true; P.DepthOfFieldPetzvalBokehFalloff = Eval.PetzvalFalloff;
 		P.bOverride_DepthOfFieldPetzvalExclusionBoxExtents = true; P.DepthOfFieldPetzvalExclusionBoxExtents = FVector2f(Eval.SwirlExclusionBox);
@@ -599,6 +651,7 @@ void UDynamicLensComponent::ApplyLook(UCineCameraComponent* Cam, const FDynamicL
 	else
 	{
 		P.bOverride_DepthOfFieldBladeCount = Backup.bBlade; P.DepthOfFieldBladeCount = Backup.Blade;
+		P.bOverride_DepthOfFieldSqueezeFactor = Backup.bSqueeze; P.DepthOfFieldSqueezeFactor = Backup.Squeeze;
 		P.bOverride_DepthOfFieldPetzvalBokeh = Backup.bPetzval; P.DepthOfFieldPetzvalBokeh = Backup.Petzval;
 		P.bOverride_DepthOfFieldPetzvalBokehFalloff = Backup.bPetzvalFalloff; P.DepthOfFieldPetzvalBokehFalloff = Backup.PetzvalFalloff;
 		P.bOverride_DepthOfFieldPetzvalExclusionBoxExtents = Backup.bExclBox; P.DepthOfFieldPetzvalExclusionBoxExtents = Backup.ExclBox;
@@ -723,7 +776,9 @@ void UDynamicLensComponent::ApplyAccumulationDOF(const FDynamicLensEval& Eval)
 
 	// iris polygon texture: blades + rotation, anti-aliased, linear, luminance = weight
 	const int32 Blades = FMath::Clamp(Eval.Blades, 4, 16);
-	const int32 Key = Blades * 1000 + FMath::RoundToInt(Eval.BladeRotationDeg);
+	const float Curv = FMath::Clamp(Eval.BladeCurvature, 0.f, 1.f);
+	const float Sq = FMath::Clamp(Eval.BokehSqueeze, 1.f, 2.f);
+	const int32 Key = Blades * 1000000 + FMath::RoundToInt(Eval.BladeRotationDeg) * 1000 + FMath::RoundToInt(Curv * 30.f) * 30 + FMath::RoundToInt((Sq - 1.f) * 29.f);
 	if (!IrisTexture || IrisTexKey != Key)
 	{
 		constexpr int32 N = 256;
@@ -742,7 +797,8 @@ void UDynamicLensComponent::ApplyAccumulationDOF(const FDynamicLensEval& Eval)
 		{
 			for (int32 I = 0; I < N; ++I)
 			{
-				const float X = (I + 0.5f) / N * 2.f - 1.f, Y = (J + 0.5f) / N * 2.f - 1.f;
+				// squeeze: anamorphic highlights are ovals Sq times taller than wide -> evaluate the shape at a compressed X
+				const float X = ((I + 0.5f) / N * 2.f - 1.f) * Sq, Y = (J + 0.5f) / N * 2.f - 1.f;
 				// signed distance to the regular polygon: max over edge normals of (p . n_k) - apothem
 				float D = -1e9f;
 				for (int32 K = 0; K < Blades; ++K)
@@ -750,6 +806,8 @@ void UDynamicLensComponent::ApplyAccumulationDOF(const FDynamicLensEval& Eval)
 					const float A = Rot + (2.f * PI * K) / Blades;
 					D = FMath::Max(D, X * FMath::Cos(A) + Y * FMath::Sin(A) - Apothem);
 				}
+				// rounded blades: blend toward the circumscribed circle
+				D = FMath::Lerp(D, FMath::Sqrt(X * X + Y * Y) - 0.96f, Curv);
 				const float Px = 2.f / N;
 				const float Cov = FMath::Clamp(0.5f - D / Px, 0.f, 1.f);   // 1-pixel anti-aliasing
 				const uint8 V = (uint8)FMath::RoundToInt(Cov * 255.f);
