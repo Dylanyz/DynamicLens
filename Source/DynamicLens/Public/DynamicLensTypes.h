@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "CineCameraSettings.h"
 #include "LensData.h"
 #include "DynamicLensTypes.generated.h"
 
@@ -336,6 +337,82 @@ enum class EDynamicLensOverscanMode : uint8
 	Dynamic UMETA(DisplayName = "Dynamic (per frame)"),
 	/** A constant overscan for the whole shot. Safe for renders; anything the frame needs beyond it goes black at the edges (image circle). */
 	Fixed UMETA(DisplayName = "Fixed"),
+};
+
+/** An ST map extrapolated beyond its frame (transient, built on demand). */
+USTRUCT()
+struct FDynamicLensExtendedMap
+{
+	GENERATED_BODY()
+	UPROPERTY(Transient) TObjectPtr<UTexture2D> Texture;
+	float NeededOverscan = 1.f;
+	float Extend = 1.f;
+};
+
+/** What Match Camera To Profile writes to the camera, and whether it runs by itself when the preset changes. */
+USTRUCT(BlueprintType)
+struct DYNAMICLENS_API FDynamicLensMatchOptions
+{
+	GENERATED_BODY()
+
+	/** Run Match Camera To Profile automatically whenever the preset (or an overridden profile) changes. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Match")
+	bool bOnPresetChange = false;
+
+	/** Set the filmback to the profile's native sensor (divided by the squeeze for anamorphics). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Match")
+	bool bFilmback = true;
+
+	/** Set the lens squeeze factor to the profile's. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Match")
+	bool bSqueeze = true;
+
+	/** Clear the camera's cropped aspect ratio (the profile describes the whole sensor). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Match")
+	bool bCrop = true;
+
+	/** Set the focal length to the profile's prime (or bring a zoom into its measured range). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Match")
+	bool bFocalLength = true;
+};
+
+/** The camera settings you touch most, mirrored here so they sit next to the lens. Editing writes to the Cine Camera component; the camera stays the source of truth. */
+USTRUCT(BlueprintType)
+struct DYNAMICLENS_API FDynamicLensCameraQuick
+{
+	GENERATED_BODY()
+
+	/** Camera focal length (mm). Locked presets pull it back to the prime every frame. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera", meta = (ClampMin = "1.0", ClampMax = "2000.0", UIMin = "4.0", UIMax = "300.0"))
+	float FocalLengthMm = 35.f;
+
+	/** Camera aperture (f-stop). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera", meta = (ClampMin = "0.7", ClampMax = "64.0", UIMin = "1.0", UIMax = "22.0"))
+	float Aperture = 2.8f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera")
+	ECameraFocusMethod FocusMethod = ECameraFocusMethod::Manual;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera", meta = (EditCondition = "FocusMethod == ECameraFocusMethod::Manual", ClampMin = "0.0", Units = "cm"))
+	float ManualFocusDistance = 100000.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera", meta = (EditCondition = "FocusMethod == ECameraFocusMethod::Tracking"))
+	TSoftObjectPtr<AActor> ActorToTrack;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera", meta = (Units = "cm"))
+	float FocusOffset = 0.f;
+
+	/** 0 = no crop. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera", meta = (ClampMin = "0.0", ClampMax = "10.0"))
+	float CroppedAspectRatio = 0.f;
+
+	/** Filmback width x height in mm. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera", meta = (ClampMin = "1.0", ClampMax = "200.0"))
+	FVector2D FilmbackMm = FVector2D(24.89, 18.66);
+
+	/** Anamorphic squeeze factor of the camera's lens settings. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Camera", meta = (ClampMin = "1.0", ClampMax = "2.0"))
+	float SqueezeFactor = 1.f;
 };
 
 /** Where a bokeh value comes from. */

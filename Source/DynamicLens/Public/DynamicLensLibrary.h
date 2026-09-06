@@ -55,7 +55,7 @@ public:
 	 * Editor only (reads the texture source); returns null elsewhere. Same channel semantics and pixel origin as the input.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Lens|Import")
-	static UTexture2D* BuildExtendedSTMap(UTexture2D* Map, bool bBottomLeftOrigin, float Extend, int32 OutWidth = 1024);
+	static UTexture2D* BuildExtendedSTMap(UTexture2D* Map, bool bBottomLeftOrigin, FVector2D DisplacementScale, float MaxExtend, int32 OutWidth, float& OutNeededOverscan, float& OutExtend);
 
 	/** Recompute the read-only coverage string of a profile. */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Lens")

@@ -193,10 +193,11 @@ void UDynamicLensLibrary::RefreshProfile(UDynamicLensProfile* Profile)
 }
 
 
-UTexture2D* UDynamicLensLibrary::BuildExtendedSTMap(UTexture2D* Map, bool bBottomLeftOrigin, float Extend, int32 OutWidth)
+UTexture2D* UDynamicLensLibrary::BuildExtendedSTMap(UTexture2D* Map, bool bBottomLeftOrigin, FVector2D DisplacementScale, float MaxExtend, int32 OutWidth, float& OutNeededOverscan, float& OutExtend)
 {
+	OutNeededOverscan = 1.f; OutExtend = 1.f;
 #if WITH_EDITORONLY_DATA
-	if (!Map || !Map->Source.IsValid() || Extend <= 1.001f) return nullptr;
+	if (!Map || !Map->Source.IsValid()) return nullptr;
 	const int32 SW = Map->Source.GetSizeX(), SH = Map->Source.GetSizeY();
 	if (SW < 8 || SH < 8) return nullptr;
 	const ETextureSourceFormat Fmt = Map->Source.GetFormat();
@@ -225,6 +226,19 @@ UTexture2D* UDynamicLensLibrary::BuildExtendedSTMap(UTexture2D* Map, bool bBotto
 		}
 	}
 	Map->Source.UnlockMip(0);
+
+	// how far outside the frame the border's sources reach (dense, every border texel), in the map's own units
+	float Extent = 1.f;
+	auto Consider = [&](int32 I, int32 J)
+	{
+		const FVector2f F = Grid[J * GW + I];
+		Extent = FMath::Max3(Extent, FMath::Abs(F.X - 0.5f) * 2.f, FMath::Abs(F.Y - 0.5f) * 2.f);
+	};
+	for (int32 I = 0; I < GW; ++I) { Consider(I, 0); Consider(I, GH - 1); }
+	for (int32 J = 0; J < GH; ++J) { Consider(0, J); Consider(GW - 1, J); }
+	OutNeededOverscan = FMath::Clamp(Extent, 1.f, 4.f);
+	const float Extend = FMath::Clamp(FMath::Max(OutNeededOverscan * 1.15f, 1.05f), 1.f, FMath::Max(MaxExtend, 1.f));
+	OutExtend = Extend;
 
 	// sample the grid at a UV in the map's own convention (v up if bottom-left origin)
 	auto Sample = [&](float U, float V) -> FVector2f
@@ -259,6 +273,9 @@ UTexture2D* UDynamicLensLibrary::BuildExtendedSTMap(UTexture2D* Map, bool bBotto
 		return D;
 	};
 
+	// Epic's blend shader crops the map for a smaller filmback but keeps the displacement values as they are, so the
+	// values must already be in the CAMERA frame's units: D_cam = D_map * DisplacementScale (= map sensor / camera sensor).
+	const FVector2f DS((float)DisplacementScale.X, (float)DisplacementScale.Y);
 	const int32 OW = FMath::Clamp(OutWidth, 64, 4096);
 	const int32 OH = FMath::Max(8, FMath::RoundToInt(OW * (float)SH / SW));
 	UTexture2D* Out = UTexture2D::CreateTransient(OW, OH, PF_G32R32F);
@@ -276,9 +293,9 @@ UTexture2D* UDynamicLensLibrary::BuildExtendedSTMap(UTexture2D* Map, bool bBotto
 		for (int32 I = 0; I < OW; ++I)
 		{
 			const float Ue = (I + 0.5f) / OW;
+			const FVector2f Pe(Ue, Ve);
 			const FVector2f P(0.5f + (Ue - 0.5f) * Extend, 0.5f + (Ve - 0.5f) * Extend);   // in the original frame
-			const FVector2f F = P + Displacement(P);
-			const FVector2f Fe(0.5f + (F.X - 0.5f) / Extend, 0.5f + (F.Y - 0.5f) / Extend);  // back to the extended frame
+			const FVector2f Fe = Pe + Displacement(P) * DS;
 			float* Px = Dst + 2 * (J * OW + I);
 			Px[0] = Fe.X; Px[1] = Fe.Y;
 		}

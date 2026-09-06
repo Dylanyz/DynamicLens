@@ -62,13 +62,21 @@ public:
 	UPROPERTY(VisibleAnywhere, Transient, Category = "Dynamic Lens", meta = (MultiLine = "true"))
 	FString ProfileInfo;
 
-	/** When the preset (or an overridden profile) changes, set the camera's filmback, squeeze, crop and focal length to the profile's native format automatically. Off = only the Match Camera To Profile button does that. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens")
-	bool bMatchCameraOnPresetChange = false;
+	/** What Match Camera To Profile sets on the camera, and whether it runs by itself when the preset changes. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens", meta = (DisplayName = "Match Camera"))
+	FDynamicLensMatchOptions MatchCamera;
+
+	/** The camera settings you touch most (focal length, aperture, focus, crop, filmback, squeeze), mirrored from the Cine Camera component. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Camera", meta = (DisplayName = "Camera", ShowOnlyInnerProperties))
+	FDynamicLensCameraQuick Camera;
 
 	/** Scales the preset's distortion amount for this camera only. 1 = as the preset. Keyable in Sequencer. */
 	UPROPERTY(Interp, EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens", meta = (ClampMin = "0.0", ClampMax = "5.0", UIMin = "0.0", UIMax = "2.0"))
 	float AmountMultiplier = 1.f;
+
+	/** Apply the lens distortion. Off leaves the picture rectilinear but keeps vignette, bokeh and image circle. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Layers")
+	bool bApplyDistortion = true;
 
 	/** Apply the preset's vignette to this camera. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Layers")
@@ -176,12 +184,20 @@ public:
 	UCineCameraComponent* GetTargetCamera() const;
 
 	/** Switch to the previous preset asset (alphabetical, all Dynamic Lens Preset assets in the project and plugin). */
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Dynamic Lens")
-	void PreviousPreset();
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Dynamic Lens", meta = (DisplayName = "Previous Preset"))
+	void A1_PreviousPreset();
 
 	/** Switch to the next preset asset (alphabetical, all Dynamic Lens Preset assets in the project and plugin). */
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Dynamic Lens")
-	void NextPreset();
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Dynamic Lens", meta = (DisplayName = "Next Preset"))
+	void A2_NextPreset();
+
+	/** Step the camera to the previous focal length the profile was measured at (ST-map series: the primes; parametric grids: the measured focals). */
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Dynamic Lens", meta = (DisplayName = "Previous Focal"))
+	void A3_PreviousFocal();
+
+	/** Step the camera to the next focal length the profile was measured at. */
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Dynamic Lens", meta = (DisplayName = "Next Focal"))
+	void A4_NextFocal();
 
 	/** Set the camera's filmback, squeeze and crop to the preset profile's native format (the sensor the lens data was made for). */
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Dynamic Lens")
@@ -220,6 +236,11 @@ public:
 
 private:
 	void StepPreset(int32 Direction);
+	void StepFocal(int32 Direction);
+	void PullCameraQuick(UCineCameraComponent* Cam);
+	void PushCameraQuick(UCineCameraComponent* Cam);
+	void ClearDistortionRendering(UCineCameraComponent* Cam);
+	TArray<float> MeasuredFocals() const;
 	bool HasLens() const { return Preset != nullptr || bOverrideDistortion; }
 	void Apply(UCineCameraComponent* Cam);
 	void EnsureHandler();
@@ -243,9 +264,10 @@ private:
 	UPROPERTY(Transient) TObjectPtr<ULensDistortionModelHandlerBase> Handler;
 	UPROPERTY(Transient) TObjectPtr<ULensFile> TransientLensFile;
 	UPROPERTY(Transient) TObjectPtr<UTexture2D> ProjectionMap;
-	/** ST maps extrapolated beyond their frame so overscan has data (built on demand, editor only). Key = source map. */
-	UPROPERTY(Transient) TMap<TObjectPtr<UTexture>, TObjectPtr<UTexture2D>> ExtendedMaps;
-	float ExtendedMapScale = 1.f;
+	/** ST maps extrapolated beyond their frame so overscan has data (built on demand, editor only). Key = map path + displacement scale. */
+	UPROPERTY(Transient) TMap<FString, FDynamicLensExtendedMap> ExtendedMaps;
+	float InfoFocal = -1.f;
+	bool bPushingCamera = false;
 	UPROPERTY(Transient) TObjectPtr<UTexture2D> IrisTexture;
 	UPROPERTY(Transient) TWeakObjectPtr<UActorComponent> AccumulationDOF;
 	int32 IrisTexKey = -1;

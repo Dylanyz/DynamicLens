@@ -121,9 +121,10 @@ void UDynamicLensComponent::PostEditChangeProperty(FPropertyChangedEvent& Proper
 	{
 		// slider drag: the editor keeps the component unregistered until the mouse is released, so ticks stop.
 		// Apply straight away so the viewport keeps previewing while dragging.
-		if (UCineCameraComponent* Cam = GetTargetCamera(); Cam && bEnabled && HasLens())
+		if (UCineCameraComponent* Cam = GetTargetCamera())
 		{
-			Apply(Cam);
+			if (Member == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, Camera)) PushCameraQuick(Cam);
+			if (bEnabled && HasLens()) Apply(Cam);
 		}
 		Super::PostEditChangeProperty(PropertyChangedEvent);
 		return;
@@ -143,6 +144,7 @@ void UDynamicLensComponent::PostEditChangeProperty(FPropertyChangedEvent& Proper
 		Member == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, Distortion) ||
 		Member == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, Overscan) ||
 		Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, bEnabled) ||
+		Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, bApplyDistortion) ||
 		Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, RenderMode) ||
 		Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, bApplyBokeh) ||
 		Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, bApplyVignette) ||
@@ -157,9 +159,13 @@ void UDynamicLensComponent::PostEditChangeProperty(FPropertyChangedEvent& Proper
 	const bool bLensChanged = Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, Preset)
 		|| Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, bOverrideDistortion)
 		|| (Member == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, Distortion) && Name == GET_MEMBER_NAME_CHECKED(FDynamicLensDistortion, Profile));
-	if (bLensChanged && bMatchCameraOnPresetChange)
+	if (bLensChanged && MatchCamera.bOnPresetChange)
 	{
 		MatchCameraToProfile();
+	}
+	if (Member == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, Camera))
+	{
+		if (UCineCameraComponent* Cam = GetTargetCamera()) PushCameraQuick(Cam);
 	}
 	UpdateProfileInfo();
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -205,23 +211,36 @@ void UDynamicLensComponent::MatchCameraToProfile()
 	Cam->Modify();
 #endif
 	const float Squeeze = FMath::Max(P->Squeeze, 1.f);
-	Cam->Filmback.SensorWidth = P->NativeSensorMm.X / Squeeze;
-	Cam->Filmback.SensorHeight = P->NativeSensorMm.Y;
-	Cam->Filmback.SensorAspectRatio = Cam->Filmback.SensorWidth / FMath::Max(Cam->Filmback.SensorHeight, 0.01f);
-	Cam->LensSettings.SqueezeFactor = Squeeze;
-	if (const float Locked = P->GetLockedFocal(Cam->CurrentFocalLength); Locked > KINDA_SMALL_NUMBER)
+	if (MatchCamera.bFilmback)
 	{
-		Cam->SetCurrentFocalLength(Locked);
+		Cam->Filmback.SensorWidth = P->NativeSensorMm.X / Squeeze;
+		Cam->Filmback.SensorHeight = P->NativeSensorMm.Y;
+		Cam->Filmback.SensorAspectRatio = Cam->Filmback.SensorWidth / FMath::Max(Cam->Filmback.SensorHeight, 0.01f);
 	}
-	else
+	if (MatchCamera.bSqueeze)
 	{
-		float MinMm, MaxMm; P->GetFocalRange(MinMm, MaxMm);
-		if (MaxMm > MinMm && (Cam->CurrentFocalLength < MinMm || Cam->CurrentFocalLength > MaxMm))
+		Cam->LensSettings.SqueezeFactor = Squeeze;
+	}
+	if (MatchCamera.bFocalLength)
+	{
+		if (const float Locked = P->GetLockedFocal(Cam->CurrentFocalLength); Locked > KINDA_SMALL_NUMBER)
 		{
-			Cam->SetCurrentFocalLength(FMath::Clamp(Cam->CurrentFocalLength, MinMm, MaxMm));   // a zoom: stay inside what was measured
+			Cam->SetCurrentFocalLength(Locked);
+		}
+		else
+		{
+			float MinMm, MaxMm; P->GetFocalRange(MinMm, MaxMm);
+			if (MaxMm > MinMm && (Cam->CurrentFocalLength < MinMm || Cam->CurrentFocalLength > MaxMm))
+			{
+				Cam->SetCurrentFocalLength(FMath::Clamp(Cam->CurrentFocalLength, MinMm, MaxMm));   // a zoom: stay inside what was measured
+			}
 		}
 	}
-	Cam->CropSettings.AspectRatio = 0.f;
+	if (MatchCamera.bCrop)
+	{
+		Cam->CropSettings.AspectRatio = 0.f;
+	}
+	PullCameraQuick(Cam);
 	ClearEffect();
 	TransientLensFile = nullptr;
 	LensFileSTMapIndex = -1;
@@ -232,9 +251,11 @@ void UDynamicLensComponent::MatchCameraToProfile()
 void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 {
 	Resolved = ResolveSettings();
-	if (ProfileInfo.IsEmpty() || InfoProfile != Resolved.Distortion.Profile)
+	PullCameraQuick(Cam);
+	if (ProfileInfo.IsEmpty() || InfoProfile != Resolved.Distortion.Profile || !FMath::IsNearlyEqual(InfoFocal, Cam->CurrentFocalLength, 0.01f))
 	{
 		InfoProfile = Resolved.Distortion.Profile;
+		InfoFocal = Cam->CurrentFocalLength;
 		UpdateProfileInfo();
 	}
 	if (Resolved.Distortion.bLockFocalLength && Resolved.Distortion.Profile)
@@ -304,7 +325,11 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 		return V;
 	};
 
-	if (Type == EDynamicLensProfileType::Projection && Profile)
+	if (!bApplyDistortion)
+	{
+		ClearDistortionRendering(Cam);
+	}
+	else if (Type == EDynamicLensProfileType::Projection && Profile)
 	{
 		// fisheye maths: the whole frame wants as much source as it can get; the image circle takes the rest
 		Applied = (Resolved.Overscan.Mode == EDynamicLensOverscanMode::Fixed) ? Resolved.Overscan.FixedOverscan : Resolved.Overscan.MaxOverscan;
@@ -356,7 +381,7 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 		Eval.BarrelLengthMm = EdgeEval.BarrelLengthMm;
 	}
 
-	ApplyRendering(Cam, State, Applied);
+	if (bApplyDistortion) ApplyRendering(Cam, State, Applied);
 	ApplyLook(Cam, Eval, bApplyImageCircle ? CircleRadius : 0.f, W / H);
 	if (bApplyBokeh && Eval.bBokeh && Eval.bDriveAccumulationDOF)
 	{
@@ -413,27 +438,27 @@ bool UDynamicLensComponent::DriveSTMap(UCineCameraComponent* Cam, const FDynamic
 			Notes += TEXT("Sensor larger than the profile's: scaled instead of cropped. ");
 		}
 	}
-	// the map only covers its own frame: extend it (extrapolated displacement) so the overscan area has data,
-	// then present it to the lens file as a map for a larger sensor that the camera crops the centre of
+	// the map only covers its own frame: extend it (extrapolated displacement, stored in the camera frame's units because
+	// Epic's blend shader crops a larger sensor without rescaling values) and present it as a map for a larger sensor
 	UTexture* MapToUse = Entry.Map;
 	float Scale = 1.f;
-	if (Entry.NeededOverscan > 1.005f)
+	float NeededMap = Entry.NeededOverscan;   // in the map's own units (fallback: measured at import)
+	const FVector2D DispScale(LensSensor.X / W, LensSensor.Y / H);   // map sensor / camera sensor
 	{
-		Scale = FMath::Clamp(Entry.NeededOverscan * 1.1f, 1.2f, 2.f);
-		if (TObjectPtr<UTexture2D>* Found = ExtendedMaps.Find(Entry.Map))
+		const FString Key = FString::Printf(TEXT("%s|%.4f|%.4f"), *GetPathNameSafe(Entry.Map), DispScale.X, DispScale.Y);
+		if (FDynamicLensExtendedMap* Found = ExtendedMaps.Find(Key))
 		{
-			MapToUse = *Found;
-		}
-		else if (UTexture2D* Ext = UDynamicLensLibrary::BuildExtendedSTMap(Cast<UTexture2D>(Entry.Map), Entry.MapFormat.PixelOrigin == ECalibratedMapPixelOrigin::BottomLeft, Scale, 1024))
-		{
-			ExtendedMaps.Add(Entry.Map, Ext);
-			MapToUse = Ext;
+			if (Found->Texture) { MapToUse = Found->Texture; Scale = Found->Extend; NeededMap = Found->NeededOverscan; }
 		}
 		else
 		{
-			Scale = 1.f;   // no source data (cooked build): use the map as is
+			FDynamicLensExtendedMap New;
+			New.Texture = UDynamicLensLibrary::BuildExtendedSTMap(Cast<UTexture2D>(Entry.Map), Entry.MapFormat.PixelOrigin == ECalibratedMapPixelOrigin::BottomLeft, DispScale, 2.f, 1024, New.NeededOverscan, New.Extend);
+			ExtendedMaps.Add(Key, New);
+			if (New.Texture) { MapToUse = New.Texture; Scale = New.Extend; NeededMap = New.NeededOverscan; }
 		}
 	}
+	const bool bExtended = (MapToUse != Entry.Map);
 	LensSensor *= Scale;
 	const FVector2D FxFy(Entry.FocalMm / LensSensor.X, Entry.FocalMm / LensSensor.Y);
 
@@ -459,11 +484,19 @@ bool UDynamicLensComponent::DriveSTMap(UCineCameraComponent* Cam, const FDynamic
 		return false;
 	}
 	OutState = Handler->GetCurrentDistortionState();
-	OutNeededOverscan = FMath::Clamp(FMath::Max(Handler->GetOverscanFactor(), Entry.NeededOverscan), 1.f, 4.f);
+	// what the camera frame needs: the map's border reach, scaled into camera units (Epic's own estimate is meaningless for
+	// an extended map, so only use it when the map is used as-is)
+	const float DispMax = FMath::Max(DispScale.X, DispScale.Y);
+	const float NeededCam = 1.f + (NeededMap - 1.f) * DispMax;
+	OutNeededOverscan = FMath::Clamp(bExtended ? NeededCam : FMath::Max(Handler->GetOverscanFactor(), NeededCam), 1.f, 4.f);
 	OutCircleRadius = 0.f;
-	if (Scale > 1.f && OutNeededOverscan > Scale + 1e-3f)
+	if (bExtended)
 	{
-		OutCircleRadius = Scale / OutNeededOverscan;   // beyond the extrapolated data: black, not smeared
+		const float DataExtent = Scale * FMath::Min(DispScale.X, DispScale.Y);   // how far the extended data reaches, camera units
+		if (OutNeededOverscan > DataExtent + 1e-3f)
+		{
+			OutCircleRadius = DataExtent / OutNeededOverscan;   // beyond the extrapolated data: black, not smeared
+		}
 	}
 	if (FMath::Abs(Entry.FocalMm - Focal) > 0.5f)
 	{
@@ -880,13 +913,111 @@ void UDynamicLensComponent::StepPreset(int32 Direction)
 	ClearEffect();
 	TransientLensFile = nullptr;
 	LensFileSTMapIndex = -1;
-	if (bMatchCameraOnPresetChange) MatchCameraToProfile();
+	if (MatchCamera.bOnPresetChange) MatchCameraToProfile();
 	UpdateProfileInfo();
 	if (UCineCameraComponent* Cam = GetTargetCamera(); Cam && bEnabled) Apply(Cam);
 }
 
-void UDynamicLensComponent::PreviousPreset() { StepPreset(-1); }
-void UDynamicLensComponent::NextPreset() { StepPreset(+1); }
+void UDynamicLensComponent::A1_PreviousPreset() { StepPreset(-1); }
+void UDynamicLensComponent::A2_NextPreset() { StepPreset(+1); }
+void UDynamicLensComponent::A3_PreviousFocal() { StepFocal(-1); }
+void UDynamicLensComponent::A4_NextFocal() { StepFocal(+1); }
+
+TArray<float> UDynamicLensComponent::MeasuredFocals() const
+{
+	TArray<float> Out;
+	const UDynamicLensProfile* P = ResolveSettings().Distortion.Profile;
+	if (!P) return Out;
+	if (P->Type == EDynamicLensProfileType::STMap) { for (const FDynamicLensSTMapEntry& E : P->STMaps) Out.AddUnique(E.FocalMm); }
+	else if (P->Type == EDynamicLensProfileType::Parametric) { for (const FDynamicLensProfileRow& R : P->Rows) Out.AddUnique(R.FocalMm); }
+	else if (P->NominalFocalMm > 0.f) Out.Add(P->NominalFocalMm);
+	Out.Sort();
+	return Out;
+}
+
+void UDynamicLensComponent::StepFocal(int32 Direction)
+{
+	UCineCameraComponent* Cam = GetTargetCamera();
+	const TArray<float> Focals = MeasuredFocals();
+	if (!Cam || Focals.Num() == 0) return;
+	// nearest measured focal to where the camera is, then step
+	int32 Cur = 0;
+	for (int32 I = 1; I < Focals.Num(); ++I) { if (FMath::Abs(Focals[I] - Cam->CurrentFocalLength) < FMath::Abs(Focals[Cur] - Cam->CurrentFocalLength)) Cur = I; }
+	if (FMath::Abs(Focals[Cur] - Cam->CurrentFocalLength) > 0.01f)
+	{
+		// camera sits between two: step to the neighbour in that direction
+		if (Direction > 0 && Focals[Cur] < Cam->CurrentFocalLength) Cur = FMath::Min(Cur + 1, Focals.Num() - 1);
+		else if (Direction < 0 && Focals[Cur] > Cam->CurrentFocalLength) Cur = FMath::Max(Cur - 1, 0);
+	}
+	else
+	{
+		Cur = FMath::Clamp(Cur + Direction, 0, Focals.Num() - 1);
+	}
+#if WITH_EDITOR
+	Cam->Modify();
+#endif
+	Cam->SetCurrentFocalLength(Focals[Cur]);
+	UpdateProfileInfo();
+	if (bEnabled && HasLens()) Apply(Cam);
+}
+
+void UDynamicLensComponent::PullCameraQuick(UCineCameraComponent* Cam)
+{
+	if (bPushingCamera) return;
+	Camera.FocalLengthMm = Cam->CurrentFocalLength;
+	Camera.Aperture = Cam->CurrentAperture;
+	Camera.FocusMethod = Cam->FocusSettings.FocusMethod;
+	Camera.ManualFocusDistance = Cam->FocusSettings.ManualFocusDistance;
+	Camera.ActorToTrack = Cam->FocusSettings.TrackingFocusSettings.ActorToTrack;
+	Camera.FocusOffset = Cam->FocusSettings.FocusOffset;
+	Camera.CroppedAspectRatio = Cam->CropSettings.AspectRatio;
+	Camera.FilmbackMm = FVector2D(Cam->Filmback.SensorWidth, Cam->Filmback.SensorHeight);
+	Camera.SqueezeFactor = Cam->LensSettings.SqueezeFactor;
+}
+
+void UDynamicLensComponent::PushCameraQuick(UCineCameraComponent* Cam)
+{
+	bPushingCamera = true;
+#if WITH_EDITOR
+	Cam->Modify();
+#endif
+	if (!FMath::IsNearlyEqual(Cam->CurrentFocalLength, Camera.FocalLengthMm)) Cam->SetCurrentFocalLength(Camera.FocalLengthMm);
+	Cam->CurrentAperture = Camera.Aperture;
+	Cam->FocusSettings.FocusMethod = Camera.FocusMethod;
+	Cam->FocusSettings.ManualFocusDistance = Camera.ManualFocusDistance;
+	Cam->FocusSettings.TrackingFocusSettings.ActorToTrack = Camera.ActorToTrack;
+	Cam->FocusSettings.FocusOffset = Camera.FocusOffset;
+	Cam->CropSettings.AspectRatio = Camera.CroppedAspectRatio;
+	Cam->Filmback.SensorWidth = FMath::Max((float)Camera.FilmbackMm.X, 1.f);
+	Cam->Filmback.SensorHeight = FMath::Max((float)Camera.FilmbackMm.Y, 1.f);
+	Cam->Filmback.SensorAspectRatio = Cam->Filmback.SensorWidth / Cam->Filmback.SensorHeight;
+	Cam->LensSettings.SqueezeFactor = FMath::Clamp(Camera.SqueezeFactor, 1.f, 2.f);
+	bPushingCamera = false;
+}
+
+void UDynamicLensComponent::ClearDistortionRendering(UCineCameraComponent* Cam)
+{
+	if (AppliedMID)
+	{
+		Cam->RemoveBlendable(AppliedMID);
+		AppliedMID = nullptr;
+	}
+	if (bSVEActive)
+	{
+		if (UCameraCalibrationSubsystem* Sub = GEngine ? GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>() : nullptr)
+		{
+			if (ACameraActor* CamActor = Cast<ACameraActor>(GetOwner())) Sub->ClearLensDistortionSVEState(CamActor);
+		}
+		bSVEActive = false;
+	}
+	if (bOverscanTouched)
+	{
+		Cam->Overscan = Backup.Overscan;
+		Cam->bCropOverscan = Backup.bCropOverscan;
+		Cam->bScaleResolutionWithOverscan = Backup.bScaleRes;
+		bOverscanTouched = false;
+	}
+}
 
 // ------------------------------------------------------------------------------------------------ settings / presets
 
@@ -917,6 +1048,18 @@ void UDynamicLensComponent::UpdateProfileInfo()
 		P->NativeSensorMm.X / Squeeze, P->NativeSensorMm.Y, (P->NativeSensorMm.X / FMath::Max(P->NativeSensorMm.Y, 0.01f)), Squeeze,
 		Locked > 0.f ? *FString::Printf(TEXT(", focal length %.4g mm"), Locked) : TEXT(""));
 	if (S.Distortion.bLockFocalLength && Locked > 0.f) Info += TEXT(" Focal length is locked by the preset.");
+	const TArray<float> Focals = MeasuredFocals();
+	if (Focals.Num() > 1)
+	{
+		const float Cur = (LastFocalMm > 0.f) ? LastFocalMm : 0.f;
+		FString List;
+		for (float F : Focals)
+		{
+			if (!List.IsEmpty()) List += TEXT(", ");
+			List += FMath::IsNearlyEqual(F, Cur, 0.01f) ? FString::Printf(TEXT("[%.4g]"), F) : FString::Printf(TEXT("%.4g"), F);
+		}
+		Info += FString::Printf(TEXT("\nMeasured focal lengths (mm): %s"), *List);
+	}
 	ProfileInfo = Info;
 }
 
