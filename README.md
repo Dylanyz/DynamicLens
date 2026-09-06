@@ -43,7 +43,8 @@ Assets land in the plugin's own content (`/DynamicLens/Profiles`, `/DynamicLens/
 ## Preset asset
 Distortion (profile, amount, breathing, out-of-range clamp/extrapolate, wide boost), Image Circle (on/off, edge softness),
 Vignette (Physical: cos⁴ + barrel clipping / Manual curves), Bokeh (Physical: blades + barrel from specs, cat's-eye
-strength / Manual), Swirl (Petzval amount, falloff, exclusion box, fade by f-stop). Tooltips and hard clamps everywhere.
+strength / Manual), Swirl (Petzval amount, falloff, exclusion box, fade by f-stop), Accumulation DOF (drive on/off,
+spherical aberration, coma, blade rotation). Tooltips and hard clamps everywhere.
 
 ## Profile asset
 Type, coverage summary (read-only), native sensor + squeeze + image circle, the data, and physical specs:
@@ -72,7 +73,10 @@ PoorThings_Porthole_4mm (OpTex 4mm S16 on 35), PoorThings_Lab_8mm, PoorThings_Pe
 * Fisheyes beyond ~80° off-axis can't be rendered by a rectilinear source; the image circle is black there. A 16:9
   source runs out vertically first — use a 4:3 / open-gate filmback (Match Camera To Profile) for the biggest circle.
 * Editor viewport needs Realtime on (Ctrl+R) for the component to tick; renders always tick.
-* Accumulation DOF (5.8 plugin) is not driven yet; bokeh uses the DiaphragmDOF settings.
+* Accumulation DOF: if the camera actor also has an `AccumulationDOF` component (5.8 plugin), the component drives its
+  bokeh texture with a procedural N-gon iris (blade count + rotation from the profile/preset) and passes spherical
+  aberration / coma through; the user's own values are restored when the effect is disabled. Cat's-eye clipping is
+  not reproduced there yet (Accumulation DOF has no barrel model), only in DiaphragmDOF.
 
 ## Rebuild
 ```
