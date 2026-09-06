@@ -29,7 +29,9 @@ dl.add_to_all_cameras("DL_Master")
 Assets land in the plugin's own content (`/DynamicLens/Profiles`, `/DynamicLens/Presets`, `/DynamicLens/Materials`).
 
 ## Component (on the camera)
-* `Enabled`, `Preset` (asset dropdown), `Amount Multiplier` - keyable in Sequencer.
+* `Enabled`, `Preset` (asset dropdown), `Profile Info` (read-only: the lens, its coverage, and exactly what Match Camera
+  To Profile would set), `Match Camera On Preset Change`, `Amount Multiplier` - keyable in Sequencer. Buttons:
+  `Match Camera To Profile`, `Copy All From Preset`, `Save As New Preset`.
 * Layers: `Apply Vignette`, `Apply Bokeh`, `Apply Image Circle`, `Vignette Multiplier`, `Swirl Multiplier` (keyable).
 * **Overrides**: the preset's five blocks (Distortion, Image Circle, Vignette, Bokeh, Overscan) as collapsed groups,
   each with a checkbox. Ticking one copies the preset's values in and uses them for this camera only; the preset
@@ -49,8 +51,11 @@ Five blocks, all with tooltips and hard clamps:
   series snap to the nearest measured prime), amount, breathing, out-of-range clamp/extrapolate, wide boost (a
   creative layer: extra barrel below a focal length - off in measured presets).
 * **Image Circle**: on/off, softness (rolloff band as a fraction of the radius) and the **Edge** block: falloff power,
-  opacity, centre offset, ellipticity, waviness, fine breakup, chromatic aberration (blue rim), radial scatter glow,
-  optional full-frame mask texture you paint/scan yourself.
+  opacity; Geometry: centre offset, ellipticity, radius waviness (wobble / lobes / seed) and, separately, falloff-width
+  waviness (the band gets wider and narrower around the circle: falloff wobble / lobes / seed); Optics: per-channel
+  chromatic offsets (red / green / blue edge radius - blue rim, red in), radial scatter glow; Texture: breakup amount,
+  scale, depth (how far inside the circle it reaches), blur, detail, optional full-frame mask texture you paint/scan.
+  Every preset and profile has a `Reset To Shipped` button that re-imports it from `Tools/data`.
 * **Vignette**: Physical (cos^4 + barrel clipping) / Manual curves.
 * **Bokeh**: Physical (blades + barrel from specs, cat's-eye strength) / Manual, Iris (blade count from **Profile /
   Camera / Custom**, blade curvature override, bokeh squeeze from **Profile / Camera / Custom**, blade rotation),
@@ -76,10 +81,18 @@ front diameter, iris blades, max aperture, **pupil visibility at the image-circl
   visible) × `MechanicalStrength`. Evaluated at the image-circle edge when the circle is inside the frame.
 * **Swirl** (Petzval): not derivable; 0 for modern primes, manual for vintage looks, fades with the iris.
 
+## Asset prefixes
+`DL_` presets and `DLP_` profiles carry a source tag: **AD** = Andy Davis (Imagery for Media) measured Lens Files,
+**T** = tiedtke Real Cinema Lenses ST maps, **L** = Lanthimos-film reconstructions (The Favourite, Poor Things),
+**C** = creative looks by the plugin author. Everything not from a data sheet is marked "assumed" in the Source field.
+
 ## Presets shipped
 Master, Supreme (as measured), MasterHeavy, Subtle, Vintage, Lanthimos_Favourite_6mm (Nikkor 6mm 220°),
 Lanthimos_Favourite_10mm (stereographic reconstruction) and _10mm_Rect (rectilinear reconstruction),
-PoorThings_Porthole_4mm (OpTex 4mm S16 on 35), PoorThings_Lab_8mm, PoorThings_Petzval, plus one per tiedtke series
+L_PoorThings_4mm_Porthole (OpTex 4mm S16 on 35), L_PoorThings_8mm and 8mm_Frame (Oppenheimer/Nikkor, full frame with
+rolling corners), L_PoorThings_Petzval_58 / _85 (round Waterhouse iris, swirl), L_PoorThings_UltraPrime_10mm
+(placeholder distortion), L_PoorThings_MasterZoom_16-110, L_PoorThings_Optimo_24-290, L_PoorThings_VistaVision_LeicaR
+(the reanimation sequence; use a 1.5:1 filmback) - lens list from Noam Kroll's article on the film - plus one per tiedtke series
 (`Presets/Tiedtke/DL_T_*`). Every number that is not from a data sheet is marked "assumed" in the profile's Source field.
 
 ## Film formats behind the Lanthimos presets
