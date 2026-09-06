@@ -58,6 +58,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens")
 	TObjectPtr<UDynamicLensPreset> Preset;
 
+	/** The preset's lens: what it covers, the filmback / squeeze / crop / focal length that Match Camera To Profile would set. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = "Dynamic Lens", meta = (MultiLine = "true"))
+	FString ProfileInfo;
+
+	/** When the preset (or an overridden profile) changes, set the camera's filmback, squeeze, crop and focal length to the profile's native format automatically. Off = only the Match Camera To Profile button does that. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens")
+	bool bMatchCameraOnPresetChange = false;
+
 	/** Scales the preset's distortion amount for this camera only. 1 = as the preset. Keyable in Sequencer. */
 	UPROPERTY(Interp, EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens", meta = (ClampMin = "0.0", ClampMax = "5.0", UIMin = "0.0", UIMax = "2.0"))
 	float AmountMultiplier = 1.f;
@@ -180,12 +188,16 @@ public:
 	FDynamicLensSettings ResolveSettings() const;
 
 	/** Copy every block from the preset into the override blocks (without turning them on), so you can start editing from the preset's values. */
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Dynamic Lens|Overrides")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Dynamic Lens")
 	void CopyAllFromPreset();
 
 	/** Write the resolved settings (preset + overrides) to a new preset asset, then point this component at it and clear the overrides. */
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Dynamic Lens|Save As Preset")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Dynamic Lens")
 	void SaveAsNewPreset();
+
+	/** Refresh the Profile Info text from the current preset / overrides. */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Lens")
+	void UpdateProfileInfo();
 
 	//~ UActorComponent
 	virtual void OnRegister() override;
@@ -217,6 +229,7 @@ private:
 
 	/** Settings resolved by the last Apply (preset + overrides). */
 	UPROPERTY(Transient) FDynamicLensSettings Resolved;
+	UPROPERTY(Transient) TWeakObjectPtr<const UDynamicLensProfile> InfoProfile;
 	UPROPERTY(Transient) TObjectPtr<ULensDistortionModelHandlerBase> Handler;
 	UPROPERTY(Transient) TObjectPtr<ULensFile> TransientLensFile;
 	UPROPERTY(Transient) TObjectPtr<UTexture2D> ProjectionMap;

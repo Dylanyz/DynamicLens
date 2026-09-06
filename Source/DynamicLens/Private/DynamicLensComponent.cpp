@@ -37,7 +37,15 @@ namespace
 	const FName CircleParamNoiseScale(TEXT("NoiseScale"));
 	const FName CircleParamMaskStrength(TEXT("MaskStrength"));
 	const FName CircleParamMask(TEXT("Mask"));
-	const FName CircleParamCA(TEXT("ChromaticAberration"));
+	const FName CircleParamCAR(TEXT("CAR"));
+	const FName CircleParamCAG(TEXT("CAG"));
+	const FName CircleParamCAB(TEXT("CAB"));
+	const FName CircleParamSoftWobble(TEXT("SoftWobble"));
+	const FName CircleParamSoftWobbleLobes(TEXT("SoftWobbleLobes"));
+	const FName CircleParamSoftWobbleSeed(TEXT("SoftWobbleSeed"));
+	const FName CircleParamNoiseDepth(TEXT("NoiseDepth"));
+	const FName CircleParamNoiseBlur(TEXT("NoiseBlur"));
+	const FName CircleParamNoiseDetail(TEXT("NoiseDetail"));
 	const FName CircleParamScatter(TEXT("Scatter"));
 }
 
@@ -107,6 +115,17 @@ void UDynamicLensComponent::PostEditChangeProperty(FPropertyChangedEvent& Proper
 {
 	const FName Name = PropertyChangedEvent.GetPropertyName();
 	const FName Member = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : Name;
+	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Interactive)
+	{
+		// slider drag: the editor keeps the component unregistered until the mouse is released, so ticks stop.
+		// Apply straight away so the viewport keeps previewing while dragging.
+		if (UCineCameraComponent* Cam = GetTargetCamera(); Cam && bEnabled && HasLens())
+		{
+			Apply(Cam);
+		}
+		Super::PostEditChangeProperty(PropertyChangedEvent);
+		return;
+	}
 	// ticking an override copies the preset's block in, so editing starts from the preset's values
 	if (Preset)
 	{
@@ -133,7 +152,20 @@ void UDynamicLensComponent::PostEditChangeProperty(FPropertyChangedEvent& Proper
 		TransientLensFile = nullptr;
 		LensFileSTMapIndex = -1;
 	}
+	const bool bLensChanged = Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, Preset)
+		|| Name == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, bOverrideDistortion)
+		|| (Member == GET_MEMBER_NAME_CHECKED(UDynamicLensComponent, Distortion) && Name == GET_MEMBER_NAME_CHECKED(FDynamicLensDistortion, Profile));
+	if (bLensChanged && bMatchCameraOnPresetChange)
+	{
+		MatchCameraToProfile();
+	}
+	UpdateProfileInfo();
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+	// don't wait for the next tick to show the change
+	if (UCineCameraComponent* Cam = GetTargetCamera(); Cam && bEnabled && HasLens())
+	{
+		Apply(Cam);
+	}
 }
 #endif
 
@@ -190,6 +222,11 @@ void UDynamicLensComponent::MatchCameraToProfile()
 void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 {
 	Resolved = ResolveSettings();
+	if (ProfileInfo.IsEmpty() || InfoProfile != Resolved.Distortion.Profile)
+	{
+		InfoProfile = Resolved.Distortion.Profile;
+		UpdateProfileInfo();
+	}
 	if (Resolved.Distortion.bLockFocalLength && Resolved.Distortion.Profile)
 	{
 		const float Locked = Resolved.Distortion.Profile->GetLockedFocal(Cam->CurrentFocalLength);
@@ -635,7 +672,15 @@ void UDynamicLensComponent::ApplyLook(UCineCameraComponent* Cam, const FDynamicL
 				CircleMID->SetScalarParameterValue(CircleParamWobbleSeed, FMath::DegreesToRadians(Ed.WobbleSeed));
 				CircleMID->SetScalarParameterValue(CircleParamEdgeNoise, Ed.EdgeNoise);
 				CircleMID->SetScalarParameterValue(CircleParamNoiseScale, Ed.NoiseScale);
-				CircleMID->SetScalarParameterValue(CircleParamCA, Ed.ChromaticAberration);
+				CircleMID->SetScalarParameterValue(CircleParamCAR, Ed.ChromaticRed);
+				CircleMID->SetScalarParameterValue(CircleParamCAG, Ed.ChromaticGreen);
+				CircleMID->SetScalarParameterValue(CircleParamCAB, Ed.ChromaticBlue);
+				CircleMID->SetScalarParameterValue(CircleParamSoftWobble, Ed.FalloffWobble);
+				CircleMID->SetScalarParameterValue(CircleParamSoftWobbleLobes, (float)Ed.FalloffWobbleLobes);
+				CircleMID->SetScalarParameterValue(CircleParamSoftWobbleSeed, FMath::DegreesToRadians(Ed.FalloffWobbleSeed));
+				CircleMID->SetScalarParameterValue(CircleParamNoiseDepth, Ed.NoiseDepth);
+				CircleMID->SetScalarParameterValue(CircleParamNoiseBlur, Ed.NoiseBlur);
+				CircleMID->SetScalarParameterValue(CircleParamNoiseDetail, Ed.NoiseDetail);
 				CircleMID->SetScalarParameterValue(CircleParamScatter, Ed.Scatter);
 				UTexture2D* MaskTex = Ed.MaskTexture.IsNull() ? nullptr : Ed.MaskTexture.LoadSynchronous();
 				CircleMID->SetScalarParameterValue(CircleParamMaskStrength, MaskTex ? Ed.MaskStrength : 0.f);
@@ -763,6 +808,25 @@ FDynamicLensSettings UDynamicLensComponent::ResolveSettings() const
 	if (bOverrideBokeh)       S.Bokeh = Bokeh;
 	if (bOverrideOverscan)    S.Overscan = Overscan;
 	return S;
+}
+
+void UDynamicLensComponent::UpdateProfileInfo()
+{
+	const FDynamicLensSettings S = ResolveSettings();
+	const UDynamicLensProfile* P = S.Distortion.Profile;
+	if (!P)
+	{
+		ProfileInfo = TEXT("No profile.");
+		return;
+	}
+	const float Squeeze = FMath::Max(P->Squeeze, 1.f);
+	const float Locked = P->GetLockedFocal(LastFocalMm > 0.f ? LastFocalMm : 35.f);
+	FString Info = FString::Printf(TEXT("%s\n%s\nMatch Camera To Profile sets: filmback %.2f x %.2f mm (%.2f:1), squeeze %.2gx, crop off%s."),
+		*P->Label, *P->Coverage,
+		P->NativeSensorMm.X / Squeeze, P->NativeSensorMm.Y, (P->NativeSensorMm.X / FMath::Max(P->NativeSensorMm.Y, 0.01f)), Squeeze,
+		Locked > 0.f ? *FString::Printf(TEXT(", focal length %.4g mm"), Locked) : TEXT(""));
+	if (S.Distortion.bLockFocalLength && Locked > 0.f) Info += TEXT(" Focal length is locked by the preset.");
+	ProfileInfo = Info;
 }
 
 void UDynamicLensComponent::CopyAllFromPreset()

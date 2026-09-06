@@ -201,6 +201,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Dynamic Lens")
 	float GetLockedFocal(float FocalMm) const;
 
+	/** Put this profile back to the values the plugin ships (re-runs the importer for this asset from Tools/data). */
+	UFUNCTION(CallInEditor, Category = "Profile")
+	void ResetToShipped();
+
 	/** Shortest and longest focal length the data covers (0,0 = any). */
 	UFUNCTION(BlueprintPure, Category = "Dynamic Lens")
 	void GetFocalRange(float& MinMm, float& MaxMm) const;
@@ -382,21 +386,53 @@ struct DYNAMICLENS_API FDynamicLensImageCircleEdge
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Geometry", meta = (ClampMin = "0.0", ClampMax = "360.0"))
 	float WobbleSeed = 0.f;
 
-	/** Colour fringing on the rim: the blue channel's circle is this fraction of the radius larger than the red one (lateral chromatic aberration is extreme at the edge of a fisheye - the blue ring on Poor Things' 4 mm). 0.01-0.03 is what the stills show. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Optics", meta = (ClampMin = "0.0", ClampMax = "0.1", UIMin = "0.0", UIMax = "0.05"))
-	float ChromaticAberration = 0.f;
+	/** Colour fringing on the rim: how much further out (+) or in (-) the RED channel's edge sits, as a fraction of the radius. Poor Things' 4 mm: red -0.03, blue +0.03 (blue ring). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Optics", meta = (ClampMin = "-0.1", ClampMax = "0.1", UIMin = "-0.05", UIMax = "0.05"))
+	float ChromaticRed = 0.f;
+
+	/** Same for the GREEN channel's edge (usually 0: green is the reference). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Optics", meta = (ClampMin = "-0.1", ClampMax = "0.1", UIMin = "-0.05", UIMax = "0.05"))
+	float ChromaticGreen = 0.f;
+
+	/** Same for the BLUE channel's edge (+ = blue reaches further out = blue rim). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Optics", meta = (ClampMin = "-0.1", ClampMax = "0.1", UIMin = "-0.05", UIMax = "0.05"))
+	float ChromaticBlue = 0.f;
 
 	/** Light scatter in the soft band: the picture smears radially and glows a little before it goes dark, instead of just dimming. 0 = plain darkening, 1 = strong optical rolloff. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Optics", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float Scatter = 0.f;
 
+	/** Waviness of the FALLOFF WIDTH around the circle (the soft band gets wider and narrower), as a fraction of the softness. 0 = even band. Independent of the radius waviness above. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Geometry", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float FalloffWobble = 0.f;
+
+	/** How many bumps the falloff-width waviness has around the circle. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Geometry", meta = (ClampMin = "1", ClampMax = "12"))
+	int32 FalloffWobbleLobes = 3;
+
+	/** Rotates / re-seeds the falloff-width waviness (degrees). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Geometry", meta = (ClampMin = "0.0", ClampMax = "360.0"))
+	float FalloffWobbleSeed = 0.f;
+
 	/** Fine breakup of the soft band (grain-like raggedness of the boundary), 0-1. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Texture", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float EdgeNoise = 0.f;
 
-	/** Size of the breakup: cells across the frame width. */
+	/** Size of the breakup: cells around the circle (higher = finer). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Texture", meta = (ClampMin = "4.0", ClampMax = "512.0", UIMin = "16.0", UIMax = "256.0"))
 	float NoiseScale = 96.f;
+
+	/** How deep the breakup reaches into the picture, as a fraction of the radius: it is full strength at the black edge and fades to nothing this far inside. 1 = everywhere. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Texture", meta = (ClampMin = "0.01", ClampMax = "1.0"))
+	float NoiseDepth = 0.3f;
+
+	/** Blurs the breakup pattern (0 = crisp cells, 1 = soft blobs). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Texture", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float NoiseBlur = 0.f;
+
+	/** Amount of fine detail layered on the breakup (second octave): 0 = only the large cells, 1 = full fine grain. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Texture", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float NoiseDetail = 0.5f;
 
 	/** Optional full-frame mask (your own asset: a scan or paint of a real lens edge, dust, gate hairs). Multiplied over the picture in screen space; white = untouched. Linear, R channel. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Texture")
@@ -412,7 +448,10 @@ struct DYNAMICLENS_API FDynamicLensImageCircleEdge
 			&& CenterOffset.Equals(O.CenterOffset, 1e-4) && FMath::IsNearlyEqual(Ellipticity, O.Ellipticity)
 			&& FMath::IsNearlyEqual(Wobble, O.Wobble) && WobbleLobes == O.WobbleLobes && FMath::IsNearlyEqual(WobbleSeed, O.WobbleSeed)
 			&& FMath::IsNearlyEqual(EdgeNoise, O.EdgeNoise) && FMath::IsNearlyEqual(NoiseScale, O.NoiseScale)
-			&& FMath::IsNearlyEqual(ChromaticAberration, O.ChromaticAberration) && FMath::IsNearlyEqual(Scatter, O.Scatter)
+			&& FMath::IsNearlyEqual(ChromaticRed, O.ChromaticRed) && FMath::IsNearlyEqual(ChromaticGreen, O.ChromaticGreen) && FMath::IsNearlyEqual(ChromaticBlue, O.ChromaticBlue)
+			&& FMath::IsNearlyEqual(FalloffWobble, O.FalloffWobble) && FalloffWobbleLobes == O.FalloffWobbleLobes && FMath::IsNearlyEqual(FalloffWobbleSeed, O.FalloffWobbleSeed)
+			&& FMath::IsNearlyEqual(NoiseDepth, O.NoiseDepth) && FMath::IsNearlyEqual(NoiseBlur, O.NoiseBlur) && FMath::IsNearlyEqual(NoiseDetail, O.NoiseDetail)
+			&& FMath::IsNearlyEqual(Scatter, O.Scatter)
 			&& MaskTexture == O.MaskTexture && FMath::IsNearlyEqual(MaskStrength, O.MaskStrength);
 	}
 };
@@ -676,6 +715,10 @@ public:
 	/** How much extra picture is rendered for the distortion. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overscan", meta = (ShowOnlyInnerProperties))
 	FDynamicLensOverscan Overscan;
+
+	/** Put this preset back to the values the plugin ships (re-runs the importer for this asset from Tools/data/presets.json). */
+	UFUNCTION(CallInEditor, Category = "Preset")
+	void ResetToShipped();
 
 	/** All blocks as one settings value (what a component resolves against its overrides). */
 	UFUNCTION(BlueprintPure, Category = "Dynamic Lens")

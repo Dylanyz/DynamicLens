@@ -6,7 +6,7 @@
   "note": "imported by Content/Python/dynamiclens_tools.import_all(); every non-data-sheet number is flagged 'assumed' in its source string"
  },
  "profile_specs": {
-  "ARRI_Master": {
+  "AD_ARRI_Master": {
    "label": "ARRI / Zeiss Master Prime (spherical, T1.3)",
    "native_sensor_mm": [
     28.25,
@@ -22,7 +22,7 @@
    "blade_curvature": 0.3,
    "nominal_focal_mm": 0
   },
-  "ZEISS_Supreme": {
+  "AD_ZEISS_Supreme": {
    "label": "Zeiss Supreme Prime (spherical, T1.5, full frame)",
    "native_sensor_mm": [
     36.7,
@@ -40,7 +40,7 @@
   }
  },
  "projection_profiles": {
-  "Nikkor_6mm_Fisheye": {
+  "L_Nikkor_6mm_Fisheye": {
    "label": "Nikon Fisheye-Nikkor 6mm f/2.8 (220° circular)",
    "projection": "Equidistant",
    "max_field_angle_deg": 110,
@@ -58,7 +58,7 @@
    "blade_curvature": 0.0,
    "nominal_focal_mm": 6
   },
-  "Nikkor_8mm_Fisheye": {
+  "L_Nikkor_8mm_Fisheye": {
    "label": "Nikon Fisheye-Nikkor 8mm f/2.8 (180° circular)",
    "projection": "Equidistant",
    "max_field_angle_deg": 90,
@@ -76,7 +76,7 @@
    "blade_curvature": 0.0,
    "nominal_focal_mm": 8
   },
-  "Nikkor_OP_10mm_Fisheye": {
+  "L_Nikkor_OP_10mm_Fisheye": {
    "label": "Nikon OP Fisheye-Nikkor 10mm f/5.6 (180° orthographic, 20 mm circle)",
    "projection": "Orthographic",
    "max_field_angle_deg": 90,
@@ -94,7 +94,7 @@
    "blade_curvature": 0.0,
    "nominal_focal_mm": 10
   },
-  "Optex_4mm_S16_Fisheye": {
+  "L_Optex_4mm_S16_Fisheye": {
    "label": "OpTex 4mm T2 fisheye for Super 16 (Poor Things porthole)",
    "projection": "Equidistant",
    "max_field_angle_deg": 90,
@@ -112,7 +112,7 @@
    "blade_curvature": 0.0,
    "nominal_focal_mm": 4
   },
-  "Stereographic_10mm_FullFrame": {
+  "L_Stereographic_10mm_FullFrame": {
    "label": "Full-frame stereographic 10mm (The Favourite '10mm' reconstruction)",
    "projection": "Stereographic",
    "max_field_angle_deg": 90,
@@ -130,7 +130,7 @@
    "blade_curvature": 0.0,
    "nominal_focal_mm": 10
   },
-  "Nikkor_6mm_Fisheye_Frame": {
+  "L_Nikkor_6mm_Fisheye_Frame": {
    "label": "Nikon Fisheye-Nikkor 6mm f/2.8 as framed in The Favourite (1.85:1, DI blow-up)",
    "projection": "Equidistant",
    "max_field_angle_deg": 110,
@@ -147,12 +147,30 @@
    "source": "Nikon data sheet: 220° angle of view, 23 mm image circle on 35 mm, 236 mm front diameter, f/2.8. Equidistant projection (Nikon fisheye family). Reported as the 6mm fisheye of The Favourite (Robbie Ryan, 35 mm 3-perf, Nikkor + Panavision PVintage). Unreal can render ~80° off-axis, so the outer ring of the circle is black. Blades and pupil visibility: assumed. FRAME VARIANT: the film's fisheye frames are full-frame with only the corners rolling off. A 6 mm equidistant image reaches the corner of a 1.85:1 gate only if the corner is at most ~78 deg off-axis (the most a rectilinear Unreal render can source at overscan 2): half-diagonal <= 6 mm x 1.36 rad = 8.2 mm -> gate 14.4 x 7.78 mm, i.e. the 35 mm scan blown up ~1.7x. The real DI blow-up is unknown (assumed); the framing is what matters. Use Match Camera To Profile and Fixed overscan 2.0 on the component.",
    "blade_curvature": 0.0,
    "nominal_focal_mm": 6
+  },
+  "L_Nikkor_8mm_Fisheye_Frame": {
+   "label": "Nikon Fisheye-Nikkor 8mm f/2.8 as framed in Poor Things (1.66:1, DI blow-up)",
+   "projection": "Equidistant",
+   "max_field_angle_deg": 90,
+   "native_sensor_mm": [
+    18.7,
+    11.27
+   ],
+   "image_circle_mm": 23.0,
+   "squeeze": 1.0,
+   "front_diameter_mm": 123,
+   "iris_blades": 9,
+   "max_aperture": 2.8,
+   "pupil_visible_at_image_circle": 0.7,
+   "source": "Nikon data sheet: 180° circular fisheye, 23 mm image circle, f/2.8, 123 mm front. Equidistant projection. An 8mm fisheye is reported for Poor Things' lab scenes. Blades and pupil visibility: assumed. Format: Poor Things was shot on ARRICAM LT/ST, 35 mm 4-perf, 1.66:1 (Cinematography World), so the native gate is the 1.66 extraction of Super 35: 24.89 x 15.0 mm. FRAME VARIANT: Poor Things' 8 mm shots (ballroom, lab - Noam Kroll's article stills) fill the 1.66 frame with the corners rolling off, which a 23 mm circle on the 4-perf gate cannot do; modelled as the largest 1.66 gate whose corners stay within 78 deg off-axis (renderable at overscan 2): half-diagonal 8 mm x 1.36 = 10.9 mm -> 18.7 x 11.27 mm, a 1.33x blow-up (assumed). Match Camera To Profile.",
+   "blade_curvature": 0.0,
+   "nominal_focal_mm": 8
   }
  },
  "presets": {
-  "Master": {
+  "AD_Master": {
    "label": "ARRI/Zeiss Master Prime, as measured. Physical vignette and cat's eye, no swirl.",
-   "profile": "ARRI_Master",
+   "profile": "AD_ARRI_Master",
    "amount": 1.0,
    "breathing": 1.0,
    "out_of_range": "Clamp",
@@ -170,9 +188,9 @@
     "swirl_fades_by_fstop": 5.6
    }
   },
-  "Supreme": {
+  "AD_Supreme": {
    "label": "Zeiss Supreme Prime, as measured. Physical vignette and cat's eye, no swirl.",
-   "profile": "ZEISS_Supreme",
+   "profile": "AD_ZEISS_Supreme",
    "amount": 1.0,
    "breathing": 1.0,
    "out_of_range": "Clamp",
@@ -190,9 +208,9 @@
     "swirl_fades_by_fstop": 5.6
    }
   },
-  "MasterHeavy": {
+  "C_MasterHeavy": {
    "label": "Master Prime x1.6 with extra barrel under 24 mm and strong breathing. Extrapolates below 12 mm; corners go black past the overscan limit.",
-   "profile": "ARRI_Master",
+   "profile": "AD_ARRI_Master",
    "amount": 1.6,
    "breathing": 1.5,
    "out_of_range": "Extrapolate",
@@ -220,9 +238,9 @@
     "max": 1.5
    }
   },
-  "Subtle": {
+  "C_Subtle": {
    "label": "Supreme x0.5, no breathing, light vignette, clean modern look.",
-   "profile": "ZEISS_Supreme",
+   "profile": "AD_ZEISS_Supreme",
    "amount": 0.5,
    "breathing": 0.0,
    "out_of_range": "Clamp",
@@ -240,9 +258,9 @@
     "swirl_fades_by_fstop": 5.6
    }
   },
-  "Vintage": {
+  "C_Vintage": {
    "label": "Master profile with a mild Petzval swirl, stronger cat's eye and vignette.",
-   "profile": "ARRI_Master",
+   "profile": "AD_ARRI_Master",
    "amount": 1.3,
    "breathing": 1.3,
    "out_of_range": "Clamp",
@@ -260,9 +278,9 @@
     "swirl_fades_by_fstop": 4.0
    }
   },
-  "Lanthimos_Favourite_6mm": {
+  "L_Favourite_6mm": {
    "label": "The Favourite fisheye: Nikkor 6mm 220° equidistant on 35 mm. Circular image, black corners, heavy natural falloff. Edge from the film's frames: no hard rim, corners roll off over ~45% of the radius, top corners darker than bottom.",
-   "profile": "Nikkor_6mm_Fisheye",
+   "profile": "L_Nikkor_6mm_Fisheye",
    "amount": 1.0,
    "breathing": 1.0,
    "out_of_range": "Clamp",
@@ -291,8 +309,9 @@
     "wobble_seed": 75,
     "edge_noise": 0.05,
     "noise_scale": 90,
-    "chromatic_aberration": 0.015,
-    "scatter": 0.3
+    "scatter": 0.3,
+    "chromatic_red": -0.015,
+    "chromatic_blue": 0.015
    },
    "overscan": {
     "mode": "Fixed",
@@ -300,9 +319,9 @@
    },
    "lock_focal": true
   },
-  "Lanthimos_Favourite_10mm": {
+  "L_Favourite_10mm": {
    "label": "The Favourite ultra-wide: full-frame stereographic 10mm reconstruction. Whole frame covered, bowed lines, heavy corner falloff.",
-   "profile": "Stereographic_10mm_FullFrame",
+   "profile": "L_Stereographic_10mm_FullFrame",
    "amount": 1.0,
    "breathing": 1.0,
    "out_of_range": "Clamp",
@@ -330,7 +349,8 @@
     "wobble_lobes": 2,
     "wobble_seed": 10,
     "scatter": 0.25,
-    "chromatic_aberration": 0.01
+    "chromatic_red": -0.01,
+    "chromatic_blue": 0.01
    },
    "overscan": {
     "mode": "Fixed",
@@ -338,9 +358,9 @@
    },
    "lock_focal": true
   },
-  "PoorThings_Porthole_4mm": {
+  "L_PoorThings_4mm_Porthole": {
    "label": "Poor Things porthole: OpTex 4mm Super 16 fisheye on a 35 mm frame. Small circular image, everything else black. Edge measured from a 1.66:1 still: rolloff band 0.85-1.13 of the circle radius, blue rim at 1.05-1.08, circle 5% left / 3% high of frame centre.",
-   "profile": "Optex_4mm_S16_Fisheye",
+   "profile": "L_Optex_4mm_S16_Fisheye",
    "amount": 1.0,
    "breathing": 1.0,
    "out_of_range": "Clamp",
@@ -371,9 +391,16 @@
     "wobble_seed": 40,
     "edge_noise": 0.08,
     "noise_scale": 110,
-    "chromatic_aberration": 0.03,
     "scatter": 0.5,
-    "mask_strength": 1.0
+    "mask_strength": 1.0,
+    "chromatic_red": -0.03,
+    "chromatic_blue": 0.03,
+    "falloff_wobble": 0.25,
+    "falloff_wobble_lobes": 3,
+    "falloff_wobble_seed": 120,
+    "noise_depth": 0.35,
+    "noise_blur": 0.25,
+    "noise_detail": 0.5
    },
    "overscan": {
     "mode": "Fixed",
@@ -381,9 +408,9 @@
    },
    "lock_focal": true
   },
-  "PoorThings_Lab_8mm": {
+  "L_PoorThings_8mm": {
    "label": "Poor Things lab: Nikkor 8mm 180° circular fisheye on 35 mm. Edge: same optical rolloff family as the 4 mm (assumed slightly tighter).",
-   "profile": "Nikkor_8mm_Fisheye",
+   "profile": "L_Nikkor_8mm_Fisheye",
    "amount": 1.0,
    "breathing": 1.0,
    "out_of_range": "Clamp",
@@ -412,8 +439,9 @@
     "wobble_seed": 120,
     "edge_noise": 0.06,
     "noise_scale": 110,
-    "chromatic_aberration": 0.025,
-    "scatter": 0.4
+    "scatter": 0.4,
+    "chromatic_red": -0.025,
+    "chromatic_blue": 0.025
    },
    "overscan": {
     "mode": "Fixed",
@@ -421,12 +449,13 @@
    },
    "lock_focal": true
   },
-  "PoorThings_Petzval": {
-   "label": "Poor Things Petzval: Lomography Petzval 58/85 (TLS rehoused) swirl on a spherical prime. Strong sagittal swirl wide open, gone by f/4.",
-   "profile": "ARRI_Master",
+  "L_PoorThings_Petzval_58": {
+   "label": "Poor Things portraits: Lomography Petzval 58 (TLS rehoused). Round Waterhouse aperture, strong swirl wide open ('a vortex'), sharp centre. Shot wide open in the film.",
+   "profile": "L_Petzval_58",
    "amount": 1.0,
    "breathing": 1.0,
    "out_of_range": "Clamp",
+   "lock_focal": true,
    "image_circle": true,
    "vignette": {
     "mode": "Physical",
@@ -434,18 +463,17 @@
     "mechanical_strength": 1.8
    },
    "bokeh": {
-    "mode": "Manual",
-    "blades": 12,
-    "barrel_radius": 22,
-    "barrel_length": 110,
+    "mode": "Physical",
+    "cats_eye_strength": 1.6,
     "petzval": 2.0,
     "petzval_falloff": 1.2,
-    "swirl_fades_by_fstop": 4.0
+    "swirl_fades_by_fstop": 4.0,
+    "spherical_aberration": 8.0
    }
   },
-  "Lanthimos_Favourite_10mm_Rect": {
+  "L_Favourite_10mm_Rect": {
    "label": "The Favourite ultra-wide, rectilinear version: Master Prime profile extrapolated to 10 mm with extra barrel. Full frame, no circle, moderate overscan.",
-   "profile": "ARRI_Master",
+   "profile": "AD_ARRI_Master",
    "amount": 1.2,
    "breathing": 1.0,
    "out_of_range": "Extrapolate",
@@ -479,16 +507,17 @@
     "wobble_lobes": 2,
     "wobble_seed": 10,
     "scatter": 0.25,
-    "chromatic_aberration": 0.01
+    "chromatic_red": -0.01,
+    "chromatic_blue": 0.01
    },
    "overscan": {
     "mode": "Fixed",
     "fixed": 1.5
    }
   },
-  "Lanthimos_Favourite_6mm_Frame": {
+  "L_Favourite_6mm_Frame": {
    "label": "The Favourite fisheye as framed in the film: Nikkor 6mm blown up so only the corners roll off (top darker). On the component: Match Camera To Profile, Overscan Fixed 2.0.",
-   "profile": "Nikkor_6mm_Fisheye_Frame",
+   "profile": "L_Nikkor_6mm_Fisheye_Frame",
    "amount": 1.0,
    "breathing": 1.0,
    "out_of_range": "Clamp",
@@ -517,17 +546,233 @@
     "wobble_seed": 75,
     "edge_noise": 0.05,
     "noise_scale": 90,
-    "chromatic_aberration": 0.012,
-    "scatter": 0.3
+    "scatter": 0.3,
+    "chromatic_red": -0.012,
+    "chromatic_blue": 0.012
    },
    "overscan": {
     "mode": "Fixed",
     "fixed": 2.0
    },
    "lock_focal": true
+  },
+  "L_PoorThings_8mm_Frame": {
+   "label": "Poor Things 8 mm Oppenheimer/Nikkor as framed in the film: full 1.66 frame, 'distinct bend', corners rolling off. Match Camera To Profile.",
+   "profile": "L_Nikkor_8mm_Fisheye_Frame",
+   "amount": 1.0,
+   "breathing": 1.0,
+   "out_of_range": "Clamp",
+   "lock_focal": true,
+   "image_circle": true,
+   "image_circle_softness": 0.4,
+   "image_circle_edge": {
+    "falloff_power": 1.2,
+    "center_offset": [
+     0.0,
+     -0.03
+    ],
+    "wobble": 0.02,
+    "wobble_lobes": 2,
+    "wobble_seed": 30,
+    "falloff_wobble": 0.3,
+    "falloff_wobble_lobes": 2,
+    "falloff_wobble_seed": 200,
+    "edge_noise": 0.05,
+    "noise_scale": 90,
+    "noise_depth": 0.3,
+    "noise_blur": 0.3,
+    "chromatic_red": -0.015,
+    "chromatic_blue": 0.015,
+    "scatter": 0.3
+   },
+   "overscan": {
+    "mode": "Fixed",
+    "fixed": 2.0
+   },
+   "vignette": {
+    "mode": "Physical",
+    "natural_falloff": 0.7,
+    "mechanical_strength": 1.0
+   },
+   "bokeh": {
+    "mode": "Physical",
+    "cats_eye_strength": 1.0,
+    "petzval": 0.0,
+    "petzval_falloff": 1.0,
+    "swirl_fades_by_fstop": 5.6
+   }
+  },
+  "L_PoorThings_Petzval_85": {
+   "label": "Poor Things portraits: Lomography Petzval 85 (TLS rehoused). Round Waterhouse aperture, swirl wide open, sharp centre.",
+   "profile": "L_Petzval_85",
+   "amount": 1.0,
+   "breathing": 1.0,
+   "out_of_range": "Clamp",
+   "lock_focal": true,
+   "image_circle": true,
+   "vignette": {
+    "mode": "Physical",
+    "natural_falloff": 0.7,
+    "mechanical_strength": 1.6
+   },
+   "bokeh": {
+    "mode": "Physical",
+    "cats_eye_strength": 1.5,
+    "petzval": 1.6,
+    "petzval_falloff": 1.2,
+    "swirl_fades_by_fstop": 4.5,
+    "spherical_aberration": 6.0
+   }
+  },
+  "L_PoorThings_UltraPrime_10mm": {
+   "label": "Poor Things wide: ARRI/Zeiss Ultra Prime 10mm T2.1, rectilinear. Distortion placeholder (Master Prime at 12 mm) until a 10 mm grid exists.",
+   "profile": "L_UltraPrime_10",
+   "amount": 1.0,
+   "breathing": 1.0,
+   "out_of_range": "Clamp",
+   "lock_focal": true,
+   "image_circle": true,
+   "overscan": {
+    "mode": "Dynamic",
+    "max": 1.5
+   },
+   "vignette": {
+    "mode": "Physical",
+    "natural_falloff": 0.6,
+    "mechanical_strength": 1.0
+   },
+   "bokeh": {
+    "mode": "Physical",
+    "cats_eye_strength": 1.0,
+    "petzval": 0.0,
+    "petzval_falloff": 1.0,
+    "swirl_fades_by_fstop": 5.6
+   }
+  },
+  "L_PoorThings_MasterZoom_16-110": {
+   "label": "Poor Things zoom shots: ARRI/Zeiss Master Zoom 16.5-110 T2.6 - 'virtually no distortion or breathing'. Master Prime grid scaled down; zoom freely.",
+   "profile": "AD_ARRI_Master",
+   "amount": 0.35,
+   "breathing": 0.15,
+   "out_of_range": "Clamp",
+   "image_circle": true,
+   "vignette": {
+    "mode": "Physical",
+    "natural_falloff": 0.5,
+    "mechanical_strength": 0.8
+   },
+   "bokeh": {
+    "mode": "Physical",
+    "cats_eye_strength": 1.0,
+    "petzval": 0.0,
+    "petzval_falloff": 1.0,
+    "swirl_fades_by_fstop": 5.6
+   }
+  },
+  "L_PoorThings_Optimo_24-290": {
+   "label": "Poor Things long zooms: Angenieux Optimo 24-290 T2.8. Low distortion, mild breathing (Master Prime grid scaled); zoom freely.",
+   "profile": "AD_ARRI_Master",
+   "amount": 0.3,
+   "breathing": 0.25,
+   "out_of_range": "Clamp",
+   "image_circle": true,
+   "vignette": {
+    "mode": "Physical",
+    "natural_falloff": 0.5,
+    "mechanical_strength": 0.8
+   },
+   "bokeh": {
+    "mode": "Physical",
+    "cats_eye_strength": 1.0,
+    "petzval": 0.0,
+    "petzval_falloff": 1.0,
+    "swirl_fades_by_fstop": 5.6
+   }
+  },
+  "L_PoorThings_VistaVision_LeicaR": {
+   "label": "Poor Things reanimation sequence: Beaumont VistaVision (8-perf) with adapted Leica APO-Summicron-R / Telyt-R 19-135 mm. Clean full-frame glass: Supreme grid at 0.6, native 36.7 x 25.5 (~VistaVision 37.7 x 25.1). Use a 1.5:1 filmback.",
+   "profile": "AD_ZEISS_Supreme",
+   "amount": 0.6,
+   "breathing": 0.8,
+   "out_of_range": "Clamp",
+   "image_circle": true,
+   "vignette": {
+    "mode": "Physical",
+    "natural_falloff": 0.5,
+    "mechanical_strength": 0.6
+   },
+   "bokeh": {
+    "mode": "Physical",
+    "cats_eye_strength": 1.0,
+    "petzval": 0.0,
+    "petzval_falloff": 1.0,
+    "swirl_fades_by_fstop": 5.6
+   }
   }
  },
  "notes": {
   "image_circle_edge_measurement_2026-09-06": "Poor Things 4 mm still (1400x845 crop, 1.66:1): blurred-luminance iso-contour circle fit centre (660,411) R=364 px -> offset x=-0.057 half-width, y=-0.028 half-height; radial mean luminance plateau 0.40 at 0.75-0.85 R, 50% at 1.04 R, 10% at 1.13 R; blue fraction of RGB rises 0.25 -> 0.35 at 1.05-1.075 R (blue rim). Outer black radius 1.13 R = 0.587 of half-width = 14.6 mm circle on a 24.9 mm wide gate, matching the OpTex 14.5 mm spec."
+ },
+ "prefixes": {
+  "AD": "Andy Davis (Imagery for Media) measured Lens Files",
+  "T": "tiedtke Real Cinema Lenses ST maps",
+  "L": "Lanthimos films (The Favourite, Poor Things) reconstructions",
+  "C": "creative / plugin author looks"
+ },
+ "derived_profiles": {
+  "L_Petzval_58": {
+   "base": "AD_ARRI_Master",
+   "focal": 58,
+   "label": "Lomography Petzval 58 Bokeh Control (TLS rehoused) - Poor Things",
+   "native_sensor_mm": [
+    24.89,
+    15.0
+   ],
+   "image_circle_mm": 43.0,
+   "squeeze": 1.0,
+   "front_diameter_mm": 62,
+   "iris_blades": 16,
+   "blade_curvature": 1.0,
+   "max_aperture": 1.9,
+   "pupil_visible_at_image_circle": 0.6,
+   "nominal_focal_mm": 58,
+   "source": "Lomography data: 58 mm f/1.9, Waterhouse-stop aperture (round hole, so a round iris: 16 blades fully curved), bokeh control ring levels 1-7, covers full frame; rehoused by True Lens Services for Poor Things (Kroll / Cinematography World). Distortion: the Master Prime grid at 58 mm (assumed - no Petzval grid). Front diameter and pupil visibility assumed."
+  },
+  "L_Petzval_85": {
+   "base": "AD_ARRI_Master",
+   "focal": 85,
+   "label": "Lomography Petzval 85 Art Lens (TLS rehoused) - Poor Things",
+   "native_sensor_mm": [
+    24.89,
+    15.0
+   ],
+   "image_circle_mm": 43.0,
+   "squeeze": 1.0,
+   "front_diameter_mm": 70,
+   "iris_blades": 16,
+   "blade_curvature": 1.0,
+   "max_aperture": 2.2,
+   "pupil_visible_at_image_circle": 0.6,
+   "nominal_focal_mm": 85,
+   "source": "Lomography data: 85 mm f/2.2, Waterhouse-stop aperture (round), full-frame coverage; TLS rehousing for Poor Things. Distortion: Master Prime grid at 85 mm (assumed). Front diameter and pupil visibility assumed."
+  },
+  "L_UltraPrime_10": {
+   "base": "AD_ARRI_Master",
+   "focal": 10,
+   "label": "ARRI / Zeiss Ultra Prime 10mm T2.1 - Poor Things",
+   "native_sensor_mm": [
+    24.89,
+    15.0
+   ],
+   "image_circle_mm": 31.1,
+   "squeeze": 1.0,
+   "front_diameter_mm": 156,
+   "iris_blades": 9,
+   "blade_curvature": 0.3,
+   "max_aperture": 2.1,
+   "pupil_visible_at_image_circle": 0.5,
+   "nominal_focal_mm": 10,
+   "source": "ARRI/Zeiss data sheet: Ultra Prime 10 mm T2.1, Super 35 coverage, 156 mm front (assumed from the dedicated filter holder). Robbie Ryan's '10mm Arri/Zeiss' on Poor Things (Kroll). Distortion: the Master Prime grid clamped at its widest measured focal (12 mm) - a placeholder until a 10 mm grid exists; blades/pupil assumed."
+  }
  }
 }

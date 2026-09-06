@@ -21,5 +21,9 @@ public class DynamicLens : ModuleRules
 			"RenderCore",
 			"RHI",
 		});
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.Add("PythonScriptPlugin");
+		}
 	}
 }

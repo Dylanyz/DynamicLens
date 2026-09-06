@@ -99,12 +99,14 @@ def _set_struct(obj, prop, values):
     obj.set_editor_property(prop, s)
 
 
-def import_presets(preset_file=None, save=True):
+def import_presets(preset_file=None, save=True, only=None):
     """Tools/data/presets.json -> UDynamicLensPreset assets referencing the profile assets."""
     preset_file = preset_file or os.path.join(DATA_DIR, "presets.json")
     presets = json.load(open(preset_file))["presets"]
     created = []
     for name, p in presets.items():
+        if only and name not in only:
+            continue
         asset = _create_data_asset("DL_" + name, PRESET_PKG, unreal.DynamicLensPreset)
         prof = unreal.load_asset(f"{PROFILE_PKG}/DLP_{p['profile']}")
         if prof is None:
@@ -124,11 +126,17 @@ def import_presets(preset_file=None, save=True):
         ee = {}
         for src, dst in [("falloff_power", "falloff_power"), ("opacity", "opacity"), ("ellipticity", "ellipticity"), ("wobble", "wobble"),
                          ("wobble_seed", "wobble_seed"), ("edge_noise", "edge_noise"), ("noise_scale", "noise_scale"),
-                         ("chromatic_aberration", "chromatic_aberration"), ("scatter", "scatter"), ("mask_strength", "mask_strength")]:
+                         ("chromatic_red", "chromatic_red"), ("chromatic_green", "chromatic_green"), ("chromatic_blue", "chromatic_blue"),
+                         ("falloff_wobble", "falloff_wobble"), ("falloff_wobble_seed", "falloff_wobble_seed"),
+                         ("noise_depth", "noise_depth"), ("noise_blur", "noise_blur"), ("noise_detail", "noise_detail"),
+                         ("scatter", "scatter"), ("mask_strength", "mask_strength")]:
             if src in e:
                 ee[dst] = float(e[src])
-        if "wobble_lobes" in e:
-            ee["wobble_lobes"] = int(e["wobble_lobes"])
+        if "chromatic_aberration" in e:   # legacy scalar: red in, blue out
+            ee["chromatic_red"] = -float(e["chromatic_aberration"]); ee["chromatic_blue"] = float(e["chromatic_aberration"])
+        for src in ("wobble_lobes", "falloff_wobble_lobes"):
+            if src in e:
+                ee[src] = int(e[src])
         if "center_offset" in e:
             ee["center_offset"] = unreal.Vector2D(*e["center_offset"])
         ic = asset.get_editor_property("image_circle")
@@ -312,7 +320,9 @@ def build_image_circle_material(save=True, force=False):
     uv = mel.create_material_expression(mat, unreal.MaterialExpressionScreenPosition, -700, 0)
     scalar_defaults = [("Radius", 0.9), ("Softness", 0.05), ("Aspect", 1.7778), ("FalloffPower", 1.0), ("Opacity", 1.0),
                        ("CenterX", 0.0), ("CenterY", 0.0), ("Ellipticity", 1.0), ("Wobble", 0.0), ("WobbleLobes", 3.0), ("WobbleSeed", 0.0),
-                       ("EdgeNoise", 0.0), ("NoiseScale", 96.0), ("ChromaticAberration", 0.0), ("Scatter", 0.0), ("MaskStrength", 0.0)]
+                       ("EdgeNoise", 0.0), ("NoiseScale", 96.0), ("NoiseDepth", 0.3), ("NoiseBlur", 0.0), ("NoiseDetail", 0.5),
+                       ("SoftWobble", 0.0), ("SoftWobbleLobes", 3.0), ("SoftWobbleSeed", 0.0),
+                       ("CAR", 0.0), ("CAG", 0.0), ("CAB", 0.0), ("Scatter", 0.0), ("MaskStrength", 0.0)]
     params = {}
     for i, (nm, default) in enumerate(scalar_defaults):
         pnode = mel.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -700, 150 + 70 * i)
@@ -357,29 +367,42 @@ float th = atan2(p.y, p.x);
 // waviness of the radius (two harmonics so it does not look like a gear)
 float wob = 1.0 + Wobble * (0.7 * sin(WobbleLobes * th + WobbleSeed) + 0.3 * sin((2.0 * WobbleLobes + 1.0) * th + 2.3 * WobbleSeed));
 float R = max(Radius * wob, 1e-3);
-float soft = saturate(Softness);
+// waviness of the falloff width: the soft band gets wider and narrower around the circle
+float sw = 1.0 + SoftWobble * (0.7 * sin(SoftWobbleLobes * th + SoftWobbleSeed) + 0.3 * sin((2.0 * SoftWobbleLobes + 1.0) * th + 1.7 * SoftWobbleSeed));
+float soft = saturate(Softness * max(sw, 0.0));
 float band = max(R * soft, 1e-4);
-// fine breakup of the band: two octaves of value noise in screen space (polar so it hugs the rim)
+// breakup: value noise in polar space (two octaves, second weighted by NoiseDetail), blurred by averaging
+// neighbours (NoiseBlur), fading in from NoiseDepth inside the circle to full strength at the black edge
 float n = 0.0;
+if (EdgeNoise > 0.0001)
 {
-    float2 q = float2(th * 8.0, r * 4.0) * NoiseScale * 0.125;
-    float amp = 0.65;
-    for (int o = 0; o < 2; ++o)
+    float2 q0 = float2(th * 8.0, r * 4.0) * NoiseScale * 0.125;
+    float bl = NoiseBlur * 0.75;
+    float acc = 0.0;
+    [unroll] for (int t = 0; t < 5; ++t)
     {
-        float2 qi = floor(q), qf = frac(q); qf = qf * qf * (3.0 - 2.0 * qf);
-        float h00 = frac(sin(dot(qi, float2(127.1, 311.7))) * 43758.5453);
-        float h10 = frac(sin(dot(qi + float2(1, 0), float2(127.1, 311.7))) * 43758.5453);
-        float h01 = frac(sin(dot(qi + float2(0, 1), float2(127.1, 311.7))) * 43758.5453);
-        float h11 = frac(sin(dot(qi + float2(1, 1), float2(127.1, 311.7))) * 43758.5453);
-        n += amp * (lerp(lerp(h00, h10, qf.x), lerp(h01, h11, qf.x), qf.y) - 0.5);
-        q = q * 2.7 + 17.0; amp *= 0.5;
+        float2 off = (t == 0) ? float2(0, 0) : (t == 1) ? float2(bl, 0) : (t == 2) ? float2(-bl, 0) : (t == 3) ? float2(0, bl) : float2(0, -bl);
+        float2 q = q0 + off; float amp = 0.65; float nn = 0.0;
+        [unroll] for (int o = 0; o < 2; ++o)
+        {
+            float2 qi = floor(q), qf = frac(q); qf = qf * qf * (3.0 - 2.0 * qf);
+            float h00 = frac(sin(dot(qi, float2(127.1, 311.7))) * 43758.5453);
+            float h10 = frac(sin(dot(qi + float2(1, 0), float2(127.1, 311.7))) * 43758.5453);
+            float h01 = frac(sin(dot(qi + float2(0, 1), float2(127.1, 311.7))) * 43758.5453);
+            float h11 = frac(sin(dot(qi + float2(1, 1), float2(127.1, 311.7))) * 43758.5453);
+            nn += amp * (lerp(lerp(h00, h10, qf.x), lerp(h01, h11, qf.x), qf.y) - 0.5);
+            q = q * 2.7 + 17.0; amp = 0.65 * NoiseDetail;
+        }
+        acc += nn;
     }
+    n = acc / 5.0;
 }
-float rn = r + EdgeNoise * band * 0.6 * n;
-// per-channel outer radius: the band starts at the same place for every colour and blue reaches further out than red
-// (lateral CA at the rim), so the tint only appears in the last part of the falloff
+float depth = smoothstep(R * (1.0 - max(NoiseDepth, 0.01)), R, r);
+float rn = r + EdgeNoise * band * 0.6 * n * depth;
+// per-channel outer radius: the band starts at the same place for every colour; each channel's edge is offset
+// by its own fraction of the radius (lateral CA at the rim), so the tint only appears in the last part of the falloff
 float inner = R * (1.0 - soft);
-float3 Rc = R * float3(1.0 - ChromaticAberration, 1.0, 1.0 + ChromaticAberration);
+float3 Rc = R * (1.0 + float3(CAR, CAG, CAB));
 float3 t = smoothstep(inner.xxx, max(Rc, inner + 1e-4), rn.xxx);
 t = pow(t, max(FalloffPower, 0.01));
 float3 m = 1.0 - t * saturate(Opacity);
@@ -389,18 +412,17 @@ float3 col = Scene;
 if (Scatter > 0.001 && tb > 0.001)
 {
     float2 dir = (r > 1e-4) ? p / r : float2(1, 0);
-    dir.y *= max(Ellipticity, 0.01) * asp;             // back to screen units (uv x scale = 0.5 per unit)
-    // short radial smear plus a little tangential spread: a glow, not spokes
+    dir.y *= max(Ellipticity, 0.01) * asp;
     float2 tng = float2(-dir.y, dir.x);
-    float len = band * 0.5 * Scatter * 0.35;          // screen uv
-    float3 acc = 0;
+    float len = band * 0.5 * Scatter * 0.35;
+    float3 acc3 = 0;
     [unroll] for (int k = 0; k < 8; ++k)
     {
-        float u = (k + 0.5) / 8.0 * 2.0 - 1.0;         // -1..1 along the radius
-        float v = sin(u * 7.0) * 0.35;                  // small side-step so taps don't line up
-        acc += SceneTextureLookup(UV + (dir * u + tng * v) * len, 14, false).rgb;
+        float u = (k + 0.5) / 8.0 * 2.0 - 1.0;
+        float v = sin(u * 7.0) * 0.35;
+        acc3 += SceneTextureLookup(UV + (dir * u + tng * v) * len, 14, false).rgb;
     }
-    float3 blur = acc / 8.0;
+    float3 blur = acc3 / 8.0;
     col = lerp(col, blur * (1.0 + 0.15 * Scatter), tb * Scatter);
 }
 float maskv = Texture2DSample(Mask, MaskSampler, UV).r;
@@ -413,6 +435,84 @@ def import_all(tiedtke=True):
     build_image_circle_material()
     import_profiles()
     import_projection_profiles()
+    import_derived_profiles()
     import_presets()
     if tiedtke:
         import_tiedtke()
+
+
+# --------------------------------------------------------------------------------------- derived prime profiles
+
+def import_derived_profiles(preset_file=None, save=True):
+    """presets.json derived_profiles -> single-focal parametric profiles evaluated from a base profile (for lenses we have
+    specs for but no grid: Petzval 58/85, Ultra Prime 10). The distortion is the base lens's at that focal length (flagged)."""
+    preset_file = preset_file or os.path.join(DATA_DIR, "presets.json")
+    d = json.load(open(preset_file, encoding="utf-8")).get("derived_profiles", {})
+    created = []
+    for name, spec in d.items():
+        base = unreal.load_asset(f"{PROFILE_PKG}/DLP_{spec['base']}")
+        if base is None:
+            raise RuntimeError(f"base profile DLP_{spec['base']} missing")
+        focal = float(spec["focal"])
+        focus = [float(x) for x in base.get_editor_property("focus_cm")]
+        flat = []
+        for f in focus:
+            k = base.evaluate(focal, f)
+            flat += [k.k1, k.k2, k.k3, k.p1, k.p2]
+        asset = _create_data_asset("DLP_" + name, PROFILE_PKG, unreal.DynamicLensProfile)
+        ok = unreal.DynamicLensLibrary.fill_profile(asset, spec.get("label", name), spec.get("source", ""), focus, [focal], flat)
+        if not ok:
+            raise RuntimeError(f"fill_profile failed for {name}")
+        _apply_specs(asset, spec)
+        asset.set_editor_property("nominal_focal_mm", focal)
+        unreal.DynamicLensLibrary.refresh_profile(asset)
+        if save:
+            unreal.EditorAssetLibrary.save_loaded_asset(asset)
+        created.append(f"{PROFILE_PKG}/DLP_{name}")
+        _log(f"derived profile DLP_{name}: {focal:g} mm from DLP_{spec['base']}")
+    return created
+
+
+# --------------------------------------------------------------------------------------- reset / rename
+
+def reset_asset(path):
+    """Re-import one shipped preset or profile from Tools/data (the Reset To Shipped button)."""
+    path = str(path).split(".")[0]
+    name = path.split("/")[-1]
+    d = json.load(open(os.path.join(DATA_DIR, "presets.json"), encoding="utf-8"))
+    if name.startswith("DL_T_") or name.startswith("DLP_T_"):
+        series = name.split("_", 2)[2]
+        import_tiedtke(series_filter=[series] + [series + sfx for sfx in ("_2x", "_1_8x", "_1_5x")])
+        return
+    if name.startswith("DLP_"):
+        key = name[4:]
+        if key in d.get("projection_profiles", {}):
+            import_projection_profiles(); return
+        if key in d.get("derived_profiles", {}):
+            import_derived_profiles(); return
+        import_profiles(); return
+    if name.startswith("DL_"):
+        key = name[3:]
+        if key in d["presets"]:
+            import_presets(only=[key]); return
+    _log(f"reset_asset: {name} is not a shipped asset")
+
+
+def rename_assets_v06():
+    """One-off: v0.5 -> v0.6 asset names (prefixes by data source). Leaves redirectors behind for existing references."""
+    profiles = {"DLP_ARRI_Master": "DLP_AD_ARRI_Master", "DLP_ZEISS_Supreme": "DLP_AD_ZEISS_Supreme",
+                "DLP_Nikkor_6mm_Fisheye": "DLP_L_Nikkor_6mm_Fisheye", "DLP_Nikkor_6mm_Fisheye_Frame": "DLP_L_Nikkor_6mm_Fisheye_Frame",
+                "DLP_Nikkor_8mm_Fisheye": "DLP_L_Nikkor_8mm_Fisheye", "DLP_Nikkor_OP_10mm_Fisheye": "DLP_L_Nikkor_OP_10mm_Fisheye",
+                "DLP_Optex_4mm_S16_Fisheye": "DLP_L_Optex_4mm_S16_Fisheye", "DLP_Stereographic_10mm_FullFrame": "DLP_L_Stereographic_10mm_FullFrame"}
+    presets = {"DL_Master": "DL_AD_Master", "DL_Supreme": "DL_AD_Supreme", "DL_MasterHeavy": "DL_C_MasterHeavy", "DL_Subtle": "DL_C_Subtle",
+               "DL_Vintage": "DL_C_Vintage", "DL_Lanthimos_Favourite_6mm": "DL_L_Favourite_6mm", "DL_Lanthimos_Favourite_6mm_Frame": "DL_L_Favourite_6mm_Frame",
+               "DL_Lanthimos_Favourite_10mm": "DL_L_Favourite_10mm", "DL_Lanthimos_Favourite_10mm_Rect": "DL_L_Favourite_10mm_Rect",
+               "DL_PoorThings_Porthole_4mm": "DL_L_PoorThings_4mm_Porthole", "DL_PoorThings_Lab_8mm": "DL_L_PoorThings_8mm",
+               "DL_PoorThings_Petzval": "DL_L_PoorThings_Petzval_58"}
+    n = 0
+    for pkg, table in ((PROFILE_PKG, profiles), (PRESET_PKG, presets)):
+        for old, new in table.items():
+            if unreal.EditorAssetLibrary.does_asset_exist(f"{pkg}/{old}") and not unreal.EditorAssetLibrary.does_asset_exist(f"{pkg}/{new}"):
+                if unreal.EditorAssetLibrary.rename_asset(f"{pkg}/{old}", f"{pkg}/{new}"):
+                    n += 1; _log(f"renamed {old} -> {new}")
+    return n

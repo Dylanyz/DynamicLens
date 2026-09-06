@@ -1,4 +1,7 @@
 #include "DynamicLensTypes.h"
+#if WITH_EDITOR
+#include "IPythonScriptPlugin.h"
+#endif
 
 namespace
 {
@@ -453,4 +456,28 @@ void UDynamicLensPreset::SetSettings(const FDynamicLensSettings& In)
 FDynamicLensEval UDynamicLensPreset::Evaluate(float FocalMm, float FocusCm, float FStop, float SensorWmm, float SensorHmm, float AmountMultiplier, int32 CameraBlades, float CameraSqueeze) const
 {
 	return GetSettings().Evaluate(FocalMm, FocusCm, FStop, SensorWmm, SensorHmm, AmountMultiplier, CameraBlades, CameraSqueeze);
+}
+
+
+namespace
+{
+	void DynamicLensRunPython(const FString& Code)
+	{
+#if WITH_EDITOR
+		if (IPythonScriptPlugin* Py = IPythonScriptPlugin::Get())
+		{
+			Py->ExecPythonCommand(*Code);
+		}
+#endif
+	}
+}
+
+void UDynamicLensProfile::ResetToShipped()
+{
+	DynamicLensRunPython(FString::Printf(TEXT("import dynamiclens_tools as dl; dl.reset_asset('%s')"), *GetPathName()));
+}
+
+void UDynamicLensPreset::ResetToShipped()
+{
+	DynamicLensRunPython(FString::Printf(TEXT("import dynamiclens_tools as dl; dl.reset_asset('%s')"), *GetPathName()));
 }
