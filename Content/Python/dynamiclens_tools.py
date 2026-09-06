@@ -247,6 +247,8 @@ def import_tiedtke(root=TIEDTKE_ROOT, save=True, series_filter=None):
             dst = f"{TIEDTKE_PKG}/Textures/{name}_{int(focal)}mm"
             if not unreal.EditorAssetLibrary.does_asset_exist(dst):
                 unreal.EditorAssetLibrary.duplicate_asset(tex_pkg, dst)
+                if save:
+                    unreal.EditorAssetLibrary.save_asset(dst)   # a duplicate only lives in memory until saved
             tex = unreal.load_asset(dst)
             if unreal.DynamicLensLibrary.add_st_map_from_lens_file(prof, lf, focal, tex, squeeze):
                 n += 1

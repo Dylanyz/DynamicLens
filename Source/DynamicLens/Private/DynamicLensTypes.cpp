@@ -302,8 +302,10 @@ FDynamicLensEval UDynamicLensPreset::Evaluate(float FocalMm, float FocusCm, floa
 	const float CornerAngle = FMath::Atan(TanCorner);
 	E.CornerFieldAngleDeg = FMath::RadiansToDegrees(CornerAngle);
 
-	const bool bProfile = Profile && Profile->IsValidProfile();
-	const bool bParametric = bProfile && Profile->Type == EDynamicLensProfileType::Parametric;
+	// data-sheet specs (blades, squeeze, front diameter, image circle) are valid whenever a profile is assigned;
+	// only the distortion tables need IsValidProfile()
+	const bool bProfile = Profile != nullptr;
+	const bool bParametric = bProfile && Profile->Type == EDynamicLensProfileType::Parametric && Profile->IsValidProfile();
 
 	// --- distortion (parametric profiles; ST map / projection profiles are handled by the component)
 	if (bParametric)

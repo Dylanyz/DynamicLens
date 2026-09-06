@@ -12,3 +12,6 @@ UE_Placeholder.uasset
 .DS_Store
 # large raw EXR grids never belong here
 *.exr
+
+# tiedtke ST maps are a paid Fab pack: regenerate locally with dynamiclens_tools.import_tiedtke()
+Content/Profiles/Tiedtke/Textures/
