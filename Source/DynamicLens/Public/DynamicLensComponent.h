@@ -180,10 +180,19 @@ private:
 	void CaptureLook(UCineCameraComponent* Cam);
 	void RestoreLook(UCineCameraComponent* Cam);
 	void StripForeignDistortionBlendables(UCineCameraComponent* Cam);
+	/** Epic's Accumulation DOF component (found by class name, no hard dependency): iris texture + aberrations. */
+	void ApplyAccumulationDOF(const FDynamicLensEval& Eval);
+	void RestoreAccumulationDOF();
+	UActorComponent* FindAccumulationDOF() const;
 
 	UPROPERTY(Transient) TObjectPtr<ULensDistortionModelHandlerBase> Handler;
 	UPROPERTY(Transient) TObjectPtr<ULensFile> TransientLensFile;
 	UPROPERTY(Transient) TObjectPtr<UTexture2D> ProjectionMap;
+	UPROPERTY(Transient) TObjectPtr<UTexture2D> IrisTexture;
+	UPROPERTY(Transient) TWeakObjectPtr<UActorComponent> AccumulationDOF;
+	int32 IrisTexKey = -1;
+	bool bAccumApplied = false;
+	struct FAccumBackup { UObject* Texture = nullptr; bool bEnable = true; float Spherical = 0.f; float Coma = 0.f; uint8 Channel = 0; } AccumBackup;
 	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> AppliedMID;
 	UPROPERTY(Transient) TObjectPtr<UMaterialInstanceDynamic> CircleMID;
 	UPROPERTY(Transient) TWeakObjectPtr<UCineCameraComponent> AppliedCamera;

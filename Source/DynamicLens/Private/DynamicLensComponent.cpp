@@ -236,6 +236,14 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 
 	ApplyRendering(Cam, State, Applied);
 	ApplyLook(Cam, Eval, bApplyImageCircle ? CircleRadius : 0.f, W / H);
+	if (bApplyBokeh && Eval.bBokeh && Eval.bDriveAccumulationDOF)
+	{
+		ApplyAccumulationDOF(Eval);
+	}
+	else if (bAccumApplied)
+	{
+		RestoreAccumulationDOF();
+	}
 
 	LastFocalMm = Focal; LastFocusCm = Focus; LastFStop = FStop;
 	LastSensorMm = FVector2D(W, H);
@@ -638,6 +646,7 @@ void UDynamicLensComponent::ClearEffect()
 		}
 		RestoreLook(Cam);
 	}
+	RestoreAccumulationDOF();
 	AppliedMID = nullptr;
 	bCircleApplied = false;
 	bSVEActive = false;
@@ -646,4 +655,131 @@ void UDynamicLensComponent::ClearEffect()
 	LastOverscanFactor = 1.f;
 	LastVignette = 0.f;
 	ImageCircleRadius = 0.f;
+}
+
+// ------------------------------------------------------------------------------------------------ accumulation DOF
+
+UActorComponent* UDynamicLensComponent::FindAccumulationDOF() const
+{
+	const AActor* Owner = GetOwner();
+	if (!Owner) return nullptr;
+	for (UActorComponent* C : Owner->GetComponents())
+	{
+		if (C && C->GetClass()->GetName() == TEXT("AccumulationDOFComponent"))
+		{
+			return C;
+		}
+	}
+	return nullptr;
+}
+
+namespace
+{
+	template <typename TProp, typename TValue>
+	bool SetReflected(UObject* Obj, const TCHAR* Name, TValue Value)
+	{
+		if (TProp* P = CastField<TProp>(Obj->GetClass()->FindPropertyByName(Name)))
+		{
+			P->SetPropertyValue_InContainer(Obj, Value);
+			return true;
+		}
+		return false;
+	}
+	template <typename TProp, typename TValue>
+	bool GetReflected(UObject* Obj, const TCHAR* Name, TValue& Out)
+	{
+		if (TProp* P = CastField<TProp>(Obj->GetClass()->FindPropertyByName(Name)))
+		{
+			Out = P->GetPropertyValue_InContainer(Obj);
+			return true;
+		}
+		return false;
+	}
+}
+
+void UDynamicLensComponent::ApplyAccumulationDOF(const FDynamicLensEval& Eval)
+{
+	UActorComponent* Accum = FindAccumulationDOF();
+	if (!Accum)
+	{
+		if (bAccumApplied) RestoreAccumulationDOF();
+		return;
+	}
+	if (!bAccumApplied || AccumulationDOF.Get() != Accum)
+	{
+		// remember what the user had
+		UObject* Tex = nullptr;
+		if (FObjectProperty* P = CastField<FObjectProperty>(Accum->GetClass()->FindPropertyByName(TEXT("BokehTexture")))) Tex = P->GetObjectPropertyValue_InContainer(Accum);
+		AccumBackup.Texture = Tex;
+		GetReflected<FBoolProperty>(Accum, TEXT("bEnableBokehTexture"), AccumBackup.bEnable);
+		GetReflected<FFloatProperty>(Accum, TEXT("SphericalAberration"), AccumBackup.Spherical);
+		GetReflected<FFloatProperty>(Accum, TEXT("ComaAberration"), AccumBackup.Coma);
+		if (FByteProperty* P = CastField<FByteProperty>(Accum->GetClass()->FindPropertyByName(TEXT("WeightChannel")))) AccumBackup.Channel = P->GetPropertyValue_InContainer(Accum);
+		else if (FEnumProperty* EP = CastField<FEnumProperty>(Accum->GetClass()->FindPropertyByName(TEXT("WeightChannel")))) AccumBackup.Channel = (uint8)EP->GetUnderlyingProperty()->GetSignedIntPropertyValue(EP->ContainerPtrToValuePtr<void>(Accum));
+		AccumulationDOF = Accum;
+		bAccumApplied = true;
+		IrisTexKey = -1;
+	}
+
+	// iris polygon texture: blades + rotation, anti-aliased, linear, luminance = weight
+	const int32 Blades = FMath::Clamp(Eval.Blades, 4, 16);
+	const int32 Key = Blades * 1000 + FMath::RoundToInt(Eval.BladeRotationDeg);
+	if (!IrisTexture || IrisTexKey != Key)
+	{
+		constexpr int32 N = 256;
+		if (!IrisTexture)
+		{
+			IrisTexture = UTexture2D::CreateTransient(N, N, PF_B8G8R8A8);
+			IrisTexture->SRGB = false;
+			IrisTexture->Filter = TF_Bilinear;
+			IrisTexture->NeverStream = true;
+		}
+		const float Rot = FMath::DegreesToRadians(Eval.BladeRotationDeg);
+		const float Apothem = 0.96f * FMath::Cos(PI / Blades);   // polygon inscribed in a 0.96 circle
+		FTexture2DMipMap& Mip = IrisTexture->GetPlatformData()->Mips[0];
+		uint8* Data = static_cast<uint8*>(Mip.BulkData.Lock(LOCK_READ_WRITE));
+		for (int32 J = 0; J < N; ++J)
+		{
+			for (int32 I = 0; I < N; ++I)
+			{
+				const float X = (I + 0.5f) / N * 2.f - 1.f, Y = (J + 0.5f) / N * 2.f - 1.f;
+				// signed distance to the regular polygon: max over edge normals of (p . n_k) - apothem
+				float D = -1e9f;
+				for (int32 K = 0; K < Blades; ++K)
+				{
+					const float A = Rot + (2.f * PI * K) / Blades;
+					D = FMath::Max(D, X * FMath::Cos(A) + Y * FMath::Sin(A) - Apothem);
+				}
+				const float Px = 2.f / N;
+				const float Cov = FMath::Clamp(0.5f - D / Px, 0.f, 1.f);   // 1-pixel anti-aliasing
+				const uint8 V = (uint8)FMath::RoundToInt(Cov * 255.f);
+				uint8* P = Data + 4 * (J * N + I);
+				P[0] = V; P[1] = V; P[2] = V; P[3] = 255;
+			}
+		}
+		Mip.BulkData.Unlock();
+		IrisTexture->UpdateResource();
+		IrisTexKey = Key;
+		if (FObjectProperty* P = CastField<FObjectProperty>(Accum->GetClass()->FindPropertyByName(TEXT("BokehTexture")))) P->SetObjectPropertyValue_InContainer(Accum, IrisTexture);
+		SetReflected<FBoolProperty>(Accum, TEXT("bEnableBokehTexture"), true);
+	}
+	SetReflected<FFloatProperty>(Accum, TEXT("SphericalAberration"), Eval.SphericalAberration);
+	SetReflected<FFloatProperty>(Accum, TEXT("ComaAberration"), Eval.Coma);
+}
+
+void UDynamicLensComponent::RestoreAccumulationDOF()
+{
+	if (!bAccumApplied) return;
+	if (UActorComponent* Accum = AccumulationDOF.Get())
+	{
+		if (FObjectProperty* P = CastField<FObjectProperty>(Accum->GetClass()->FindPropertyByName(TEXT("BokehTexture")))) P->SetObjectPropertyValue_InContainer(Accum, AccumBackup.Texture);
+		SetReflected<FBoolProperty>(Accum, TEXT("bEnableBokehTexture"), AccumBackup.bEnable);
+		SetReflected<FFloatProperty>(Accum, TEXT("SphericalAberration"), AccumBackup.Spherical);
+		SetReflected<FFloatProperty>(Accum, TEXT("ComaAberration"), AccumBackup.Coma);
+		if (FByteProperty* P = CastField<FByteProperty>(Accum->GetClass()->FindPropertyByName(TEXT("WeightChannel")))) P->SetPropertyValue_InContainer(Accum, AccumBackup.Channel);
+		else if (FEnumProperty* EP = CastField<FEnumProperty>(Accum->GetClass()->FindPropertyByName(TEXT("WeightChannel")))) EP->GetUnderlyingProperty()->SetIntPropertyValue(EP->ContainerPtrToValuePtr<void>(Accum), (int64)AccumBackup.Channel);
+	}
+	bAccumApplied = false;
+	AccumulationDOF = nullptr;
+	IrisTexKey = -1;
 }

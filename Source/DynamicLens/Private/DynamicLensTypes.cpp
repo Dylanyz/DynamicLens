@@ -399,6 +399,10 @@ FDynamicLensEval UDynamicLensPreset::Evaluate(float FocalMm, float FocusCm, floa
 		E.PetzvalFalloff = Bokeh.PetzvalFalloff;
 		E.SwirlExclusionBox = Bokeh.SwirlExclusionBox;
 		E.SwirlExclusionRadius = Bokeh.SwirlExclusionRadius;
+		E.bDriveAccumulationDOF = Bokeh.bDriveAccumulationDOF;
+		E.SphericalAberration = Bokeh.SphericalAberration;
+		E.Coma = Bokeh.Coma;
+		E.BladeRotationDeg = Bokeh.BladeRotationDeg;
 	}
 	return E;
 }

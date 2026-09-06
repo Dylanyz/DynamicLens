@@ -359,6 +359,22 @@ struct DYNAMICLENS_API FDynamicLensBokeh
 	/** The swirl fades as the iris closes (real Petzval swirl is an aperture effect). F-stop at which it is fully faded. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bokeh|Swirl", meta = (EditCondition = "bEnabled", ClampMin = "0.7", ClampMax = "64.0", UIMin = "2.0", UIMax = "16.0"))
 	float SwirlFadesByFStop = 5.6f;
+
+	/** If the camera also has Epic's Accumulation DOF component, feed it an iris-shaped bokeh texture (blade count) and the aberrations below. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bokeh|Accumulation DOF", meta = (EditCondition = "bEnabled"))
+	bool bDriveAccumulationDOF = true;
+
+	/** Accumulation DOF only: spherical aberration (Zeiss bokeh paper: under-corrected = soft-edged, bright-core background blur; over-corrected = bright rim / soap-bubble). 0 = ideal lens. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bokeh|Accumulation DOF", meta = (EditCondition = "bEnabled && bDriveAccumulationDOF", ClampMin = "0.0", ClampMax = "100.0", UIMin = "0.0", UIMax = "30.0"))
+	float SphericalAberration = 0.f;
+
+	/** Accumulation DOF only: coma (comet-shaped highlights toward the edges, typical of fast vintage glass). 0 = none. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bokeh|Accumulation DOF", meta = (EditCondition = "bEnabled && bDriveAccumulationDOF", ClampMin = "0.0", ClampMax = "1.0"))
+	float Coma = 0.f;
+
+	/** Rotation of the iris polygon in degrees (data sheets rarely specify it; only matters for the highlight shape). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bokeh|Iris", meta = (EditCondition = "bEnabled", ClampMin = "0.0", ClampMax = "360.0"))
+	float BladeRotationDeg = 0.f;
 };
 
 /** Everything a preset resolved for one frame. */
@@ -386,6 +402,10 @@ struct DYNAMICLENS_API FDynamicLensEval
 	UPROPERTY(BlueprintReadOnly, Category = "Dynamic Lens") float ImageCircleRadiusNorm = 0.f;
 	UPROPERTY(BlueprintReadOnly, Category = "Dynamic Lens") float ImageCircleSoftness = 0.05f;
 	UPROPERTY(BlueprintReadOnly, Category = "Dynamic Lens") bool bImageCircle = false;
+	UPROPERTY(BlueprintReadOnly, Category = "Dynamic Lens") bool bDriveAccumulationDOF = false;
+	UPROPERTY(BlueprintReadOnly, Category = "Dynamic Lens") float SphericalAberration = 0.f;
+	UPROPERTY(BlueprintReadOnly, Category = "Dynamic Lens") float Coma = 0.f;
+	UPROPERTY(BlueprintReadOnly, Category = "Dynamic Lens") float BladeRotationDeg = 0.f;
 };
 
 /**
