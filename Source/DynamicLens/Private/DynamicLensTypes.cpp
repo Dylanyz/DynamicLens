@@ -34,6 +34,7 @@ namespace
 float DynamicLensMath::DiscOverlapFraction(float A, float B, float D)
 {
 	if (A <= KINDA_SMALL_NUMBER) return 1.f;
+	if (B <= KINDA_SMALL_NUMBER) return 0.f;
 	if (D >= A + B) return 0.f;
 	if (D <= FMath::Abs(B - A)) return (B >= A) ? 1.f : (B * B) / (A * A);
 	const float A2 = A * A, B2 = B * B, D2 = D * D;
@@ -84,9 +85,9 @@ float DynamicLensMath::RadialInverse(float Rd, const FDynamicLensParams& P, floa
 
 float DynamicLensMath::ComputeOverscan(const FDynamicLensParams& P, float Fx, float Fy, int32 SamplesPerEdge)
 {
-	// Output (distorted) frame corners in normalized view space: x = (u-0.5)/Fx, y = (v-0.5)/Fy.
-	// For each border point of the output frame, find the undistorted point that lands there; the overscan is how far
-	// outside the frame that source point sits. Radial model => direction is preserved, only the radius changes.
+	// Output (distorted) frame border in normalized view space: x = (u-0.5)/Fx, y = (v-0.5)/Fy.
+	// For each border point find the undistorted source point that lands there; overscan is how far outside the
+	// frame that source point sits. Radial model => direction is preserved, only the radius changes.
 	const float HalfX = 0.5f / FMath::Max(Fx, KINDA_SMALL_NUMBER);
 	const float HalfY = 0.5f / FMath::Max(Fy, KINDA_SMALL_NUMBER);
 	const float CornerR = FMath::Sqrt(HalfX * HalfX + HalfY * HalfY);
@@ -99,9 +100,8 @@ float DynamicLensMath::ComputeOverscan(const FDynamicLensParams& P, float Fx, fl
 		if (Rd <= KINDA_SMALL_NUMBER) return;
 		const float Ru = RadialInverse(Rd, Safe, CornerR * 4.f);
 		const float S = Ru / Rd;
-		const float Ux = X * S, Uy = Y * S;
-		Over = FMath::Max(Over, FMath::Abs(Ux) / HalfX);
-		Over = FMath::Max(Over, FMath::Abs(Uy) / HalfY);
+		Over = FMath::Max(Over, FMath::Abs(X * S) / HalfX);
+		Over = FMath::Max(Over, FMath::Abs(Y * S) / HalfY);
 	};
 	for (int32 I = 0; I <= N; ++I)
 	{
@@ -109,7 +109,44 @@ float DynamicLensMath::ComputeOverscan(const FDynamicLensParams& P, float Fx, fl
 		Test(T * HalfX, -HalfY); Test(T * HalfX, HalfY);
 		Test(-HalfX, T * HalfY); Test(HalfX, T * HalfY);
 	}
-	return FMath::Clamp(Over, 1.f, 2.f);
+	return FMath::Clamp(Over, 1.f, 4.f);
+}
+
+float DynamicLensMath::ValidCircleRadius(const FDynamicLensParams& P, float Fx, float Fy, float OverscanFactor)
+{
+	const float HalfX = 0.5f / FMath::Max(Fx, KINDA_SMALL_NUMBER);
+	const float HalfY = 0.5f / FMath::Max(Fy, KINDA_SMALL_NUMBER);
+	const float O = FMath::Max(OverscanFactor, 1.f);
+	// the source render covers |x_u| <= O*HalfX, |y_u| <= O*HalfY; the nearest source edge limits the valid circle
+	const float Rx = RadialForward(O * HalfX, P);
+	const float Ry = RadialForward(O * HalfY, P);
+	return FMath::Min(Rx, Ry) / HalfX;   // in half-frame-width units
+}
+
+float DynamicLensMath::ProjectionG(EDynamicLensProjection Projection, float Theta)
+{
+	switch (Projection)
+	{
+	case EDynamicLensProjection::Stereographic: return 2.f * FMath::Tan(0.5f * Theta);
+	case EDynamicLensProjection::Equisolid:     return 2.f * FMath::Sin(0.5f * Theta);
+	case EDynamicLensProjection::Orthographic:  return FMath::Sin(Theta);
+	default:                                    return Theta;
+	}
+}
+
+bool DynamicLensMath::ProjectionTheta(EDynamicLensProjection Projection, float ROverF, float& OutTheta)
+{
+	switch (Projection)
+	{
+	case EDynamicLensProjection::Stereographic: OutTheta = 2.f * FMath::Atan(0.5f * ROverF); return true;
+	case EDynamicLensProjection::Equisolid:
+		if (ROverF > 2.f) return false;
+		OutTheta = 2.f * FMath::Asin(0.5f * ROverF); return true;
+	case EDynamicLensProjection::Orthographic:
+		if (ROverF > 1.f) return false;
+		OutTheta = FMath::Asin(ROverF); return true;
+	default: OutTheta = ROverF; return true;
+	}
 }
 
 // ------------------------------------------------------------------------------------------------ profile
@@ -127,24 +164,111 @@ FDynamicLensParams FDynamicLensParams::Lerp(const FDynamicLensParams& A, const F
 
 bool UDynamicLensProfile::IsValidProfile() const
 {
-	if (FocusCm.Num() < 1 || Rows.Num() < 1) return false;
-	for (const FDynamicLensProfileRow& Row : Rows)
+	switch (Type)
 	{
-		if (Row.ByFocus.Num() != FocusCm.Num()) return false;
+	case EDynamicLensProfileType::Parametric:
+	{
+		if (FocusCm.Num() < 1 || Rows.Num() < 1) return false;
+		for (const FDynamicLensProfileRow& Row : Rows)
+		{
+			if (Row.ByFocus.Num() != FocusCm.Num()) return false;
+		}
+		return true;
 	}
-	return true;
+	case EDynamicLensProfileType::STMap:
+		for (const FDynamicLensSTMapEntry& E : STMaps) { if (E.Map) return true; }
+		return false;
+	case EDynamicLensProfileType::Projection:
+		return true;
+	}
+	return false;
 }
 
 void UDynamicLensProfile::GetFocalRange(float& MinMm, float& MaxMm) const
 {
-	MinMm = Rows.Num() ? Rows[0].FocalMm : 0.f;
-	MaxMm = Rows.Num() ? Rows.Last().FocalMm : 0.f;
+	MinMm = MaxMm = 0.f;
+	if (Type == EDynamicLensProfileType::Parametric && Rows.Num())
+	{
+		MinMm = Rows[0].FocalMm; MaxMm = Rows.Last().FocalMm;
+	}
+	else if (Type == EDynamicLensProfileType::STMap && STMaps.Num())
+	{
+		MinMm = MaxMm = STMaps[0].FocalMm;
+		for (const FDynamicLensSTMapEntry& E : STMaps) { MinMm = FMath::Min(MinMm, E.FocalMm); MaxMm = FMath::Max(MaxMm, E.FocalMm); }
+	}
+}
+
+int32 UDynamicLensProfile::FindNearestSTMap(float FocalMm) const
+{
+	int32 Best = -1; float BestD = FLT_MAX;
+	for (int32 I = 0; I < STMaps.Num(); ++I)
+	{
+		if (!STMaps[I].Map) continue;
+		const float D = FMath::Abs(FMath::Loge(FMath::Max(STMaps[I].FocalMm, 0.1f)) - FMath::Loge(FMath::Max(FocalMm, 0.1f)));
+		if (D < BestD) { BestD = D; Best = I; }
+	}
+	return Best;
+}
+
+float UDynamicLensProfile::EffectiveImageCircleMm() const
+{
+	if (ImageCircleMm > KINDA_SMALL_NUMBER) return ImageCircleMm;
+	return FMath::Sqrt(NativeSensorMm.X * NativeSensorMm.X + NativeSensorMm.Y * NativeSensorMm.Y);
+}
+
+float UDynamicLensProfile::ComputeBarrelLengthMm(float FocalMm, float BarrelRadiusMm) const
+{
+	// Find the barrel length at which the wide-open pupil is PupilVisibleAtImageCircle visible at the image-circle
+	// edge. Pupil radius a = f / (2 T); its centre sits BarrelLength * tan(theta_ic) off the barrel axis at the
+	// barrel opening. Overlap is monotonic in the offset, so bisect the offset, then convert to a length.
+	const float F = FMath::Max(FocalMm, 0.1f);
+	const float A = F / (2.f * FMath::Max(MaxAperture, 0.7f));
+	const float R = FMath::Max(BarrelRadiusMm, 0.01f);
+	const float Target = FMath::Clamp(PupilVisibleAtImageCircle, 0.05f, 1.f);
+	const float TanIC = (0.5f * EffectiveImageCircleMm()) / F;
+	if (TanIC <= KINDA_SMALL_NUMBER || Target >= 0.999f) return 0.f;
+	float Lo = 0.f, Hi = R + A;
+	if (DynamicLensMath::DiscOverlapFraction(A, R, Lo) <= Target) return 0.f;   // pupil already clipped on axis: no barrel model fits
+	for (int32 I = 0; I < 40; ++I)
+	{
+		const float Mid = 0.5f * (Lo + Hi);
+		if (DynamicLensMath::DiscOverlapFraction(A, R, Mid) > Target) Lo = Mid; else Hi = Mid;
+	}
+	return 0.5f * (Lo + Hi) / TanIC;
+}
+
+void UDynamicLensProfile::RefreshCoverage()
+{
+	float MinMm, MaxMm; GetFocalRange(MinMm, MaxMm);
+	FString Focal;
+	switch (Type)
+	{
+	case EDynamicLensProfileType::Parametric: Focal = FString::Printf(TEXT("%d focal lengths %.0f–%.0f mm, %d focus steps, zoomable"), Rows.Num(), MinMm, MaxMm, FocusCm.Num()); break;
+	case EDynamicLensProfileType::STMap: Focal = FString::Printf(TEXT("%d ST maps %.0f–%.0f mm (primes, nearest is used)"), STMaps.Num(), MinMm, MaxMm); break;
+	case EDynamicLensProfileType::Projection: Focal = FString::Printf(TEXT("any focal length, %s up to %.0f° off-axis"), *StaticEnum<EDynamicLensProjection>()->GetDisplayNameTextByValue((int64)Projection).ToString(), MaxFieldAngleDeg); break;
+	}
+	Coverage = FString::Printf(TEXT("%s | sensor %.2f x %.2f mm%s | image circle %.1f mm"), *Focal, NativeSensorMm.X, NativeSensorMm.Y,
+		Squeeze > 1.001f ? *FString::Printf(TEXT(" (%.1fx anamorphic)"), Squeeze) : TEXT(""), EffectiveImageCircleMm());
+}
+
+#if WITH_EDITOR
+void UDynamicLensProfile::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	RefreshCoverage();
+}
+#endif
+
+void UDynamicLensProfile::PostLoad()
+{
+	Super::PostLoad();
+	RefreshCoverage();
 }
 
 FDynamicLensParams UDynamicLensProfile::Evaluate(float FocalMm, float InFocusCm) const
 {
 	FDynamicLensParams Out;
-	if (!IsValidProfile()) return Out;
+	if (Type != EDynamicLensProfileType::Parametric || !IsValidProfile()) return Out;
 
 	TArray<float> LogFocals; LogFocals.Reserve(Rows.Num());
 	for (const FDynamicLensProfileRow& Row : Rows) LogFocals.Add(FMath::Loge(FMath::Max(Row.FocalMm, 0.01f)));
@@ -173,46 +297,31 @@ FDynamicLensEval UDynamicLensPreset::Evaluate(float FocalMm, float FocusCm, floa
 	const float Stop = FMath::Max(FStop, 0.7f);
 	const float SW = FMath::Max(SensorWmm, 0.1f), SH = FMath::Max(SensorHmm, 0.1f);
 
-	// field angle at the frame corner
 	const float HalfDiag = 0.5f * FMath::Sqrt(SW * SW + SH * SH);
 	const float TanCorner = HalfDiag / Focal;
 	const float CornerAngle = FMath::Atan(TanCorner);
 	E.CornerFieldAngleDeg = FMath::RadiansToDegrees(CornerAngle);
 
-	// --- distortion
 	const bool bProfile = Profile && Profile->IsValidProfile();
-	if (bProfile)
+	const bool bParametric = bProfile && Profile->Type == EDynamicLensProfileType::Parametric;
+
+	// --- distortion (parametric profiles; ST map / projection profiles are handled by the component)
+	if (bParametric)
 	{
-		float EvalFocal = Focal;
-		if (OutOfRange == EDynamicLensRangeMode::Clamp)
+		float MinMm, MaxMm; Profile->GetFocalRange(MinMm, MaxMm);
+		const float EvalFocal = (OutOfRange == EDynamicLensRangeMode::Clamp) ? FMath::Clamp(Focal, MinMm, MaxMm) : Focal;
+		auto AtFocal = [&](float F)
 		{
-			float MinMm, MaxMm; Profile->GetFocalRange(MinMm, MaxMm);
-			EvalFocal = FMath::Clamp(Focal, MinMm, MaxMm);
-		}
-		const FDynamicLensParams Base = Profile->Evaluate(EvalFocal, Focus);
-		const FDynamicLensParams Inf = Profile->Evaluate(EvalFocal, 1.0e6f);
-		E.Params = FDynamicLensParams::Lerp(Inf, Base, Breathing);
-		if (OutOfRange == EDynamicLensRangeMode::Extrapolate && bProfile)
+			return FDynamicLensParams::Lerp(Profile->Evaluate(F, 1e6f), Profile->Evaluate(F, Focus), Breathing);
+		};
+		E.Params = AtFocal(EvalFocal);
+		if (OutOfRange == EDynamicLensRangeMode::Extrapolate && Profile->Rows.Num() >= 2 && (Focal < MinMm || Focal > MaxMm))
 		{
-			// linear extrapolation in log(focal) from the two outermost measured lenses
-			float MinMm, MaxMm; Profile->GetFocalRange(MinMm, MaxMm);
-			if (Focal < MinMm && Profile->Rows.Num() >= 2)
-			{
-				const float F0 = Profile->Rows[0].FocalMm, F1 = Profile->Rows[1].FocalMm;
-				const FDynamicLensParams P0 = FDynamicLensParams::Lerp(Profile->Evaluate(F0, 1e6f), Profile->Evaluate(F0, Focus), Breathing);
-				const FDynamicLensParams P1 = FDynamicLensParams::Lerp(Profile->Evaluate(F1, 1e6f), Profile->Evaluate(F1, Focus), Breathing);
-				const float T = (FMath::Loge(Focal) - FMath::Loge(F0)) / FMath::Max(FMath::Loge(F1) - FMath::Loge(F0), 1e-4f); // negative
-				E.Params = FDynamicLensParams::Lerp(P0, P1, T);
-			}
-			else if (Focal > MaxMm && Profile->Rows.Num() >= 2)
-			{
-				const int32 N = Profile->Rows.Num();
-				const float F0 = Profile->Rows[N - 2].FocalMm, F1 = Profile->Rows[N - 1].FocalMm;
-				const FDynamicLensParams P0 = FDynamicLensParams::Lerp(Profile->Evaluate(F0, 1e6f), Profile->Evaluate(F0, Focus), Breathing);
-				const FDynamicLensParams P1 = FDynamicLensParams::Lerp(Profile->Evaluate(F1, 1e6f), Profile->Evaluate(F1, Focus), Breathing);
-				const float T = (FMath::Loge(Focal) - FMath::Loge(F0)) / FMath::Max(FMath::Loge(F1) - FMath::Loge(F0), 1e-4f); // > 1
-				E.Params = FDynamicLensParams::Lerp(P0, P1, T);
-			}
+			const int32 N = Profile->Rows.Num();
+			const float F0 = (Focal < MinMm) ? Profile->Rows[0].FocalMm : Profile->Rows[N - 2].FocalMm;
+			const float F1 = (Focal < MinMm) ? Profile->Rows[1].FocalMm : Profile->Rows[N - 1].FocalMm;
+			const float T = (FMath::Loge(Focal) - FMath::Loge(F0)) / FMath::Max(FMath::Loge(F1) - FMath::Loge(F0), 1e-4f);
+			E.Params = FDynamicLensParams::Lerp(AtFocal(F0), AtFocal(F1), T);
 		}
 	}
 	const float TotalAmount = Amount * FMath::Max(AmountMultiplier, 0.f);
@@ -226,21 +335,26 @@ FDynamicLensEval UDynamicLensPreset::Evaluate(float FocalMm, float FocusCm, floa
 		E.Params.K1 += WideBoost.K1 * T;
 		E.Params.K2 += WideBoost.K2 * T;
 	}
-	// never let the mapping fold over inside the frame (a real lens can't)
 	{
 		const float CornerR = FMath::Sqrt(FMath::Square(0.5f * SW / Focal) + FMath::Square(0.5f * SH / Focal));
 		E.Params = DynamicLensMath::MakeMonotonic(E.Params, CornerR * 1.5f);
 	}
 
 	// --- physical pupil geometry (shared by vignette + bokeh)
-	const float PupilDiameter = Focal / Stop;                                   // entrance pupil, mm
+	const float PupilDiameter = Focal / Stop;
 	const float FrontRadius = bProfile ? 0.5f * Profile->FrontDiameterMm : 57.f;
-	const float BarrelLen = bProfile ? Profile->BarrelLengthMm : 140.f;
 	const float CatsEye = FMath::Max(Bokeh.CatsEyeStrength, 0.f);
-	// strength > 1 narrows the effective opening, < 1 widens it
 	const float EffRadius = (CatsEye > KINDA_SMALL_NUMBER) ? FrontRadius / CatsEye : 1e6f;
-	const float PupilOffsetAtCorner = BarrelLen * TanCorner;                     // where the corner bundle crosses the barrel opening
-	E.CornerPupilVisible = DynamicLensMath::DiscOverlapFraction(0.5f * PupilDiameter, EffRadius, PupilOffsetAtCorner);
+	const float BarrelLen = bProfile ? Profile->ComputeBarrelLengthMm(Focal, EffRadius) : 0.f;
+	E.CornerPupilVisible = (BarrelLen > 0.f) ? DynamicLensMath::DiscOverlapFraction(0.5f * PupilDiameter, EffRadius, BarrelLen * TanCorner) : 1.f;
+
+	// --- image circle (normalized: 1 = half the frame width)
+	E.bImageCircle = bImageCircle;
+	E.ImageCircleSoftness = ImageCircleSoftness;
+	if (bImageCircle && bProfile && Profile->ImageCircleMm > KINDA_SMALL_NUMBER)
+	{
+		E.ImageCircleRadiusNorm = Profile->ImageCircleMm / SW;
+	}
 
 	// --- vignette
 	E.bVignette = Vignette.bEnabled;
@@ -270,7 +384,7 @@ FDynamicLensEval UDynamicLensPreset::Evaluate(float FocalMm, float FocusCm, floa
 		if (Bokeh.Mode == EDynamicLensLayerMode::Physical)
 		{
 			E.Blades = bProfile ? Profile->IrisBlades : 9;
-			E.BarrelRadiusMm = (CatsEye > KINDA_SMALL_NUMBER) ? EffRadius : 0.f;
+			E.BarrelRadiusMm = (CatsEye > KINDA_SMALL_NUMBER && BarrelLen > 0.f) ? EffRadius : 0.f;
 			E.BarrelLengthMm = (CatsEye > KINDA_SMALL_NUMBER) ? BarrelLen : 0.f;
 		}
 		else

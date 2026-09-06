@@ -1,9 +1,12 @@
-// DynamicLens — data types: measured lens profiles and look presets.
+// DynamicLens — data types: lens profiles (parametric, ST map, projection) and look presets.
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "LensData.h"
 #include "DynamicLensTypes.generated.h"
+
+class UTexture;
 
 /** Spherical (Brown-Conrady) distortion coefficients in Unreal's normalized convention (same as a Lens File). */
 USTRUCT(BlueprintType)
@@ -50,10 +53,58 @@ struct DYNAMICLENS_API FDynamicLensProfileRow
 	TArray<FDynamicLensParams> ByFocus;
 };
 
+/** One ST map (lens grid solved to a UV map) at a fixed focal length. */
+USTRUCT(BlueprintType)
+struct DYNAMICLENS_API FDynamicLensSTMapEntry
+{
+	GENERATED_BODY()
+
+	/** Focal length printed on the lens, in mm. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ST Map", meta = (ClampMin = "1.0", ClampMax = "2000.0"))
+	float FocalMm = 50.f;
+
+	/** Focus distance the map was shot at, in cm. 0 = unknown / single focus. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ST Map", meta = (ClampMin = "0.0"))
+	float FocusCm = 0.f;
+
+	/** The ST map texture (32-bit float, linear, no mips). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ST Map")
+	TObjectPtr<UTexture> Map;
+
+	/** How the texture encodes the map (channels, pixel origin). Copied from the Lens File it came from. */
+	UPROPERTY(EditAnywhere, Category = "ST Map")
+	FCalibratedMapFormat MapFormat;
+};
+
+/** How a profile describes its distortion. */
+UENUM(BlueprintType)
+enum class EDynamicLensProfileType : uint8
+{
+	/** Measured K coefficients on a focal x focus grid. Any focal length, any focus. */
+	Parametric UMETA(DisplayName = "Parametric (K values, zoomable)"),
+	/** Measured ST maps, one per focal length (prime lenses). Exact pixel match of the real lens grid at those focal lengths. */
+	STMap UMETA(DisplayName = "ST Map (measured primes)"),
+	/** Ideal fisheye projection (equidistant, stereographic ...). Any focal length. */
+	Projection UMETA(DisplayName = "Projection (fisheye maths)"),
+};
+
+/** Ideal wide-angle projections, r = f * g(theta). Rectilinear is g = tan(theta) (no distortion). */
+UENUM(BlueprintType)
+enum class EDynamicLensProjection : uint8
+{
+	/** r = f * theta. Most fisheyes (Nikkor 6mm/8mm, Canon 8-15, Optex 4mm): equal angular spacing. */
+	Equidistant UMETA(DisplayName = "Equidistant (most fisheyes)"),
+	/** r = 2f * tan(theta/2). Samyang 8mm: straighter lines, less squeeze at the edge. */
+	Stereographic UMETA(DisplayName = "Stereographic"),
+	/** r = 2f * sin(theta/2). Sigma 8mm/15mm, Nikkor 10.5mm: more edge squeeze. */
+	Equisolid UMETA(DisplayName = "Equisolid angle"),
+	/** r = f * sin(theta). Nikkor OP 10mm: extreme edge squeeze, 180 degrees max. */
+	Orthographic UMETA(DisplayName = "Orthographic"),
+};
+
 /**
- * A lens series measured across focal lengths and focus distances (e.g. ARRI/Zeiss Master Primes), plus the
- * physical dimensions that drive the bokeh and vignette physics.
- * Distortion evaluation is bilinear in log(focal) x log(focus), so any focal length and focus distance is smooth.
+ * A lens series. Holds the distortion data (measured K grid, measured ST maps, or an ideal projection), the sensor
+ * it was measured on, and the physical dimensions that drive the bokeh, vignette and image-circle physics.
  */
 UCLASS(BlueprintType)
 class DYNAMICLENS_API UDynamicLensProfile : public UDataAsset
@@ -69,22 +120,54 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile", meta = (MultiLine = "true"))
 	FString Source;
 
+	/** What kind of distortion data this profile holds. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile")
+	EDynamicLensProfileType Type = EDynamicLensProfileType::Parametric;
+
+	/** Read-only summary: focal lengths covered (from the data), sensor, squeeze. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Profile")
+	FString Coverage;
+
+	// --- native format ---------------------------------------------------------------------------
+	/** Sensor the data was captured on, in mm (desqueezed width for anamorphic). The distortion is exact for this sensor; other sensors use the component's Sensor Fit. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Native Format", meta = (ClampMin = "1.0", ClampMax = "200.0"))
+	FVector2D NativeSensorMm = FVector2D(23.76, 13.365);
+
+	/** Anamorphic squeeze the maps were shot with (1 = spherical). Sets the camera's squeeze in Match Camera To Profile. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Native Format", meta = (ClampMin = "1.0", ClampMax = "2.0"))
+	float Squeeze = 1.f;
+
+	/** Diameter of the image circle the lens projects, in mm, at the sensor. Beyond it the image goes black (hard mechanical vignette). 0 = unlimited. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Native Format", meta = (ClampMin = "0.0", ClampMax = "200.0"))
+	float ImageCircleMm = 0.f;
+
+	// --- parametric data --------------------------------------------------------------------------
 	/** Focus distances of the grid, in Unreal cm, ascending. The last entry stands for infinity. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Distortion Data")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Parametric Data", meta = (EditCondition = "Type == EDynamicLensProfileType::Parametric"))
 	TArray<float> FocusCm;
 
 	/** One row per measured focal length, ascending by FocalMm. Each row holds FocusCm.Num() entries. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Distortion Data")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Parametric Data", meta = (EditCondition = "Type == EDynamicLensProfileType::Parametric"))
 	TArray<FDynamicLensProfileRow> Rows;
 
-	// --- physical specs (from the manufacturer's data sheet) ------------------------------------------
+	// --- ST map data ------------------------------------------------------------------------------
+	/** Measured maps, one per focal length. The component uses the entry whose focal length is nearest the camera's. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|ST Map Data", meta = (EditCondition = "Type == EDynamicLensProfileType::STMap"))
+	TArray<FDynamicLensSTMapEntry> STMaps;
+
+	// --- projection data --------------------------------------------------------------------------
+	/** Mapping function of the ideal lens. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Projection", meta = (EditCondition = "Type == EDynamicLensProfileType::Projection"))
+	EDynamicLensProjection Projection = EDynamicLensProjection::Equidistant;
+
+	/** Widest field angle the lens can show, in degrees from the optical axis (110 = a 220 degree fisheye). Unreal can only render up to about 80 degrees off-axis; beyond that the image circle is black. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Projection", meta = (EditCondition = "Type == EDynamicLensProfileType::Projection", ClampMin = "10.0", ClampMax = "110.0"))
+	float MaxFieldAngleDeg = 90.f;
+
+	// --- physical specs (from the manufacturer's data sheet) --------------------------------------
 	/** Diameter of the front of the lens barrel in mm (data sheet "front diameter"; 114 for ARRI Master Primes, 95 for Zeiss Supreme). Sets where cat's-eye clipping starts. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Physical", meta = (ClampMin = "10.0", ClampMax = "300.0", UIMin = "50.0", UIMax = "160.0"))
 	float FrontDiameterMm = 114.f;
-
-	/** Length of the lens barrel in front of the iris, in mm (roughly the lens length from the mount). Longer barrels clip more. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Physical", meta = (ClampMin = "10.0", ClampMax = "400.0", UIMin = "60.0", UIMax = "250.0"))
-	float BarrelLengthMm = 140.f;
 
 	/** Number of iris blades (data sheet). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Physical", meta = (ClampMin = "4", ClampMax = "16"))
@@ -94,15 +177,35 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Physical", meta = (ClampMin = "0.7", ClampMax = "22.0"))
 	float MaxAperture = 1.3f;
 
-	/** Distortion at any focal length (mm) and focus distance (cm). Clamps outside the measured range. */
+	/** Fraction of the entrance pupil still visible at the edge of the image circle, wide open. Sets the effective barrel length so cat's eye starts where a real lens of this coverage clips. 1 = never clips. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Physical", meta = (ClampMin = "0.05", ClampMax = "1.0"))
+	float PupilVisibleAtImageCircle = 0.5f;
+
+	/** Distortion at any focal length (mm) and focus distance (cm). Parametric profiles only; clamps outside the measured range. */
 	UFUNCTION(BlueprintPure, Category = "Dynamic Lens")
 	FDynamicLensParams Evaluate(float FocalMm, float InFocusCm) const;
 
-	/** Shortest and longest measured focal length. */
+	/** Shortest and longest focal length the data covers (0,0 = any). */
 	UFUNCTION(BlueprintPure, Category = "Dynamic Lens")
 	void GetFocalRange(float& MinMm, float& MaxMm) const;
 
+	/** Index of the ST map whose focal length is closest to FocalMm (-1 if none). */
+	UFUNCTION(BlueprintPure, Category = "Dynamic Lens")
+	int32 FindNearestSTMap(float FocalMm) const;
+
+	/** Effective barrel length (mm) for a focal length: the length at which the pupil is PupilVisibleAtImageCircle visible at the image-circle edge wide open. */
+	float ComputeBarrelLengthMm(float FocalMm, float BarrelRadiusMm) const;
+
+	/** Image circle diameter to use: the profile's value, or the native sensor diagonal if unset. */
+	float EffectiveImageCircleMm() const;
+
 	bool IsValidProfile() const;
+	void RefreshCoverage();
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+	virtual void PostLoad() override;
 };
 
 /** What happens when the camera's focal length leaves the measured range of the profile. */
@@ -275,10 +378,14 @@ struct DYNAMICLENS_API FDynamicLensEval
 	UPROPERTY(BlueprintReadOnly, Category = "Dynamic Lens") float CornerFieldAngleDeg = 0.f;
 	/** Fraction of the entrance pupil still visible at the frame corner (1 = no cat's eye). */
 	UPROPERTY(BlueprintReadOnly, Category = "Dynamic Lens") float CornerPupilVisible = 1.f;
+	/** Image circle radius in normalized frame units (1 = half the frame width). 0 = none. */
+	UPROPERTY(BlueprintReadOnly, Category = "Dynamic Lens") float ImageCircleRadiusNorm = 0.f;
+	UPROPERTY(BlueprintReadOnly, Category = "Dynamic Lens") float ImageCircleSoftness = 0.05f;
+	UPROPERTY(BlueprintReadOnly, Category = "Dynamic Lens") bool bImageCircle = false;
 };
 
 /**
- * A look: a measured lens profile plus creative layers (amount, breathing, wide-end boost, vignette, bokeh).
+ * A look: a lens profile plus creative layers (amount, breathing, wide-end boost, vignette, bokeh).
  * Save presets as assets and pick them on a Dynamic Lens component.
  */
 UCLASS(BlueprintType)
@@ -291,11 +398,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Preset", meta = (MultiLine = "true"))
 	FString Description;
 
-	/** Measured lens series that drives the distortion shape across focal length and focus, and the physical specs for bokeh/vignette. */
+	/** Lens series that drives the distortion, and whose physical specs drive bokeh/vignette. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
 	TObjectPtr<UDynamicLensProfile> Profile;
 
-	/** Multiplier on all distortion coefficients. 1 = the measured lens, 0 = straight lines, 2 = twice the bend. */
+	/** Multiplier on all distortion coefficients (parametric profiles). 1 = the measured lens, 0 = straight lines, 2 = twice the bend. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion", meta = (ClampMin = "0.0", ClampMax = "5.0", UIMin = "0.0", UIMax = "3.0"))
 	float Amount = 1.f;
 
@@ -310,6 +417,14 @@ public:
 	/** Extra barrel below a chosen focal length, for a fisheye feel at the wide end. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion", meta = (ShowOnlyInnerProperties))
 	FDynamicLensWideBoost WideBoost;
+
+	/** Show the lens's image circle: hard black beyond the circle, like a lens that doesn't cover the sensor (Poor Things 4mm). Uses the profile's Image Circle Mm and the render's overscan limit. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle")
+	bool bImageCircle = true;
+
+	/** Softness of the image-circle edge as a fraction of its radius (real lenses: 0.02–0.1). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle", meta = (EditCondition = "bImageCircle", ClampMin = "0.0", ClampMax = "1.0"))
+	float ImageCircleSoftness = 0.05f;
 
 	/** Vignette that follows focal length and aperture. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Vignette", meta = (ShowOnlyInnerProperties))
@@ -343,4 +458,15 @@ namespace DynamicLensMath
 
 	/** Exact overscan factor: how much wider the render must be so every distorted output pixel samples inside the frame. */
 	DYNAMICLENS_API float ComputeOverscan(const FDynamicLensParams& P, float Fx, float Fy, int32 SamplesPerEdge = 32);
+
+	/**
+	 * Radius (in half-frame-width units) of the largest centred circle whose distorted pixels all sample inside a
+	 * render overscanned by OverscanFactor. Beyond it the picture has no source pixels (black on a real lens).
+	 */
+	DYNAMICLENS_API float ValidCircleRadius(const FDynamicLensParams& P, float Fx, float Fy, float OverscanFactor);
+
+	/** Projection radius in units of focal length: g(theta) for r = f * g(theta). */
+	DYNAMICLENS_API float ProjectionG(EDynamicLensProjection Projection, float ThetaRad);
+	/** Inverse: theta for r/f. Returns false when r/f is outside the projection's range. */
+	DYNAMICLENS_API bool ProjectionTheta(EDynamicLensProjection Projection, float ROverF, float& OutThetaRad);
 }

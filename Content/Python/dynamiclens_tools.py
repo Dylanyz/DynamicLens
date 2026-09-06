@@ -7,7 +7,7 @@
     dl.remove_from_all_cameras()
     dl.status()                   # what every Dynamic Lens component in the level is doing right now
 """
-import json, os
+import json, os, re
 import unreal
 
 PLUGIN_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
@@ -50,15 +50,45 @@ def import_profiles(profile_dir=None, save=True):
             raise RuntimeError(f"fill_profile failed for {fn}")
         specs = json.load(open(os.path.join(DATA_DIR, "presets.json"))).get("profile_specs", {}).get(j["name"])
         if specs:
-            asset.set_editor_property("front_diameter_mm", float(specs["front_diameter_mm"]))
-            asset.set_editor_property("barrel_length_mm", float(specs["barrel_length_mm"]))
-            asset.set_editor_property("iris_blades", int(specs["iris_blades"]))
-            asset.set_editor_property("max_aperture", float(specs["max_aperture"]))
-            asset.set_editor_property("source", specs.get("source", asset.get_editor_property("source")))
+            _apply_specs(asset, specs)
+        unreal.DynamicLensLibrary.refresh_profile(asset)
         if save:
             unreal.EditorAssetLibrary.save_loaded_asset(asset)
         created.append(f"{PROFILE_PKG}/{name}")
         _log(f"profile {name}: {len(j['focals'])} focals x {len(j['focus_cm'])} focus steps")
+    return created
+
+
+def _apply_specs(asset, specs):
+    """physical / native-format fields shared by every profile type (see presets.json profile_specs)."""
+    for k, conv in [("front_diameter_mm", float), ("iris_blades", int), ("max_aperture", float), ("pupil_visible_at_image_circle", float),
+                    ("image_circle_mm", float), ("squeeze", float)]:
+        if k in specs:
+            asset.set_editor_property(k, conv(specs[k]))
+    if "native_sensor_mm" in specs:
+        asset.set_editor_property("native_sensor_mm", unreal.Vector2D(*specs["native_sensor_mm"]))
+    if "source" in specs:
+        asset.set_editor_property("source", specs["source"])
+    if "label" in specs:
+        asset.set_editor_property("label", specs["label"])
+
+
+def import_projection_profiles(preset_file=None, save=True):
+    """presets.json projection_profiles -> UDynamicLensProfile assets of type Projection (ideal fisheye maths)."""
+    preset_file = preset_file or os.path.join(DATA_DIR, "presets.json")
+    profs = json.load(open(preset_file)).get("projection_profiles", {})
+    created = []
+    for name, spec in profs.items():
+        asset = _create_data_asset("DLP_" + name, PROFILE_PKG, unreal.DynamicLensProfile)
+        asset.set_editor_property("type", unreal.DynamicLensProfileType.PROJECTION)
+        asset.set_editor_property("projection", getattr(unreal.DynamicLensProjection, spec.get("projection", "Equidistant").upper()))
+        asset.set_editor_property("max_field_angle_deg", float(spec.get("max_field_angle_deg", 90.0)))
+        _apply_specs(asset, spec)
+        unreal.DynamicLensLibrary.refresh_profile(asset)
+        if save:
+            unreal.EditorAssetLibrary.save_loaded_asset(asset)
+        created.append(f"{PROFILE_PKG}/DLP_{name}")
+        _log(f"projection profile DLP_{name}: {asset.get_editor_property('coverage')}")
     return created
 
 
@@ -84,6 +114,8 @@ def import_presets(preset_file=None, save=True):
         asset.set_editor_property("amount", float(p.get("amount", 1.0)))
         asset.set_editor_property("breathing", float(p.get("breathing", 1.0)))
         asset.set_editor_property("out_of_range", getattr(unreal.DynamicLensRangeMode, p.get("out_of_range", "Clamp").upper()))
+        asset.set_editor_property("image_circle", bool(p.get("image_circle", True)))
+        asset.set_editor_property("image_circle_softness", float(p.get("image_circle_softness", 0.05)))
         wb = p.get("wide_boost")
         _set_struct(asset, "wide_boost", {"enabled": wb is not None, **({"below_mm": float(wb["below_mm"]), "full_mm": float(wb["full_mm"]), "k1": float(wb.get("k1", 0)), "k2": float(wb.get("k2", 0))} if wb else {})})
         v = p.get("vignette")
@@ -142,3 +174,134 @@ def status():
                         "fstop": c.get_editor_property("last_f_stop"), "overscan": c.get_editor_property("last_overscan_factor"),
                         "K1": c.get_editor_property("last_params").k1, "vignette": c.get_editor_property("last_vignette")})
     return out
+
+
+# --------------------------------------------------------------------------------------- tiedtke ST maps
+
+TIEDTKE_ROOT = "/Game/CinematicTemplate/Lenses"
+TIEDTKE_PKG = PROFILE_PKG + "/Tiedtke"
+
+
+def import_tiedtke(root=TIEDTKE_ROOT, save=True, series_filter=None):
+    """tiedtke's Lens Files (ST maps, one per prime) -> one ST-map profile per lens series + a preset each.
+
+    Textures are duplicated into the plugin so the profiles are self-contained; the original files stay untouched.
+    Squeeze comes from the folder name (1_5x / 1_8x / 2x).
+    """
+    ar = unreal.AssetRegistryHelpers.get_asset_registry()
+    files, textures = {}, {}
+    for ad in ar.get_assets_by_path(root, recursive=True):
+        pkg = str(ad.package_name); cls = str(ad.asset_class_path.asset_name)
+        parts = pkg[len(root) + 1:].split("/")
+        if len(parts) < 3:
+            continue
+        sq_folder, series = parts[0], parts[1]
+        m = re.match(r"(\d+)_?(\d*)x", sq_folder)
+        if not m:
+            continue
+        squeeze = float(m.group(1) + ("." + m.group(2) if m.group(2) else ""))
+        if cls == "LensFile":
+            fm = re.search(r"_(\d+)mm", parts[-1]) or re.search(r"(\d+)mm", parts[-1])
+            if fm:
+                files.setdefault((series, squeeze), []).append((float(fm.group(1)), pkg))
+        elif cls == "Texture2D" and "Textures" in parts:
+            fm = re.search(r"_(\d+)mm", parts[-1])
+            if fm:
+                textures.setdefault(series, {})[float(fm.group(1))] = pkg
+    created = []
+    for (series, squeeze), lenses in sorted(files.items()):
+        if series_filter and series not in series_filter:
+            continue
+        name = re.sub(r"_?\d+(_\d+)?x$", "", series)
+        prof_name = "DLP_T_" + name
+        prof = _create_data_asset(prof_name, TIEDTKE_PKG, unreal.DynamicLensProfile)
+        prof.set_editor_property("st_maps", [])
+        n = 0
+        for focal, pkg in sorted(lenses):
+            lf = unreal.load_asset(pkg)
+            tex_pkg = textures.get(series, {}).get(focal)
+            if lf is None or tex_pkg is None:
+                _log(f"  skip {pkg}: lens file or texture missing"); continue
+            dst = f"{TIEDTKE_PKG}/Textures/{name}_{int(focal)}mm"
+            if not unreal.EditorAssetLibrary.does_asset_exist(dst):
+                unreal.EditorAssetLibrary.duplicate_asset(tex_pkg, dst)
+            tex = unreal.load_asset(dst)
+            if unreal.DynamicLensLibrary.add_st_map_from_lens_file(prof, lf, focal, tex, squeeze):
+                n += 1
+        prof.set_editor_property("label", f"{name.replace('_', ' ')} {squeeze:g}x anamorphic (tiedtke ST maps)")
+        prof.set_editor_property("source", "Real lens grids shot on an ARRI Mini, converted to ST maps in Nuke by tiedtke (https://tiedtke.gumroad.com/l/realcinemalenses, v002). "
+                                           "Native frame 46 x 18.66 mm desqueezed (2.39:1). One map per prime, single focus. Physical specs are placeholders.")
+        prof.set_editor_property("iris_blades", 11)
+        prof.set_editor_property("front_diameter_mm", 110.0)
+        prof.set_editor_property("max_aperture", 2.8)
+        unreal.DynamicLensLibrary.refresh_profile(prof)
+        if save:
+            unreal.EditorAssetLibrary.save_loaded_asset(prof)
+        preset = _create_data_asset("DL_T_" + name, PRESET_PKG + "/Tiedtke", unreal.DynamicLensPreset)
+        preset.set_editor_property("profile", prof)
+        preset.set_editor_property("description", f"tiedtke {name.replace('_', ' ')} {squeeze:g}x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.")
+        if save:
+            unreal.EditorAssetLibrary.save_loaded_asset(preset)
+        created.append((prof_name, n))
+        _log(f"tiedtke {prof_name}: {n} maps, squeeze {squeeze:g}")
+    return created
+
+
+# --------------------------------------------------------------------------------------- image circle material
+
+MATERIAL_PKG = "/DynamicLens/Materials"
+
+
+def build_image_circle_material(save=True, force=False):
+    """Creates /DynamicLens/Materials/M_DL_ImageCircle: a post-process mask (after tonemapping) that blacks out the frame beyond a
+    centred circle. Parameters: Radius (1 = half the frame width), Softness (fraction of the radius), Aspect (W/H)."""
+    path = f"{MATERIAL_PKG}/M_DL_ImageCircle"
+    if unreal.EditorAssetLibrary.does_asset_exist(path) and not force:
+        return unreal.load_asset(path)
+    if unreal.EditorAssetLibrary.does_asset_exist(path):
+        unreal.EditorAssetLibrary.delete_asset(path)
+    mat = unreal.AssetToolsHelpers.get_asset_tools().create_asset("M_DL_ImageCircle", MATERIAL_PKG, unreal.Material, unreal.MaterialFactoryNew())
+    mat.set_editor_property("material_domain", unreal.MaterialDomain.MD_POST_PROCESS)
+    mat.set_editor_property("blendable_location", unreal.BlendableLocation.BL_SCENE_COLOR_AFTER_TONEMAPPING)
+    mat.set_editor_property("blendable_priority", 10)
+    mel = unreal.MaterialEditingLibrary
+    scene = mel.create_material_expression(mat, unreal.MaterialExpressionSceneTexture, -700, -200)
+    scene.set_editor_property("scene_texture_id", unreal.SceneTextureId.PPI_POST_PROCESS_INPUT0)
+    uv = mel.create_material_expression(mat, unreal.MaterialExpressionScreenPosition, -700, 0)
+    params = {}
+    for i, (nm, default) in enumerate([("Radius", 0.9), ("Softness", 0.05), ("Aspect", 1.7778)]):
+        pnode = mel.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -700, 150 + 100 * i)
+        pnode.set_editor_property("parameter_name", nm)
+        pnode.set_editor_property("default_value", default)
+        params[nm] = pnode
+    custom = mel.create_material_expression(mat, unreal.MaterialExpressionCustom, -300, 0)
+    custom.set_editor_property("code", "float2 p = float2((UV.x - 0.5) * 2.0, (UV.y - 0.5) * 2.0 / max(Aspect, 0.01));\n"
+                                       "float r = length(p);\n"
+                                       "float inner = Radius * (1.0 - saturate(Softness));\n"
+                                       "float m = 1.0 - smoothstep(inner, max(Radius, inner + 1e-4), r);\n"
+                                       "return Scene * m;")
+    custom.set_editor_property("output_type", unreal.CustomMaterialOutputType.CMOT_FLOAT3)
+    custom.set_editor_property("description", "ImageCircle")
+    inputs = []
+    for nm in ("Scene", "UV", "Radius", "Softness", "Aspect"):
+        ci = unreal.CustomInput(); ci.set_editor_property("input_name", nm); inputs.append(ci)
+    custom.set_editor_property("inputs", inputs)
+    mel.connect_material_expressions(scene, "Color", custom, "Scene")
+    mel.connect_material_expressions(uv, "", custom, "UV")
+    for nm in ("Radius", "Softness", "Aspect"):
+        mel.connect_material_expressions(params[nm], "", custom, nm)
+    mel.connect_material_property(custom, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    mel.recompile_material(mat)
+    if save:
+        unreal.EditorAssetLibrary.save_loaded_asset(mat)
+    _log("built " + path)
+    return mat
+
+
+def import_all(tiedtke=True):
+    build_image_circle_material()
+    import_profiles()
+    import_projection_profiles()
+    import_presets()
+    if tiedtke:
+        import_tiedtke()
