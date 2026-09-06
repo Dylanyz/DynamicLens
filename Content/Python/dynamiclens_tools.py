@@ -234,6 +234,7 @@ def import_tiedtke(root=TIEDTKE_ROOT, save=True, series_filter=None):
         prof.set_editor_property("iris_blades", 11)
         prof.set_editor_property("front_diameter_mm", 110.0)
         prof.set_editor_property("max_aperture", 2.8)
+        prof.set_editor_property("pupil_visible_at_image_circle", 0.85)
         unreal.DynamicLensLibrary.refresh_profile(prof)
         if save:
             unreal.EditorAssetLibrary.save_loaded_asset(prof)

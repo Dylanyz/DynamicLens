@@ -74,6 +74,10 @@ struct DYNAMICLENS_API FDynamicLensSTMapEntry
 	/** How the texture encodes the map (channels, pixel origin). Copied from the Lens File it came from. */
 	UPROPERTY(EditAnywhere, Category = "ST Map")
 	FCalibratedMapFormat MapFormat;
+
+	/** Overscan this map needs so its whole frame has source pixels (measured from the map's border when imported). 1 = none. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ST Map", meta = (ClampMin = "1.0", ClampMax = "2.0"))
+	float NeededOverscan = 1.f;
 };
 
 /** How a profile describes its distortion. */

@@ -111,6 +111,28 @@ bool UDynamicLensLibrary::AddSTMapFromLensFile(UDynamicLensProfile* Profile, ULe
 	Entry.FocusCm = Pt.Focus;
 	Entry.Map = Tex;
 	Entry.MapFormat = Pt.STMapInfo.MapFormat;
+	// overscan from the map itself: how far outside the frame the border pixels source from (undistortion convention)
+	if (UTexture2D* Tex2D = Cast<UTexture2D>(Tex))
+	{
+		TArray<float> UV;
+		const int32 N = 64;
+		if (ReadSTMapSamples(Tex2D, N, N, UV))
+		{
+			float Over = 1.f;
+			for (int32 J = 0; J < N; ++J)
+			{
+				for (int32 I = 0; I < N; ++I)
+				{
+					if (I != 0 && I != N - 1 && J != 0 && J != N - 1) continue;
+					const float U = (I + 0.5f) / N, V = (J + 0.5f) / N;
+					const float SU = UV[2 * (J * N + I)], SV = UV[2 * (J * N + I) + 1];
+					if (FMath::Abs(U - 0.5f) > 0.01f) Over = FMath::Max(Over, FMath::Abs(SU - 0.5f) / FMath::Abs(U - 0.5f));
+					if (FMath::Abs(V - 0.5f) > 0.01f) Over = FMath::Max(Over, FMath::Abs(SV - 0.5f) / FMath::Abs(V - 0.5f));
+				}
+			}
+			Entry.NeededOverscan = FMath::Clamp(Over, 1.f, 2.f);
+		}
+	}
 	// replace an existing entry at the same focal length
 	bool bReplaced = false;
 	for (FDynamicLensSTMapEntry& E : Profile->STMaps)

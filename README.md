@@ -1,69 +1,92 @@
 # Dynamic Lens (UE 5.8 plugin)
 
-Focal-length / focus / f-stop driven lens distortion, vignette and bokeh character for CineCameras.
-Add a **Dynamic Lens** component to a camera, pick a **preset asset**, done. Works in the editor viewport
-(piloting, Realtime on), PIE, and Movie Render Queue / Movie Render Graph.
+Lens character for CineCameras that follows **focal length, focus distance and f-stop** every frame: distortion,
+vignette, image circle and bokeh, in the editor viewport, PIE and Movie Render Queue / Graph.
 
-This folder is the single source of truth. Projects get it through a directory junction into `Plugins/DynamicLens`,
-so editing here updates every project that links it.
+Add a **Dynamic Lens** component to a camera, pick a **preset asset**, done. Three kinds of lens data:
 
-## Install into a project
+| Profile type | What it is | Zoomable | Source |
+|---|---|---|---|
+| **Parametric** | K1..P2 on a focal × focus grid | yes, any focal / focus | measured Lens Files (Andy Davis) |
+| **ST Map** | one measured UV map per prime | nearest prime is used | tiedtke's grids |
+| **Projection** | ideal fisheye maths (equidistant, stereographic, equisolid, orthographic) | yes | data sheets |
+
+Everything else is derived from physics and data-sheet numbers, not tuned by eye (see *Maths* below).
+
+## Install (this folder is the source of truth)
 ```powershell
-# from PowerShell, once per project (path of the project's Plugins folder)
-New-Item -ItemType Junction -Path "C:\Path\To\Project\Plugins\DynamicLens" -Target "C:\Users\DYLPC\Documents\ProjectHub\UE Assets\Lenses\DynamicLens"
+# engine-level: every 5.8 project can enable it
+New-Item -ItemType Junction -Path "C:\Program Files\Epic Games\UE_5.8\Engine\Plugins\Marketplace\DynamicLens" -Target "C:\Users\DYLPC\Desktop\Coding\DynamicLens"
 ```
-Then enable **Dynamic Lens** in the project's Plugins (it pulls in Camera Calibration Core), restart.
-Binaries are prebuilt (`Binaries/Win64`) so Blueprint-only projects load it without compiling.
+Enable **Dynamic Lens** in the project (pulls in Camera Calibration Core). Binaries are prebuilt in `Binaries/Win64`.
 
-First time in a project, in the Python console:
+First time in a project, Python console:
 ```python
 import dynamiclens_tools as dl
-dl.import_profiles(); dl.import_presets()     # creates /DynamicLens/Profiles and /DynamicLens/Presets assets
-dl.add_to_all_cameras("DL_Master")            # or add the component by hand: camera > Add > Dynamic Lens
+dl.import_all()          # image-circle material, profiles, fisheye profiles, presets, tiedtke ST maps (if the pack is in /Game/CinematicTemplate/Lenses)
+dl.add_to_all_cameras("DL_Master")
 ```
-(The assets live inside the plugin's Content folder, so after the first import they travel with the plugin.)
+Assets land in the plugin's own content (`/DynamicLens/Profiles`, `/DynamicLens/Presets`, `/DynamicLens/Materials`).
 
-## Using it
-* **Component** (on the camera): `Enabled` (keyable), `Preset` (asset dropdown), `Amount Multiplier` (keyable),
-  Layers: `Apply Vignette`, `Apply Bokeh`; Advanced: `Render Mode` (Post Process Material / Inside TSR),
-  `Overscan Multiplier`, `Scale Resolution With Overscan`; Debug: what was evaluated this frame.
-* **Preset asset** (`/DynamicLens/Presets`): Distortion (Profile, Amount, Breathing, Wide Boost), Vignette, Bokeh
-  (Iris blades, Cat's Eye barrel, Petzval swirl). Every field has a tooltip and hard-limit clamps. Duplicate a preset
-  to make your own; the component's dropdown lists every preset asset in the project.
-* **Profile asset** (`/DynamicLens/Profiles`): the measured lens series (focal × focus grid of K1..P2). Rebuild from
-  `Tools/data/raw` with `Tools/build_profiles.py` → `dl.import_profiles()`.
+## Component (on the camera)
+* `Enabled`, `Preset` (asset dropdown), `Amount Multiplier` — keyable in Sequencer.
+* Layers: `Apply Vignette`, `Apply Bokeh`, `Apply Image Circle`, `Vignette Multiplier`, `Swirl Multiplier` (keyable).
+* Sensor: `Sensor Fit` — **Scale** (profile frame stretched to this sensor) or **Crop** (physical: a smaller sensor sees
+  the centre of the lens grid). `Match Camera To Profile` button sets filmback, squeeze and crop to the profile's native format.
+* Overscan: **Dynamic** (exact per frame, capped by `Max Overscan`) or **Fixed** (constant for the shot — use this for
+  renders with zoom pulls: MRQ/MRG read the camera's overscan once per shot). Beyond the available overscan the frame goes
+  black at the edges (image circle), like a real lens.
+* Advanced: `Render Mode` (Post Process Material / Inside TSR), image-circle material.
+* Debug: focal, focus, f-stop, effective sensor, K values, needed vs applied overscan, corner field angle, pupil
+  visibility at the corner, barrel radius/length, image-circle radius, profile coverage, notes.
 
-## Aspect ratios, crops, anamorphic
-Distortion is evaluated in normalized sensor space, so it is correct for any filmback. The component uses the
-**effective** sensor: filmback × squeeze factor (desqueezed width), then trimmed by the camera's **Crop** preset
-(aspect ratio). A 2.39 crop of a 16:9 sensor therefore gets the distortion of the centre of the full frame, as a real
-crop would. Output resolution / letterboxing in MRG doesn't change it (the effect lives in the camera's view).
-Anamorphic *lens models* (oval distortion, 3DE parameters) are not wired yet: spherical profiles are applied to
-anamorphic filmbacks as-is.
+## Preset asset
+Distortion (profile, amount, breathing, out-of-range clamp/extrapolate, wide boost), Image Circle (on/off, edge softness),
+Vignette (Physical: cos⁴ + barrel clipping / Manual curves), Bokeh (Physical: blades + barrel from specs, cat's-eye
+strength / Manual), Swirl (Petzval amount, falloff, exclusion box, fade by f-stop). Tooltips and hard clamps everywhere.
 
-## Overscan
-The component computes the exact overscan so distorted frames have no empty corners and writes it to the camera's
-native `Overscan` (MRG crops it automatically since 5.6). GPU cost grows with overscan²: about 10–15% extra pixels on
-a 14–18 mm at minimum focus, ~4% at 35 mm, nothing past 65 mm.
+## Profile asset
+Type, coverage summary (read-only), native sensor + squeeze + image circle, the data, and physical specs:
+front diameter, iris blades, max aperture, **pupil visibility at the image-circle edge**.
 
-## Rendering modes
-* **Post Process Material** (default): camera blendable, one resample. Works everywhere.
-* **Inside TSR**: distortion folded into Temporal Super Resolution, no extra resample (sharpest). Needs TSR as the
-  AA method; `bCropOverscan` is switched on automatically.
+## Maths
+* **Distortion**: Brown-Conrady radial (Unreal normalized convention, same as Lens Files) or ST maps through Epic's
+  displacement-map pipeline; fisheyes as procedurally generated undistortion maps from r = f·g(θ).
+* **Overscan**: exact — dense border inversion of the (monotonic) radial model; ST maps measured at import from the map
+  border; fisheyes from the source-frame limits. Coefficients are scaled down if the mapping would fold over.
+* **Image circle**: profile's data-sheet circle, and the circle beyond which the overscan provides no source pixels.
+* **Cat's eye**: UE's barrel model (cylinder of radius R, length L in front of the entrance pupil of diameter f/N).
+  R = front diameter / 2. L is solved so that the pupil is `PupilVisibleAtImageCircle` visible at the image-circle edge
+  wide open (disc-overlap geometry), then the same geometry gives clipping at any focal, f-stop and sensor.
+* **Vignette**: natural cos⁴(θ) falloff at the visible frame edge × `NaturalFalloff` + mechanical loss (1 − pupil
+  visible) × `MechanicalStrength`. Evaluated at the image-circle edge when the circle is inside the frame.
+* **Swirl** (Petzval): not derivable; 0 for modern primes, manual for vintage looks, fades with the iris.
 
-## Rebuilding after code changes
+## Presets shipped
+Master, Supreme (as measured), MasterHeavy, Subtle, Vintage, Lanthimos_Favourite_6mm (Nikkor 6mm 220°),
+Lanthimos_Favourite_10mm (stereographic reconstruction) and _10mm_Rect (rectilinear reconstruction),
+PoorThings_Porthole_4mm (OpTex 4mm S16 on 35), PoorThings_Lab_8mm, PoorThings_Petzval, plus one per tiedtke series
+(`Presets/Tiedtke/DL_T_*`). Every number that is not from a data sheet is marked "assumed" in the profile's Source field.
+
+## Known limits
+* Fisheyes beyond ~80° off-axis can't be rendered by a rectilinear source; the image circle is black there. A 16:9
+  source runs out vertically first — use a 4:3 / open-gate filmback (Match Camera To Profile) for the biggest circle.
+* Editor viewport needs Realtime on (Ctrl+R) for the component to tick; renders always tick.
+* Accumulation DOF (5.8 plugin) is not driven yet; bokeh uses the DiaphragmDOF settings.
+
+## Rebuild
 ```
-"C:\Program Files\Epic Games\UE_5.8\Engine\Build\BatchFiles\RunUAT.bat" BuildPlugin -Plugin="<this folder>\DynamicLens.uplugin" -Package="<temp dir>" -TargetPlatforms=Win64 -Rocket
+RunUAT.bat BuildPlugin -Plugin="<repo>\DynamicLens.uplugin" -Package="%TEMP%\dlb" -TargetPlatforms=Win64 -Rocket
 ```
-then copy `<temp dir>\Binaries` and `<temp dir>\Intermediate` back over this folder and restart the editor.
+Short package path (MAX_PATH). Needs the .NET Framework 4.8 SDK (VS Installer) or the `UE_SDKS_ROOT` stub trick.
+Copy `Binaries` + `Intermediate` back, restart the editor.
 
 ## Layout
 ```
-DynamicLens.uplugin
-Source/DynamicLens/         C++ (component, preset/profile data assets, helper library)
-Content/Python/             dynamiclens_tools.py (importer + helpers)
-Content/Profiles, Presets/  data assets (created by the importer, travel with the plugin)
-Tools/data/raw              dump of the source Lens Files (andy_davis_lensfiles.json)
-Tools/data/profiles         fitted grids (JSON)   Tools/data/presets.json  preset definitions
-Tools/build_profiles.py     raw → profiles        Tools/lensrig_py_prototype  the first Python-only version (reference)
+Source/DynamicLens/          component, types (profiles/presets/maths), library
+Content/Python/              dynamiclens_tools.py (importers, material builder, helpers)
+Content/Profiles|Presets|Materials  generated assets (travel with the plugin)
+Tools/data/raw               dump of Andy Davis's 31 Lens Files
+Tools/data/profiles          fitted grids (Tools/build_profiles.py)
+Tools/data/presets.json      profile specs, fisheye profiles, presets (with sources)
 ```

@@ -219,6 +219,21 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	}
 
 	Applied = FMath::Clamp(Applied, 1.f, 2.f);
+
+	// vignette and cat's eye belong to the picture you can see: if the image circle is inside the frame corners,
+	// evaluate them at the circle's edge instead of the (black) frame corner
+	const float CornerNorm = FMath::Sqrt(1.f + FMath::Square(H / W));
+	if (CircleRadius > 0.f && CircleRadius < CornerNorm)
+	{
+		const float S = CircleRadius / CornerNorm;
+		const FDynamicLensEval EdgeEval = Preset->Evaluate(Focal, Focus, FStop, W * S, H * S, AmountMultiplier);
+		Eval.VignetteIntensity = FMath::Clamp(EdgeEval.VignetteIntensity * VignetteMultiplier, 0.f, 1.f);
+		Eval.CornerPupilVisible = EdgeEval.CornerPupilVisible;
+		Eval.CornerFieldAngleDeg = EdgeEval.CornerFieldAngleDeg;
+		Eval.BarrelRadiusMm = EdgeEval.BarrelRadiusMm;
+		Eval.BarrelLengthMm = EdgeEval.BarrelLengthMm;
+	}
+
 	ApplyRendering(Cam, State, Applied);
 	ApplyLook(Cam, Eval, bApplyImageCircle ? CircleRadius : 0.f, W / H);
 
@@ -292,7 +307,7 @@ bool UDynamicLensComponent::DriveSTMap(UCineCameraComponent* Cam, const FDynamic
 		return false;
 	}
 	OutState = Handler->GetCurrentDistortionState();
-	OutNeededOverscan = FMath::Clamp(Handler->GetOverscanFactor(), 1.f, 4.f);
+	OutNeededOverscan = FMath::Clamp(FMath::Max(Handler->GetOverscanFactor(), Entry.NeededOverscan), 1.f, 4.f);
 	OutCircleRadius = 0.f;
 	if (FMath::Abs(Entry.FocalMm - Focal) > 0.5f)
 	{
