@@ -227,18 +227,19 @@ UTexture2D* UDynamicLensLibrary::BuildExtendedSTMap(UTexture2D* Map, bool bBotto
 	}
 	Map->Source.UnlockMip(0);
 
-	// how far outside the frame the border's sources reach (dense, every border texel), in the map's own units
-	float Extent = 1.f;
-	auto Consider = [&](int32 I, int32 J)
-	{
-		const FVector2f F = Grid[J * GW + I];
-		Extent = FMath::Max3(Extent, FMath::Abs(F.X - 0.5f) * 2.f, FMath::Abs(F.Y - 0.5f) * 2.f);
-	};
-	for (int32 I = 0; I < GW; ++I) { Consider(I, 0); Consider(I, GH - 1); }
-	for (int32 J = 0; J < GH; ++J) { Consider(0, J); Consider(GW - 1, J); }
-	OutNeededOverscan = FMath::Clamp(Extent, 1.f, 4.f);
-	const float Extend = FMath::Clamp(FMath::Max(OutNeededOverscan * 1.15f, 1.05f), 1.f, FMath::Max(MaxExtend, 1.f));
-	OutExtend = Extend;
+	// valid domain: these maps are clamped to [0,1] where the source leaves the frame, so a band of border texels
+	// carries no information (Cooke FFi 27 mm: the left ~3% reads exactly 0). Find the inner rectangle that is not clamped.
+	auto Clamped = [](float V) { return V < 0.0005f || V > 0.9995f; };
+	auto ColValid = [&](int32 I) { int32 Bad = 0, N = 0; for (int32 J = GH / 5; J < GH * 4 / 5; ++J) { ++N; if (Clamped(Grid[J * GW + I].X)) ++Bad; } return Bad * 10 < N; };
+	auto RowValid = [&](int32 J) { int32 Bad = 0, N = 0; for (int32 I = GW / 5; I < GW * 4 / 5; ++I) { ++N; if (Clamped(Grid[J * GW + I].Y)) ++Bad; } return Bad * 10 < N; };
+	int32 L = 0, R = GW - 1, T = 0, B = GH - 1;
+	while (L < GW / 2 && !ColValid(L)) ++L;
+	while (R > GW / 2 && !ColValid(R)) --R;
+	while (T < GH / 2 && !RowValid(T)) ++T;
+	while (B > GH / 2 && !RowValid(B)) --B;
+	auto RowToV = [&](int32 J) { const float Rv = (J + 0.5f) / GH; return bBottomLeftOrigin ? (1.f - Rv) : Rv; };
+	const FVector2f DomMin((L + 0.5f) / GW, FMath::Min(RowToV(T), RowToV(B)));
+	const FVector2f DomMax((R + 0.5f) / GW, FMath::Max(RowToV(T), RowToV(B)));
 
 	// sample the grid at a UV in the map's own convention (v up if bottom-left origin)
 	auto Sample = [&](float U, float V) -> FVector2f
@@ -249,29 +250,44 @@ UTexture2D* UDynamicLensLibrary::BuildExtendedSTMap(UTexture2D* Map, bool bBotto
 		const int32 X1 = FMath::Min(X0 + 1, GW - 1), Y1 = FMath::Min(Y0 + 1, GH - 1);
 		const float Tx = X - X0, Ty = Y - Y0;
 		const FVector2f A = FMath::Lerp(Grid[Y0 * GW + X0], Grid[Y0 * GW + X1], Tx);
-		const FVector2f B = FMath::Lerp(Grid[Y1 * GW + X0], Grid[Y1 * GW + X1], Tx);
-		return FMath::Lerp(A, B, Ty);
+		const FVector2f Bv = FMath::Lerp(Grid[Y1 * GW + X0], Grid[Y1 * GW + X1], Tx);
+		return FMath::Lerp(A, Bv, Ty);
 	};
-	// displacement D(p) = F(p) - p, extrapolated linearly outside [0,1]^2 from the border's value and gradient
+	// displacement D(p) = F(p) - p, extrapolated linearly outside the valid domain from its border value and gradient
 	auto Displacement = [&](FVector2f P) -> FVector2f
 	{
-		const FVector2f Pb(FMath::Clamp(P.X, 0.f, 1.f), FMath::Clamp(P.Y, 0.f, 1.f));
+		const FVector2f Pb(FMath::Clamp(P.X, DomMin.X, DomMax.X), FMath::Clamp(P.Y, DomMin.Y, DomMax.Y));
 		FVector2f D = Sample(Pb.X, Pb.Y) - Pb;
-		const float Dx = 4.f / GW, Dy = 4.f / GH;
+		const float Dx = FMath::Min(4.f / GW, 0.25f * (DomMax.X - DomMin.X)), Dy = FMath::Min(4.f / GH, 0.25f * (DomMax.Y - DomMin.Y));
 		if (P.X != Pb.X)
 		{
-			const float Inner = (P.X > 1.f) ? Pb.X - Dx : Pb.X + Dx;
+			const float Inner = (P.X > Pb.X) ? Pb.X - Dx : Pb.X + Dx;
 			const FVector2f Din = Sample(Inner, Pb.Y) - FVector2f(Inner, Pb.Y);
 			D += (D - Din) / (Pb.X - Inner) * (P.X - Pb.X);
 		}
 		if (P.Y != Pb.Y)
 		{
-			const float Inner = (P.Y > 1.f) ? Pb.Y - Dy : Pb.Y + Dy;
+			const float Inner = (P.Y > Pb.Y) ? Pb.Y - Dy : Pb.Y + Dy;
 			const FVector2f Din = Sample(Pb.X, Inner) - FVector2f(Pb.X, Inner);
 			D += (D - Din) / (Pb.Y - Inner) * (P.Y - Pb.Y);
 		}
 		return D;
 	};
+
+	// how far outside the frame the frame border's sources reach (extrapolated across any clamped band), map units
+	float Extent = 1.f;
+	for (int32 K = 0; K <= 256; ++K)
+	{
+		const float Tk = K / 256.f;
+		for (const FVector2f& Pt : { FVector2f(Tk, 0.f), FVector2f(Tk, 1.f), FVector2f(0.f, Tk), FVector2f(1.f, Tk) })
+		{
+			const FVector2f F = Pt + Displacement(Pt);
+			Extent = FMath::Max3(Extent, FMath::Abs(F.X - 0.5f) * 2.f, FMath::Abs(F.Y - 0.5f) * 2.f);
+		}
+	}
+	OutNeededOverscan = FMath::Clamp(Extent, 1.f, 4.f);
+	const float Extend = FMath::Clamp(FMath::Max(OutNeededOverscan * 1.15f, 1.05f), 1.f, FMath::Max(MaxExtend, 1.f));
+	OutExtend = Extend;
 
 	// Epic's blend shader crops the map for a smaller filmback but keeps the displacement values as they are, so the
 	// values must already be in the CAMERA frame's units: D_cam = D_map * DisplacementScale (= map sensor / camera sensor).

@@ -30,10 +30,15 @@ Assets land in the plugin's own content (`/DynamicLens/Profiles`, `/DynamicLens/
 
 ## Component (on the camera)
 * `Enabled`, `Preset` (asset dropdown), `Profile Info` (read-only: the lens, its coverage, and exactly what Match Camera
-  To Profile would set), `Match Camera On Preset Change`, `Amount Multiplier` - keyable in Sequencer. Buttons:
-  `Previous Preset` / `Next Preset` (alphabetical through every preset asset), `Match Camera To Profile`,
-  `Copy All From Preset`, `Save As New Preset`.
-* Layers: `Apply Vignette`, `Apply Bokeh`, `Apply Image Circle`, `Vignette Multiplier`, `Swirl Multiplier` (keyable).
+  To Profile would set, plus the measured focal lengths with the current one in brackets), `Match Camera` (auto on preset
+  change + which of filmback / squeeze / crop / focal length the match writes), `Amount Multiplier` - keyable in
+  Sequencer. Buttons: `Previous Preset` / `Next Preset` (alphabetical through every preset asset), `Previous Focal` /
+  `Next Focal` (step through the profile's measured focal lengths), `Match Camera To Profile`, `Copy All From Preset`,
+  `Save As New Preset`.
+* Camera: the Cine Camera settings you touch most (focal length, aperture, focus method / distance / actor / offset,
+  cropped aspect, filmback, squeeze) mirrored on the component; edits write to the camera, the camera stays the truth.
+* Layers: `Apply Distortion`, `Apply Vignette`, `Apply Bokeh`, `Apply Image Circle`, `Vignette Multiplier`, `Swirl
+  Multiplier` (keyable).
 * **Overrides**: the preset's five blocks (Distortion, Image Circle, Vignette, Bokeh, Overscan) as collapsed groups,
   each with a checkbox. Ticking one copies the preset's values in and uses them for this camera only; the preset
   asset is never changed. `Copy All From Preset` fills every block without turning them on.
@@ -112,7 +117,9 @@ Sources: Kodak and Cinematography World interviews with Robbie Ryan (links in th
 An ST map only describes its own frame; an overscanned render asks for source pixels outside it, and Epic's processor
 clamps to the border (a smeared band at the edges). The component extrapolates each map's displacement field beyond
 the frame into a transient extended map (linear in the border gradient, editor only since it reads the texture source)
-and presents it as a map for a larger sensor that the camera crops the centre of. Beyond the extension the image
+and presents it as a map for a larger sensor that the camera crops the centre of. Epic's blend shader crops without
+rescaling the values, so the extended map stores displacement in the camera frame's units, and the needed overscan is
+measured densely from the map's border rather than taken from Epic's 8-point estimate. Beyond the extension the image
 circle takes over.
 
 ## Known limits
