@@ -126,6 +126,15 @@ float DynamicLensMath::ValidCircleRadius(const FDynamicLensParams& P, float Fx, 
 	return FMath::Min(Rx, Ry) / HalfX;   // in half-frame-width units
 }
 
+void DynamicLensMath::ValidExtents(const FDynamicLensParams& P, float Fx, float Fy, float OverscanFactor, float& OutRx, float& OutRy)
+{
+	const float HalfX = 0.5f / FMath::Max(Fx, KINDA_SMALL_NUMBER);
+	const float HalfY = 0.5f / FMath::Max(Fy, KINDA_SMALL_NUMBER);
+	const float O = FMath::Max(OverscanFactor, 1.f);
+	OutRx = RadialForward(O * HalfX, P) / HalfX;
+	OutRy = RadialForward(O * HalfY, P) / HalfX;
+}
+
 float DynamicLensMath::ProjectionG(EDynamicLensProjection Projection, float Theta)
 {
 	switch (Projection)

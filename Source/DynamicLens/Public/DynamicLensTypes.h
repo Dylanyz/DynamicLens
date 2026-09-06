@@ -842,6 +842,8 @@ namespace DynamicLensMath
 	 * render overscanned by OverscanFactor. Beyond it the picture has no source pixels (black on a real lens).
 	 */
 	DYNAMICLENS_API float ValidCircleRadius(const FDynamicLensParams& P, float Fx, float Fy, float OverscanFactor);
+	/** Half-extents (in half-frame-width units) of the distorted image of the overscanned source rectangle: the ellipse through these covers what the render can show. */
+	DYNAMICLENS_API void ValidExtents(const FDynamicLensParams& P, float Fx, float Fy, float OverscanFactor, float& OutRx, float& OutRy);
 
 	/** Projection radius in units of focal length: g(theta) for r = f * g(theta). */
 	DYNAMICLENS_API float ProjectionG(EDynamicLensProjection Projection, float ThetaRad);

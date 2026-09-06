@@ -246,9 +246,9 @@ private:
 	void EnsureHandler();
 	bool DriveParametric(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float W, float H, float& OutNeededOverscan, FLensDistortionState& OutState);
 	bool DriveSTMap(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float Focus, float W, float H, float WFull, float HFull, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRadius);
-	bool DriveProjection(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float W, float H, float AppliedOverscan, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRadius);
+	bool DriveProjection(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float W, float H, float AppliedOverscan, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRx, float& OutCircleRy);
 	void ApplyRendering(UCineCameraComponent* Cam, const FLensDistortionState& State, float AppliedOverscan);
-	void ApplyLook(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float CircleRadiusNorm, float Aspect);
+	void ApplyLook(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float CircleRadiusNorm, float Aspect, float CircleEllipticity);
 	void CaptureLook(UCineCameraComponent* Cam);
 	void RestoreLook(UCineCameraComponent* Cam);
 	void StripForeignDistortionBlendables(UCineCameraComponent* Cam);
@@ -295,6 +295,7 @@ private:
 	float ProjectionKeyMaxAngle = 0.f;
 	float ProjectionNeededOverscan = 1.f;
 	float ProjectionCircleRadius = 0.f;
+	float ProjectionCircleRy = 0.f;
 
 	struct FLookBackup
 	{
@@ -313,5 +314,6 @@ private:
 
 	FDynamicLensEval LastEval;
 	float LastCircleRadius = -1.f;
+	float LastCircleEllipticity = -1.f;
 	bool bHasLastEval = false;
 };
