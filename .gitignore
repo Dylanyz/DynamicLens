@@ -1,0 +1,14 @@
+# UE plugin build products (rebuilt with RunUAT BuildPlugin, see README)
+Binaries/
+Intermediate/
+# editor/plugin junk
+Saved/
+*.pdb
+__pycache__/
+*.pyc
+UE_Placeholder.uasset
+.vs/
+*.swp
+.DS_Store
+# large raw EXR grids never belong here
+*.exr

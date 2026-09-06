@@ -1,0 +1,15 @@
+"""Auto-start for DynamicLens. Runs at editor startup when this folder is in
+Project Settings > Plugins > Python > Additional Paths (relative path: Content/CinematicTemplate/Lenses/DynamicLens/Python).
+
+The rig starts ticking but stays *disabled* until either
+  * a BP_DynamicLens settings actor (actor tag 'DynamicLensSettings') in the level has Enabled = true, or
+  * you run `import lensrig; lensrig.on("Master")` in the Python console.
+"""
+import unreal
+
+try:
+    import lensrig
+    lensrig.start()
+    unreal.log("[DynamicLens] ready — lensrig.on('<preset>') or drop a BP_DynamicLens actor in the level. Presets: " + ", ".join(lensrig.presets()))
+except Exception as e:  # never break editor startup
+    unreal.log_warning(f"[DynamicLens] failed to start: {e}")
