@@ -424,6 +424,15 @@ bool UDynamicLensComponent::DriveParametric(UCineCameraComponent* Cam, const FDy
 	FB.SensorWidth = W; FB.SensorHeight = H; FB.SensorAspectRatio = W / H;
 	Handler->SetCameraFilmback(FB);
 	OutNeededOverscan = DynamicLensMath::ComputeOverscan(Eval.Params, Focal / W, Focal / H);
+	// breathing must never resize the render in the middle of a focus pull: cover the whole focus range at this focal
+	if (const UDynamicLensProfile* P = Resolved.Distortion.Profile; P && P->Type == EDynamicLensProfileType::Parametric && P->FocusCm.Num() > 0)
+	{
+		for (const float F : { P->FocusCm[0], P->FocusCm.Last(), 1e6f })
+		{
+			const FDynamicLensEval E2 = Resolved.Evaluate(Focal, F, Cam->CurrentAperture, W, H, AmountMultiplier, Cam->LensSettings.DiaphragmBladeCount, Cam->LensSettings.SqueezeFactor);
+			OutNeededOverscan = FMath::Max(OutNeededOverscan, DynamicLensMath::ComputeOverscan(E2.Params, Focal / W, Focal / H));
+		}
+	}
 	return true;
 }
 
@@ -691,6 +700,7 @@ void UDynamicLensComponent::CaptureLook(UCineCameraComponent* Cam)
 	Backup.bBarrelLength = P.bOverride_DepthOfFieldBarrelLength; Backup.BarrelLength = P.DepthOfFieldBarrelLength;
 	Backup.bVignette = P.bOverride_VignetteIntensity; Backup.Vignette = P.VignetteIntensity;
 	Backup.bSqueeze = P.bOverride_DepthOfFieldSqueezeFactor; Backup.Squeeze = P.DepthOfFieldSqueezeFactor;
+	Backup.LensBlades = Cam->LensSettings.DiaphragmBladeCount; Backup.LensSqueeze = Cam->LensSettings.SqueezeFactor; Backup.LensSensorWidth = Cam->Filmback.SensorWidth; Backup.bLensDriven = false;
 	Backup.Overscan = Cam->Overscan; Backup.bCropOverscan = Cam->bCropOverscan; Backup.bScaleRes = Cam->bScaleResolutionWithOverscan;
 	bLookCaptured = true;
 }
@@ -710,6 +720,17 @@ void UDynamicLensComponent::RestoreLook(UCineCameraComponent* Cam)
 		P.bOverride_DepthOfFieldBarrelLength = Backup.bBarrelLength; P.DepthOfFieldBarrelLength = Backup.BarrelLength;
 		P.bOverride_VignetteIntensity = Backup.bVignette; P.VignetteIntensity = Backup.Vignette;
 		P.bOverride_DepthOfFieldSqueezeFactor = Backup.bSqueeze; P.DepthOfFieldSqueezeFactor = Backup.Squeeze;
+		if (Backup.bLensDriven)
+		{
+			Cam->LensSettings.DiaphragmBladeCount = Backup.LensBlades;
+			if (!FMath::IsNearlyEqual(Cam->LensSettings.SqueezeFactor, Backup.LensSqueeze))
+			{
+				Cam->LensSettings.SqueezeFactor = Backup.LensSqueeze;
+				Cam->Filmback.SensorWidth = Backup.LensSensorWidth;
+				Cam->Filmback.SensorAspectRatio = Cam->Filmback.SensorWidth / FMath::Max(Cam->Filmback.SensorHeight, 0.01f);
+			}
+			Backup.bLensDriven = false;
+		}
 	}
 	if (bOverscanTouched)
 	{
@@ -819,8 +840,32 @@ void UDynamicLensComponent::ApplyLook(UCineCameraComponent* Cam, const FDynamicL
 	if (bDoBokeh)
 	{
 		// Unreal's DOF only knows a blade count: rounded blades read as "more blades"
-		const int32 EffBlades = FMath::RoundToInt(FMath::Lerp((float)Eval.Blades, 16.f, Eval.BladeCurvature));
-		P.bOverride_DepthOfFieldBladeCount = true; P.DepthOfFieldBladeCount = FMath::Clamp(EffBlades, 4, 16);
+		const int32 EffBlades = FMath::Clamp(FMath::RoundToInt(FMath::Lerp((float)Eval.Blades, 16.f, Eval.BladeCurvature)), 4, 16);
+		P.bOverride_DepthOfFieldBladeCount = true; P.DepthOfFieldBladeCount = EffBlades;
+		// UCineCameraComponent::GetCameraView overwrites DepthOfFieldBladeCount and DepthOfFieldSqueezeFactor from its
+		// Lens Settings every frame, so the only way to shape the bokeh is through those settings themselves
+		if (!Backup.bLensDriven)
+		{
+			Backup.LensBlades = Cam->LensSettings.DiaphragmBladeCount; Backup.LensSqueeze = Cam->LensSettings.SqueezeFactor; Backup.LensSensorWidth = Cam->Filmback.SensorWidth;
+			Backup.bLensDriven = true;
+		}
+		if (Resolved.Bokeh.BladeSource != EDynamicLensValueSource::Camera)
+		{
+			Cam->LensSettings.DiaphragmBladeCount = EffBlades;
+		}
+		if (Resolved.Bokeh.SqueezeSource == EDynamicLensValueSource::Custom)
+		{
+			// custom bokeh squeeze on a camera whose own squeeze differs: change the camera squeeze and compensate the
+			// filmback width so the desqueezed frame (and framing) stays the same
+			const float S = FMath::Clamp(Eval.BokehSqueeze, 1.f, 2.f);
+			if (!FMath::IsNearlyEqual(Cam->LensSettings.SqueezeFactor, S, 1e-3f))
+			{
+				const float Desqueezed = Cam->Filmback.SensorWidth * Cam->LensSettings.SqueezeFactor;
+				Cam->LensSettings.SqueezeFactor = S;
+				Cam->Filmback.SensorWidth = Desqueezed / S;
+				Cam->Filmback.SensorAspectRatio = Cam->Filmback.SensorWidth / FMath::Max(Cam->Filmback.SensorHeight, 0.01f);
+			}
+		}
 		P.bOverride_DepthOfFieldSqueezeFactor = true; P.DepthOfFieldSqueezeFactor = FMath::Clamp(Eval.BokehSqueeze, 1.f, 2.f);
 		P.bOverride_DepthOfFieldPetzvalBokeh = true; P.DepthOfFieldPetzvalBokeh = Eval.Petzval;
 		P.bOverride_DepthOfFieldPetzvalBokehFalloff = true; P.DepthOfFieldPetzvalBokehFalloff = Eval.PetzvalFalloff;
@@ -833,6 +878,17 @@ void UDynamicLensComponent::ApplyLook(UCineCameraComponent* Cam, const FDynamicL
 	{
 		P.bOverride_DepthOfFieldBladeCount = Backup.bBlade; P.DepthOfFieldBladeCount = Backup.Blade;
 		P.bOverride_DepthOfFieldSqueezeFactor = Backup.bSqueeze; P.DepthOfFieldSqueezeFactor = Backup.Squeeze;
+		if (Backup.bLensDriven)
+		{
+			Cam->LensSettings.DiaphragmBladeCount = Backup.LensBlades;
+			if (!FMath::IsNearlyEqual(Cam->LensSettings.SqueezeFactor, Backup.LensSqueeze))
+			{
+				Cam->LensSettings.SqueezeFactor = Backup.LensSqueeze;
+				Cam->Filmback.SensorWidth = Backup.LensSensorWidth;
+				Cam->Filmback.SensorAspectRatio = Cam->Filmback.SensorWidth / FMath::Max(Cam->Filmback.SensorHeight, 0.01f);
+			}
+			Backup.bLensDriven = false;
+		}
 		P.bOverride_DepthOfFieldPetzvalBokeh = Backup.bPetzval; P.DepthOfFieldPetzvalBokeh = Backup.Petzval;
 		P.bOverride_DepthOfFieldPetzvalBokehFalloff = Backup.bPetzvalFalloff; P.DepthOfFieldPetzvalBokehFalloff = Backup.PetzvalFalloff;
 		P.bOverride_DepthOfFieldPetzvalExclusionBoxExtents = Backup.bExclBox; P.DepthOfFieldPetzvalExclusionBoxExtents = Backup.ExclBox;

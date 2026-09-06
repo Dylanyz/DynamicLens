@@ -70,9 +70,11 @@ Five blocks, all with tooltips and hard clamps:
 * **Bokeh**: Physical (blades + barrel from specs, cat's-eye strength) / Manual, Iris (blade count from **Profile /
   Camera / Custom**, blade curvature override, bokeh squeeze from **Profile / Camera / Custom**, blade rotation),
   Swirl (Petzval amount, falloff, exclusion box, fade by f-stop), Accumulation DOF (drive on/off, spherical
-  aberration, coma).
-* **Overscan**: Dynamic (what the frame needs, rounded up to `Dynamic Step` (2%) with hysteresis so focus breathing
-  doesn't resize the render every frame, capped by max) or Fixed (constant for the shot - renders with zoom pulls, and
+  aberration, coma). Blade count and squeeze are written to the Cine Camera's Lens Settings, because the camera
+  overwrites the depth-of-field blade count and squeeze from those settings every frame; a Custom squeeze changes the
+  camera squeeze and compensates the filmback width so the framing does not move.
+* **Overscan**: Dynamic (what the frame needs at this focal length over the whole focus range, so a focus pull never
+  resizes the render; rounded up to `Dynamic Step` (2%) with hysteresis for zooms; capped by max) or Fixed (constant for the shot - renders with zoom pulls, and
   fisheyes, which ship with Fixed 2.0). Beyond the available overscan the frame goes black at the edges.
 
 ## Profile asset

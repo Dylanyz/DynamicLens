@@ -307,6 +307,7 @@ private:
 		bool bBarrelLength = false; float BarrelLength = 0.f;
 		bool bVignette = false; float Vignette = 0.f;
 		bool bSqueeze = false; float Squeeze = 1.f;
+		int32 LensBlades = 7; float LensSqueeze = 1.f; float LensSensorWidth = 24.89f; bool bLensDriven = false;
 		float Overscan = 0.f; bool bCropOverscan = false; bool bScaleRes = false;
 	} Backup;
 
