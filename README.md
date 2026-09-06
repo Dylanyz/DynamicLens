@@ -29,35 +29,35 @@ dl.add_to_all_cameras("DL_Master")
 Assets land in the plugin's own content (`/DynamicLens/Profiles`, `/DynamicLens/Presets`, `/DynamicLens/Materials`).
 
 ## Component (on the camera)
-* `Enabled`, `Preset` (asset dropdown), `Amount Multiplier` — keyable in Sequencer.
+* `Enabled`, `Preset` (asset dropdown), `Amount Multiplier` - keyable in Sequencer.
 * Layers: `Apply Vignette`, `Apply Bokeh`, `Apply Image Circle`, `Vignette Multiplier`, `Swirl Multiplier` (keyable).
-* Sensor: `Sensor Fit` — **Scale** (profile frame stretched to this sensor) or **Crop** (physical: a smaller sensor sees
-  the centre of the lens grid). `Match Camera To Profile` button sets filmback, squeeze and crop to the profile's native format.
-* Overscan: **Dynamic** (exact per frame, capped by `Max Overscan`) or **Fixed** (constant for the shot — use this for
-  renders with zoom pulls: MRQ/MRG read the camera's overscan once per shot). Beyond the available overscan the frame goes
-  black at the edges (image circle), like a real lens.
+* **Overrides**: the preset's five blocks (Distortion, Image Circle, Vignette, Bokeh, Overscan) as collapsed groups,
+  each with a checkbox. Ticking one copies the preset's values in and uses them for this camera only; the preset
+  asset is never changed. `Copy All From Preset` fills every block without turning them on.
+* **Save As Preset**: `New Preset Name` + folder (default `/Game/DynamicLens/Presets`) and the `Save As New Preset`
+  button write the resolved look (preset + overrides) to a new asset, switch this camera to it and clear the overrides.
+* Sensor: `Sensor Fit` - **Scale** (profile frame stretched to this sensor) or **Crop** (physical: a smaller sensor sees
+  the centre of the lens grid). `Match Camera To Profile` sets filmback, squeeze, crop and (for primes) focal length to
+  the profile's native format.
 * Advanced: `Render Mode` (Post Process Material / Inside TSR), image-circle material.
 * Debug: focal, focus, f-stop, effective sensor, K values, needed vs applied overscan, corner field angle, pupil
   visibility at the corner, barrel radius/length, image-circle radius, profile coverage, notes.
 
 ## Preset asset
-Distortion (profile, amount, breathing, out-of-range clamp/extrapolate, wide boost), Image Circle (on/off, edge softness, and an
-**Edge** block for a real-looking rim: falloff power, opacity, centre offset, ellipticity, waviness, fine breakup, chromatic
-aberration (blue rim), radial scatter, optional full-frame mask texture you paint/scan yourself),
-Vignette (Physical: cos⁴ + barrel clipping / Manual curves), Bokeh (Physical: blades + barrel from specs, cat's-eye
-strength / Manual), Iris (blade count from **Profile / Camera / Custom**, blade curvature override, bokeh squeeze from
-**Profile / Camera / Custom**, blade rotation), Swirl (Petzval amount, falloff, exclusion box, fade by f-stop), Accumulation
-DOF (drive on/off, spherical aberration, coma). Tooltips and hard clamps everywhere.
-
-`DL_Lanthimos_Favourite_6mm_Frame` reproduces the film's framing (full frame, only the corners roll off): a 6 mm
-equidistant image only reaches the corners of a 1.85:1 gate if the corner sits within ~78° off-axis (the most a
-rectilinear Unreal render can source at overscan 2), so the profile's native gate is 14.4 x 7.78 mm (the 35 mm scan
-blown up ~1.7x) - click Match Camera To Profile and set Overscan Fixed 2.0. The plain `DL_Lanthimos_Favourite_6mm`
-shows the whole 23 mm circle on a 35 mm gate.
-
-The Poor Things 4 mm and The Favourite presets carry edge values measured from stills (see `Tools/data/presets.json`
-"notes"): the 4 mm rolls off over ~25% of the circle radius with a blue rim at the very edge and sits 5% left / 3% high of
-centre; the 6 mm has no rim at all, only corners rolling off over ~45% of the radius, top darker than bottom.
+Five blocks, all with tooltips and hard clamps:
+* **Distortion**: profile, `Lock Focal Length` (primes hold the camera at the profile's nominal focal length; ST-map
+  series snap to the nearest measured prime), amount, breathing, out-of-range clamp/extrapolate, wide boost (a
+  creative layer: extra barrel below a focal length - off in measured presets).
+* **Image Circle**: on/off, softness (rolloff band as a fraction of the radius) and the **Edge** block: falloff power,
+  opacity, centre offset, ellipticity, waviness, fine breakup, chromatic aberration (blue rim), radial scatter glow,
+  optional full-frame mask texture you paint/scan yourself.
+* **Vignette**: Physical (cos^4 + barrel clipping) / Manual curves.
+* **Bokeh**: Physical (blades + barrel from specs, cat's-eye strength) / Manual, Iris (blade count from **Profile /
+  Camera / Custom**, blade curvature override, bokeh squeeze from **Profile / Camera / Custom**, blade rotation),
+  Swirl (Petzval amount, falloff, exclusion box, fade by f-stop), Accumulation DOF (drive on/off, spherical
+  aberration, coma).
+* **Overscan**: Dynamic (exact per frame, capped by max) or Fixed (constant for the shot - renders with zoom pulls,
+  and fisheyes, which ship with Fixed 2.0). Beyond the available overscan the frame goes black at the edges.
 
 ## Profile asset
 Type, coverage summary (read-only), native sensor + squeeze + image circle, the data, and physical specs:
@@ -81,6 +81,14 @@ Master, Supreme (as measured), MasterHeavy, Subtle, Vintage, Lanthimos_Favourite
 Lanthimos_Favourite_10mm (stereographic reconstruction) and _10mm_Rect (rectilinear reconstruction),
 PoorThings_Porthole_4mm (OpTex 4mm S16 on 35), PoorThings_Lab_8mm, PoorThings_Petzval, plus one per tiedtke series
 (`Presets/Tiedtke/DL_T_*`). Every number that is not from a data sheet is marked "assumed" in the profile's Source field.
+
+## Film formats behind the Lanthimos presets
+* *The Favourite*: Panavision Millennium XL2, 35 mm 4-perf, released 1.85:1 -> native gate 24.89 x 13.45 mm
+  (Super 35 1.85 extraction). Lenses: Panavision Primo close-focus primes, Panavision-mount Nikkor 6 mm fisheye,
+  the "10 mm" workhorse.
+* *Poor Things*: ARRICAM LT/ST, 35 mm 4-perf, 1.66:1 -> native gate 24.89 x 15.0 mm. Lenses: OpTex 4 mm S16
+  fisheye (the porthole), Nikkor 8 mm, Zeiss Master Zoom 16.5-110, Angenieux Optimo, Petzval 58/85.
+Sources: Kodak and Cinematography World interviews with Robbie Ryan (links in the profiles' Source fields).
 
 ## Known limits
 * Fisheyes beyond ~80° off-axis can't be rendered by a rectilinear source; the image circle is black there. A 16:9

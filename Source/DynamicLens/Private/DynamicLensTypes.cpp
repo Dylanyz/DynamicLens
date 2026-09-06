@@ -259,6 +259,7 @@ void UDynamicLensProfile::RefreshCoverage()
 	case EDynamicLensProfileType::STMap: Focal = FString::Printf(TEXT("%d ST maps %.0f–%.0f mm (primes, nearest is used)"), STMaps.Num(), MinMm, MaxMm); break;
 	case EDynamicLensProfileType::Projection: Focal = FString::Printf(TEXT("any focal length, %s up to %.0f° off-axis"), *StaticEnum<EDynamicLensProjection>()->GetDisplayNameTextByValue((int64)Projection).ToString(), MaxFieldAngleDeg); break;
 	}
+	if (!PrimeText.IsEmpty()) { Focal.RemoveFromStart(TEXT("any focal length, ")); }
 	Coverage = FString::Printf(TEXT("%s%s | sensor %.2f x %.2f mm%s | image circle %.1f mm"), *PrimeText, *Focal, NativeSensorMm.X, NativeSensorMm.Y,
 		Squeeze > 1.001f ? *FString::Printf(TEXT(" (%.1fx anamorphic)"), Squeeze) : TEXT(""), EffectiveImageCircleMm());
 }
