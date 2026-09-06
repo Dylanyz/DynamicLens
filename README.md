@@ -31,7 +31,8 @@ Assets land in the plugin's own content (`/DynamicLens/Profiles`, `/DynamicLens/
 ## Component (on the camera)
 * `Enabled`, `Preset` (asset dropdown), `Profile Info` (read-only: the lens, its coverage, and exactly what Match Camera
   To Profile would set), `Match Camera On Preset Change`, `Amount Multiplier` - keyable in Sequencer. Buttons:
-  `Match Camera To Profile`, `Copy All From Preset`, `Save As New Preset`.
+  `Previous Preset` / `Next Preset` (alphabetical through every preset asset), `Match Camera To Profile`,
+  `Copy All From Preset`, `Save As New Preset`.
 * Layers: `Apply Vignette`, `Apply Bokeh`, `Apply Image Circle`, `Vignette Multiplier`, `Swirl Multiplier` (keyable).
 * **Overrides**: the preset's five blocks (Distortion, Image Circle, Vignette, Bokeh, Overscan) as collapsed groups,
   each with a checkbox. Ticking one copies the preset's values in and uses them for this camera only; the preset
@@ -48,8 +49,11 @@ Assets land in the plugin's own content (`/DynamicLens/Profiles`, `/DynamicLens/
 ## Preset asset
 Five blocks, all with tooltips and hard clamps:
 * **Distortion**: profile, `Lock Focal Length` (primes hold the camera at the profile's nominal focal length; ST-map
-  series snap to the nearest measured prime), amount, breathing, out-of-range clamp/extrapolate, wide boost (a
-  creative layer: extra barrel below a focal length - off in measured presets).
+  series snap to the nearest measured prime), amount, breathing, out-of-range mode - **Clamp (rescaled)** keeps the
+  nearest measured lens's pattern in millimetres on the sensor (coefficients are rescaled to the camera focal length:
+  K1 x s^2, K2 x s^4, P x s), **Extrapolate**, or **Clamp (raw)** which applies the coefficients unscaled (physically
+  wrong, far stronger at wide focal lengths; `DL_C_Vintage_Raw` keeps that look) - and wide boost (a creative layer:
+  extra barrel below a focal length - off in measured presets).
 * **Image Circle**: on/off, softness (rolloff band as a fraction of the radius) and the **Edge** block: falloff power,
   opacity; Geometry: centre offset, ellipticity, radius waviness (wobble / lobes / seed) and, separately, falloff-width
   waviness (the band gets wider and narrower around the circle: falloff wobble / lobes / seed); Optics: per-channel
@@ -61,8 +65,9 @@ Five blocks, all with tooltips and hard clamps:
   Camera / Custom**, blade curvature override, bokeh squeeze from **Profile / Camera / Custom**, blade rotation),
   Swirl (Petzval amount, falloff, exclusion box, fade by f-stop), Accumulation DOF (drive on/off, spherical
   aberration, coma).
-* **Overscan**: Dynamic (exact per frame, capped by max) or Fixed (constant for the shot - renders with zoom pulls,
-  and fisheyes, which ship with Fixed 2.0). Beyond the available overscan the frame goes black at the edges.
+* **Overscan**: Dynamic (what the frame needs, rounded up to `Dynamic Step` (2%) with hysteresis so focus breathing
+  doesn't resize the render every frame, capped by max) or Fixed (constant for the shot - renders with zoom pulls, and
+  fisheyes, which ship with Fixed 2.0). Beyond the available overscan the frame goes black at the edges.
 
 ## Profile asset
 Type, coverage summary (read-only), native sensor + squeeze + image circle, the data, and physical specs:
@@ -102,6 +107,13 @@ rolling corners), L_PoorThings_Petzval_58 / _85 (round Waterhouse iris, swirl), 
 * *Poor Things*: ARRICAM LT/ST, 35 mm 4-perf, 1.66:1 -> native gate 24.89 x 15.0 mm. Lenses: OpTex 4 mm S16
   fisheye (the porthole), Nikkor 8 mm, Zeiss Master Zoom 16.5-110, Angenieux Optimo, Petzval 58/85.
 Sources: Kodak and Cinematography World interviews with Robbie Ryan (links in the profiles' Source fields).
+
+## ST maps and overscan
+An ST map only describes its own frame; an overscanned render asks for source pixels outside it, and Epic's processor
+clamps to the border (a smeared band at the edges). The component extrapolates each map's displacement field beyond
+the frame into a transient extended map (linear in the border gradient, editor only since it reads the texture source)
+and presents it as a map for a larger sensor that the camera crops the centre of. Beyond the extension the image
+circle takes over.
 
 ## Known limits
 * Fisheyes beyond ~80° off-axis can't be rendered by a rectilinear source; the image circle is black there. A 16:9
