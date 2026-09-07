@@ -426,7 +426,7 @@ FDynamicLensEval FDynamicLensSettings::Evaluate(float FocalMm, float FocusCm, fl
 	E.Edge = ImageCircle.Edge;
 	if (ImageCircle.bEnabled && bProfile && Profile->ImageCircleMm > KINDA_SMALL_NUMBER)
 	{
-		E.ImageCircleRadiusNorm = Profile->ImageCircleMm / SW;
+		E.ImageCircleRadiusNorm = Profile->ImageCircleMm * FMath::Max(ImageCircle.Scale, 0.1f) / SW;
 	}
 
 	// --- vignette

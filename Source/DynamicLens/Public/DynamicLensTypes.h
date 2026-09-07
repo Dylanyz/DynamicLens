@@ -481,17 +481,21 @@ struct DYNAMICLENS_API FDynamicLensImageCircleEdge
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Geometry", meta = (ClampMin = "0.0", ClampMax = "360.0"))
 	float WobbleSeed = 0.f;
 
-	/** Colour fringing on the rim: how much further out (+) or in (-) the RED channel's edge sits, as a fraction of the radius. Poor Things' 4 mm: red -0.03, blue +0.03 (blue ring). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Optics", meta = (ClampMin = "-0.1", ClampMax = "0.1", UIMin = "-0.05", UIMax = "0.05"))
-	float ChromaticRed = 0.f;
+	/** Colour fringing on the rim: overall amount. Multiplies the per-channel offsets below (defaults: red in, blue out = a blue ring). 0 = none; Poor Things' 4 mm measured about 3 with the default offsets. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Optics", meta = (ClampMin = "0.0", ClampMax = "10.0", UIMin = "0.0", UIMax = "5.0"))
+	float ChromaticAmount = 0.f;
+
+	/** How much further out (+) or in (-) the RED channel's edge sits, as a fraction of the radius, before the amount multiplier. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Optics|Channels", meta = (ClampMin = "-0.1", ClampMax = "0.1", UIMin = "-0.05", UIMax = "0.05"))
+	float ChromaticRed = -0.01f;
 
 	/** Same for the GREEN channel's edge (usually 0: green is the reference). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Optics", meta = (ClampMin = "-0.1", ClampMax = "0.1", UIMin = "-0.05", UIMax = "0.05"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Optics|Channels", meta = (ClampMin = "-0.1", ClampMax = "0.1", UIMin = "-0.05", UIMax = "0.05"))
 	float ChromaticGreen = 0.f;
 
 	/** Same for the BLUE channel's edge (+ = blue reaches further out = blue rim). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Optics", meta = (ClampMin = "-0.1", ClampMax = "0.1", UIMin = "-0.05", UIMax = "0.05"))
-	float ChromaticBlue = 0.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Optics|Channels", meta = (ClampMin = "-0.1", ClampMax = "0.1", UIMin = "-0.05", UIMax = "0.05"))
+	float ChromaticBlue = 0.01f;
 
 	/** Light scatter in the soft band: the picture smears radially and glows a little before it goes dark, instead of just dimming. 0 = plain darkening, 1 = strong optical rolloff. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Optics", meta = (ClampMin = "0.0", ClampMax = "1.0"))
@@ -556,7 +560,7 @@ struct DYNAMICLENS_API FDynamicLensImageCircleEdge
 			&& CenterOffset.Equals(O.CenterOffset, 1e-4) && FMath::IsNearlyEqual(Ellipticity, O.Ellipticity)
 			&& FMath::IsNearlyEqual(Wobble, O.Wobble) && WobbleLobes == O.WobbleLobes && FMath::IsNearlyEqual(WobbleSeed, O.WobbleSeed)
 			&& FMath::IsNearlyEqual(EdgeNoise, O.EdgeNoise) && FMath::IsNearlyEqual(NoiseScale, O.NoiseScale)
-			&& FMath::IsNearlyEqual(ChromaticRed, O.ChromaticRed) && FMath::IsNearlyEqual(ChromaticGreen, O.ChromaticGreen) && FMath::IsNearlyEqual(ChromaticBlue, O.ChromaticBlue)
+			&& FMath::IsNearlyEqual(ChromaticAmount, O.ChromaticAmount) && FMath::IsNearlyEqual(ChromaticRed, O.ChromaticRed) && FMath::IsNearlyEqual(ChromaticGreen, O.ChromaticGreen) && FMath::IsNearlyEqual(ChromaticBlue, O.ChromaticBlue)
 			&& FMath::IsNearlyEqual(FalloffWobble, O.FalloffWobble) && FalloffWobbleLobes == O.FalloffWobbleLobes && FMath::IsNearlyEqual(FalloffWobbleSeed, O.FalloffWobbleSeed)
 			&& FMath::IsNearlyEqual(NoiseDepth, O.NoiseDepth) && FMath::IsNearlyEqual(NoiseBlur, O.NoiseBlur) && FMath::IsNearlyEqual(NoiseDetail, O.NoiseDetail)
 			&& FMath::IsNearlyEqual(NoiseStretch, O.NoiseStretch) && FMath::IsNearlyEqual(NoiseSeed, O.NoiseSeed) && FMath::IsNearlyEqual(NoiseContrast, O.NoiseContrast)
@@ -729,6 +733,10 @@ struct DYNAMICLENS_API FDynamicLensImageCircle
 	/** Show the lens's image circle: black beyond the circle, like a lens that doesn't cover the sensor (Poor Things 4mm). Uses the profile's Image Circle Mm and the render's overscan limit. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle")
 	bool bEnabled = true;
+
+	/** Multiplier on the circle size (1 = the profile's Image Circle Mm on this filmback). Creative control: 1.2 = 20% bigger circle, 0.8 = smaller porthole. A fisheye circle cannot grow past what the render can source; a smaller filmback (Camera > Filmback Mm) does that. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle", meta = (EditCondition = "bEnabled", ClampMin = "0.1", ClampMax = "4.0", UIMin = "0.5", UIMax = "2.0"))
+	float Scale = 1.f;
 
 	/** Width of the rolloff band as a fraction of the circle radius (hard porthole 0.05; Poor Things 4 mm measured 0.25; The Favourite corners 0.45). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle", meta = (EditCondition = "bEnabled", ClampMin = "0.0", ClampMax = "1.0"))

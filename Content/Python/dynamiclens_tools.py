@@ -136,6 +136,10 @@ def import_presets(preset_file=None, save=True, only=None):
                 ee[dst] = float(e[src])
         if "chromatic_aberration" in e:   # legacy scalar: red in, blue out
             ee["chromatic_red"] = -float(e["chromatic_aberration"]); ee["chromatic_blue"] = float(e["chromatic_aberration"])
+        if "chromatic_amount" in e:
+            ee["chromatic_amount"] = float(e["chromatic_amount"])
+        elif any(k in ee for k in ("chromatic_red", "chromatic_green", "chromatic_blue")):
+            ee["chromatic_amount"] = 1.0   # explicit channel offsets: use them as they are
         for src in ("wobble_lobes", "falloff_wobble_lobes"):
             if src in e:
                 ee[src] = int(e[src])
@@ -144,6 +148,7 @@ def import_presets(preset_file=None, save=True, only=None):
         ic = asset.get_editor_property("image_circle")
         ic.set_editor_property("enabled", bool(p.get("image_circle", True)))
         ic.set_editor_property("softness", float(p.get("image_circle_softness", 0.05)))
+        ic.set_editor_property("scale", float(p.get("image_circle_scale", 1.0)))
         edge = ic.get_editor_property("edge")
         for k, v in ee.items():
             edge.set_editor_property(k, v)

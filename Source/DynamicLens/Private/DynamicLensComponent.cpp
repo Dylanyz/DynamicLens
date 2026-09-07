@@ -566,7 +566,7 @@ bool UDynamicLensComponent::DriveProjection(UCineCameraComponent* Cam, const FDy
 	const EDynamicLensProjection Proj = Profile->Projection;
 
 	const bool bDirty = !ProjectionMap || !FMath::IsNearlyEqual(ProjectionKeyFocal, Focal, 1e-3f) || !ProjectionKeySensor.Equals(FVector2D(W, H), 1e-3)
-		|| !FMath::IsNearlyEqual(ProjectionKeyOverscan, O, 1e-3f) || ProjectionKeyType != (int32)Proj || !FMath::IsNearlyEqual(ProjectionKeyMaxAngle, ThetaMax, 1e-4f);
+		|| !FMath::IsNearlyEqual(ProjectionKeyOverscan, O, 1e-3f) || ProjectionKeyType != (int32)Proj || !FMath::IsNearlyEqual(ProjectionKeyMaxAngle, ThetaMax, 1e-4f) || !FMath::IsNearlyEqual(ProjectionKeyScale, Resolved.ImageCircle.Scale, 1e-4f);
 	if (bDirty)
 	{
 		if (!ProjectionMap)
@@ -614,13 +614,13 @@ bool UDynamicLensComponent::DriveProjection(UCineCameraComponent* Cam, const FDy
 		// visible circle: where the source runs out (x or y edge) or the lens's own field limit, whichever is first
 		const float RadX = Focal * DynamicLensMath::ProjectionG(Proj, FMath::Min(ThetaCapX, ThetaMax));
 		const float RadY = Focal * DynamicLensMath::ProjectionG(Proj, FMath::Min(ThetaCapY, ThetaMax));
-		const float RadMax = Focal * DynamicLensMath::ProjectionG(Proj, ThetaMax);
+		const float RadMax = Focal * DynamicLensMath::ProjectionG(Proj, ThetaMax) * FMath::Max(Resolved.ImageCircle.Scale, 0.1f);
 		ProjectionCircleRadius = FMath::Min(RadX, RadMax) / (0.5f * W);
 		ProjectionCircleRy = FMath::Min(RadY, RadMax) / (0.5f * W);
 		ProjectionNeededOverscan = O;
 
 		ProjectionKeyFocal = Focal; ProjectionKeySensor = FVector2D(W, H); ProjectionKeyOverscan = O;
-		ProjectionKeyType = (int32)Proj; ProjectionKeyMaxAngle = ThetaMax;
+		ProjectionKeyType = (int32)Proj; ProjectionKeyMaxAngle = ThetaMax; ProjectionKeyScale = Resolved.ImageCircle.Scale;
 		TransientLensFile = nullptr;
 	}
 
@@ -827,9 +827,9 @@ void UDynamicLensComponent::ApplyLook(UCineCameraComponent* Cam, const FDynamicL
 				CircleMID->SetScalarParameterValue(CircleParamWobbleSeed, FMath::DegreesToRadians(Ed.WobbleSeed));
 				CircleMID->SetScalarParameterValue(CircleParamEdgeNoise, Ed.EdgeNoise);
 				CircleMID->SetScalarParameterValue(CircleParamNoiseScale, Ed.NoiseScale);
-				CircleMID->SetScalarParameterValue(CircleParamCAR, Ed.ChromaticRed);
-				CircleMID->SetScalarParameterValue(CircleParamCAG, Ed.ChromaticGreen);
-				CircleMID->SetScalarParameterValue(CircleParamCAB, Ed.ChromaticBlue);
+				CircleMID->SetScalarParameterValue(CircleParamCAR, Ed.ChromaticAmount * Ed.ChromaticRed);
+				CircleMID->SetScalarParameterValue(CircleParamCAG, Ed.ChromaticAmount * Ed.ChromaticGreen);
+				CircleMID->SetScalarParameterValue(CircleParamCAB, Ed.ChromaticAmount * Ed.ChromaticBlue);
 				CircleMID->SetScalarParameterValue(CircleParamSoftWobble, Ed.FalloffWobble);
 				CircleMID->SetScalarParameterValue(CircleParamSoftWobbleLobes, (float)Ed.FalloffWobbleLobes);
 				CircleMID->SetScalarParameterValue(CircleParamSoftWobbleSeed, FMath::DegreesToRadians(Ed.FalloffWobbleSeed));

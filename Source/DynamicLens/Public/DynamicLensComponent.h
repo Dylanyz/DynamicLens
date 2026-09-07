@@ -296,6 +296,7 @@ private:
 	float ProjectionNeededOverscan = 1.f;
 	float ProjectionCircleRadius = 0.f;
 	float ProjectionCircleRy = 0.f;
+	float ProjectionKeyScale = 1.f;
 
 	struct FLookBackup
 	{
