@@ -130,7 +130,8 @@ def import_presets(preset_file=None, save=True, only=None):
                          ("falloff_wobble", "falloff_wobble"), ("falloff_wobble_seed", "falloff_wobble_seed"),
                          ("noise_depth", "noise_depth"), ("noise_blur", "noise_blur"), ("noise_detail", "noise_detail"),
                          ("scatter", "scatter"), ("mask_strength", "mask_strength"),
-                         ("fade_reach", "fade_reach"), ("fade_amount", "fade_amount"), ("fade_curve", "fade_curve")]:
+                         ("fade_reach", "fade_reach"), ("fade_amount", "fade_amount"), ("fade_curve", "fade_curve"),
+                         ("noise_stretch", "noise_stretch"), ("noise_seed", "noise_seed"), ("noise_contrast", "noise_contrast")]:
             if src in e:
                 ee[dst] = float(e[src])
         if "chromatic_aberration" in e:   # legacy scalar: red in, blue out
@@ -325,7 +326,8 @@ def build_image_circle_material(save=True, force=False):
                        ("EdgeNoise", 0.0), ("NoiseScale", 96.0), ("NoiseDepth", 0.3), ("NoiseBlur", 0.0), ("NoiseDetail", 0.5),
                        ("SoftWobble", 0.0), ("SoftWobbleLobes", 3.0), ("SoftWobbleSeed", 0.0),
                        ("CAR", 0.0), ("CAG", 0.0), ("CAB", 0.0), ("Scatter", 0.0), ("MaskStrength", 0.0),
-                       ("FadeReach", 0.0), ("FadeAmount", 0.0), ("FadeCurve", 1.0)]
+                       ("FadeReach", 0.0), ("FadeAmount", 0.0), ("FadeCurve", 1.0),
+                       ("NoiseStretch", 1.0), ("NoiseSeed", 0.0), ("NoiseContrast", 0.0)]
     params = {}
     for i, (nm, default) in enumerate(scalar_defaults):
         pnode = mel.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -700, 150 + 70 * i)
@@ -374,34 +376,41 @@ float R = max(Radius * wob, 1e-3);
 float sw = 1.0 + SoftWobble * (0.7 * sin(SoftWobbleLobes * th + SoftWobbleSeed) + 0.3 * sin((2.0 * SoftWobbleLobes + 1.0) * th + 1.7 * SoftWobbleSeed));
 float soft = saturate(Softness * max(sw, 0.0));
 float band = max(R * soft, 1e-4);
-// breakup: value noise in polar space (two octaves, second weighted by NoiseDetail), blurred by averaging
-// neighbours (NoiseBlur), fading in from NoiseDepth inside the circle to full strength at the black edge
+// breakup: value noise in polar space, periodic around the rim (whole cell counts), two octaves (second weighted by
+// NoiseDetail), blurred by averaging neighbours (NoiseBlur), pushed towards blobs (NoiseContrast), fading in from
+// NoiseDepth inside the circle to full strength at the black edge. Displacement is a fraction of the radius.
 float n = 0.0;
 if (EdgeNoise > 0.0001)
 {
-    float2 q0 = float2(th * 8.0, r * 4.0) * NoiseScale * 0.125;
+    float cells = max(round(NoiseScale), 1.0);
+    float2 q0 = float2((th / 6.2831853 + 0.5) * cells, r * cells / 6.2831853 * max(NoiseStretch, 0.01) + NoiseSeed * 7.31);
     float bl = NoiseBlur * 0.75;
     float acc = 0.0;
     [unroll] for (int t = 0; t < 5; ++t)
     {
         float2 off = (t == 0) ? float2(0, 0) : (t == 1) ? float2(bl, 0) : (t == 2) ? float2(-bl, 0) : (t == 3) ? float2(0, bl) : float2(0, -bl);
-        float2 q = q0 + off; float amp = 0.65; float nn = 0.0;
+        float2 q = q0 + off; float amp = 0.65; float nn = 0.0; float per = cells;
         [unroll] for (int o = 0; o < 2; ++o)
         {
             float2 qi = floor(q), qf = frac(q); qf = qf * qf * (3.0 - 2.0 * qf);
-            float h00 = frac(sin(dot(qi, float2(127.1, 311.7))) * 43758.5453);
-            float h10 = frac(sin(dot(qi + float2(1, 0), float2(127.1, 311.7))) * 43758.5453);
-            float h01 = frac(sin(dot(qi + float2(0, 1), float2(127.1, 311.7))) * 43758.5453);
-            float h11 = frac(sin(dot(qi + float2(1, 1), float2(127.1, 311.7))) * 43758.5453);
+            // wrap the angular axis so the pattern is seamless around the rim
+            float x0 = fmod(qi.x + per, per), x1 = fmod(qi.x + 1.0 + per, per);
+            float h00 = frac(sin(dot(float2(x0, qi.y), float2(127.1, 311.7))) * 43758.5453);
+            float h10 = frac(sin(dot(float2(x1, qi.y), float2(127.1, 311.7))) * 43758.5453);
+            float h01 = frac(sin(dot(float2(x0, qi.y + 1.0), float2(127.1, 311.7))) * 43758.5453);
+            float h11 = frac(sin(dot(float2(x1, qi.y + 1.0), float2(127.1, 311.7))) * 43758.5453);
             nn += amp * (lerp(lerp(h00, h10, qf.x), lerp(h01, h11, qf.x), qf.y) - 0.5);
-            q = q * 2.7 + 17.0; amp = 0.65 * NoiseDetail;
+            q = q * 3.0 + 17.0; per *= 3.0; amp = 0.65 * NoiseDetail;
         }
         acc += nn;
     }
     n = acc / 5.0;
+    // contrast: steepen the wave into blobs, keeping it inside -0.5..0.5
+    float k = 1.0 + 6.0 * NoiseContrast;
+    n = clamp(n * k, -0.5, 0.5);
 }
 float depth = smoothstep(R * (1.0 - max(NoiseDepth, 0.01)), R, r);
-float rn = r + EdgeNoise * band * 0.6 * n * depth;
+float rn = r + EdgeNoise * R * 0.25 * n * depth;
 // per-channel outer radius: the band starts at the same place for every colour; each channel's edge is offset
 // by its own fraction of the radius (lateral CA at the rim), so the tint only appears in the last part of the falloff
 float inner = R * (1.0 - soft);

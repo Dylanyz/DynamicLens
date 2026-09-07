@@ -48,6 +48,9 @@ namespace
 	const FName CircleParamNoiseDepth(TEXT("NoiseDepth"));
 	const FName CircleParamNoiseBlur(TEXT("NoiseBlur"));
 	const FName CircleParamNoiseDetail(TEXT("NoiseDetail"));
+	const FName CircleParamNoiseStretch(TEXT("NoiseStretch"));
+	const FName CircleParamNoiseSeed(TEXT("NoiseSeed"));
+	const FName CircleParamNoiseContrast(TEXT("NoiseContrast"));
 	const FName CircleParamScatter(TEXT("Scatter"));
 	const FName CircleParamFadeReach(TEXT("FadeReach"));
 	const FName CircleParamFadeAmount(TEXT("FadeAmount"));
@@ -823,6 +826,9 @@ void UDynamicLensComponent::ApplyLook(UCineCameraComponent* Cam, const FDynamicL
 				CircleMID->SetScalarParameterValue(CircleParamNoiseDepth, Ed.NoiseDepth);
 				CircleMID->SetScalarParameterValue(CircleParamNoiseBlur, Ed.NoiseBlur);
 				CircleMID->SetScalarParameterValue(CircleParamNoiseDetail, Ed.NoiseDetail);
+				CircleMID->SetScalarParameterValue(CircleParamNoiseStretch, Ed.NoiseStretch);
+				CircleMID->SetScalarParameterValue(CircleParamNoiseSeed, Ed.NoiseSeed);
+				CircleMID->SetScalarParameterValue(CircleParamNoiseContrast, Ed.NoiseContrast);
 				CircleMID->SetScalarParameterValue(CircleParamScatter, Ed.Scatter);
 				CircleMID->SetScalarParameterValue(CircleParamFadeReach, Ed.FadeReach);
 				CircleMID->SetScalarParameterValue(CircleParamFadeAmount, Ed.FadeAmount);

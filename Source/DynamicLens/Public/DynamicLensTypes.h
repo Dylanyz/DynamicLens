@@ -509,13 +509,25 @@ struct DYNAMICLENS_API FDynamicLensImageCircleEdge
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Geometry", meta = (ClampMin = "0.0", ClampMax = "360.0"))
 	float FalloffWobbleSeed = 0.f;
 
-	/** Fine breakup of the soft band (grain-like raggedness of the boundary), 0-1. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Texture", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	/** Breakup of the edge: how far the noise pushes the boundary in and out, as a fraction of the radius (0.1 = up to 10% of the radius; 1 = wild globs). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Texture", meta = (ClampMin = "0.0", ClampMax = "2.0", UIMin = "0.0", UIMax = "1.0"))
 	float EdgeNoise = 0.f;
 
-	/** Size of the breakup: cells around the circle (higher = finer). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Texture", meta = (ClampMin = "4.0", ClampMax = "512.0", UIMin = "16.0", UIMax = "256.0"))
+	/** Size of the breakup: cells around the circle. 96 = fine grain, 12 = lumps, 3 = a few big globs. Whole numbers wrap seamlessly around the rim. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Texture", meta = (ClampMin = "1.0", ClampMax = "512.0", UIMin = "2.0", UIMax = "128.0"))
 	float NoiseScale = 96.f;
+
+	/** Shape of the cells: 1 = round, above 1 = shorter radially (streaks along the rim), below 1 = taller radially (spikes into the picture). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Texture", meta = (ClampMin = "0.1", ClampMax = "10.0", UIMin = "0.25", UIMax = "4.0"))
+	float NoiseStretch = 1.f;
+
+	/** Re-rolls the pattern. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Texture", meta = (ClampMin = "0.0", ClampMax = "100.0"))
+	float NoiseSeed = 0.f;
+
+	/** Pushes the pattern from a smooth wave (0) towards hard-edged blobs (1). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Texture", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float NoiseContrast = 0.f;
 
 	/** How deep the breakup reaches into the picture, as a fraction of the radius: it is full strength at the black edge and fades to nothing this far inside. 1 = everywhere. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Texture", meta = (ClampMin = "0.01", ClampMax = "1.0"))
@@ -547,6 +559,7 @@ struct DYNAMICLENS_API FDynamicLensImageCircleEdge
 			&& FMath::IsNearlyEqual(ChromaticRed, O.ChromaticRed) && FMath::IsNearlyEqual(ChromaticGreen, O.ChromaticGreen) && FMath::IsNearlyEqual(ChromaticBlue, O.ChromaticBlue)
 			&& FMath::IsNearlyEqual(FalloffWobble, O.FalloffWobble) && FalloffWobbleLobes == O.FalloffWobbleLobes && FMath::IsNearlyEqual(FalloffWobbleSeed, O.FalloffWobbleSeed)
 			&& FMath::IsNearlyEqual(NoiseDepth, O.NoiseDepth) && FMath::IsNearlyEqual(NoiseBlur, O.NoiseBlur) && FMath::IsNearlyEqual(NoiseDetail, O.NoiseDetail)
+			&& FMath::IsNearlyEqual(NoiseStretch, O.NoiseStretch) && FMath::IsNearlyEqual(NoiseSeed, O.NoiseSeed) && FMath::IsNearlyEqual(NoiseContrast, O.NoiseContrast)
 			&& FMath::IsNearlyEqual(Scatter, O.Scatter)
 			&& MaskTexture == O.MaskTexture && FMath::IsNearlyEqual(MaskStrength, O.MaskStrength);
 	}
