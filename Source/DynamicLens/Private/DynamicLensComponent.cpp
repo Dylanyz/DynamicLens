@@ -49,6 +49,9 @@ namespace
 	const FName CircleParamNoiseBlur(TEXT("NoiseBlur"));
 	const FName CircleParamNoiseDetail(TEXT("NoiseDetail"));
 	const FName CircleParamScatter(TEXT("Scatter"));
+	const FName CircleParamFadeReach(TEXT("FadeReach"));
+	const FName CircleParamFadeAmount(TEXT("FadeAmount"));
+	const FName CircleParamFadeCurve(TEXT("FadeCurve"));
 }
 
 UDynamicLensComponent::UDynamicLensComponent()
@@ -821,6 +824,9 @@ void UDynamicLensComponent::ApplyLook(UCineCameraComponent* Cam, const FDynamicL
 				CircleMID->SetScalarParameterValue(CircleParamNoiseBlur, Ed.NoiseBlur);
 				CircleMID->SetScalarParameterValue(CircleParamNoiseDetail, Ed.NoiseDetail);
 				CircleMID->SetScalarParameterValue(CircleParamScatter, Ed.Scatter);
+				CircleMID->SetScalarParameterValue(CircleParamFadeReach, Ed.FadeReach);
+				CircleMID->SetScalarParameterValue(CircleParamFadeAmount, Ed.FadeAmount);
+				CircleMID->SetScalarParameterValue(CircleParamFadeCurve, Ed.FadeCurve);
 				UTexture2D* MaskTex = Ed.MaskTexture.IsNull() ? nullptr : Ed.MaskTexture.LoadSynchronous();
 				CircleMID->SetScalarParameterValue(CircleParamMaskStrength, MaskTex ? Ed.MaskStrength : 0.f);
 				if (MaskTex)

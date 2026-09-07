@@ -129,7 +129,8 @@ def import_presets(preset_file=None, save=True, only=None):
                          ("chromatic_red", "chromatic_red"), ("chromatic_green", "chromatic_green"), ("chromatic_blue", "chromatic_blue"),
                          ("falloff_wobble", "falloff_wobble"), ("falloff_wobble_seed", "falloff_wobble_seed"),
                          ("noise_depth", "noise_depth"), ("noise_blur", "noise_blur"), ("noise_detail", "noise_detail"),
-                         ("scatter", "scatter"), ("mask_strength", "mask_strength")]:
+                         ("scatter", "scatter"), ("mask_strength", "mask_strength"),
+                         ("fade_reach", "fade_reach"), ("fade_amount", "fade_amount"), ("fade_curve", "fade_curve")]:
             if src in e:
                 ee[dst] = float(e[src])
         if "chromatic_aberration" in e:   # legacy scalar: red in, blue out
@@ -323,7 +324,8 @@ def build_image_circle_material(save=True, force=False):
                        ("CenterX", 0.0), ("CenterY", 0.0), ("Ellipticity", 1.0), ("Wobble", 0.0), ("WobbleLobes", 3.0), ("WobbleSeed", 0.0),
                        ("EdgeNoise", 0.0), ("NoiseScale", 96.0), ("NoiseDepth", 0.3), ("NoiseBlur", 0.0), ("NoiseDetail", 0.5),
                        ("SoftWobble", 0.0), ("SoftWobbleLobes", 3.0), ("SoftWobbleSeed", 0.0),
-                       ("CAR", 0.0), ("CAG", 0.0), ("CAB", 0.0), ("Scatter", 0.0), ("MaskStrength", 0.0)]
+                       ("CAR", 0.0), ("CAG", 0.0), ("CAB", 0.0), ("Scatter", 0.0), ("MaskStrength", 0.0),
+                       ("FadeReach", 0.0), ("FadeAmount", 0.0), ("FadeCurve", 1.0)]
     params = {}
     for i, (nm, default) in enumerate(scalar_defaults):
         pnode = mel.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -700, 150 + 70 * i)
@@ -425,6 +427,13 @@ if (Scatter > 0.001 && tb > 0.001)
     }
     float3 blur = acc3 / 8.0;
     col = lerp(col, blur * (1.0 + 0.15 * Scatter), tb * Scatter);
+}
+// vignette-like fade underneath the rim: from FadeReach inside the circle up to FadeAmount at its edge
+if (FadeAmount > 0.0001 && FadeReach > 0.0001)
+{
+    float tf = smoothstep(R * (1.0 - FadeReach), R, r);
+    tf = pow(tf, max(FadeCurve, 0.01));
+    m *= 1.0 - tf * saturate(FadeAmount);
 }
 float maskv = Texture2DSample(Mask, MaskSampler, UV).r;
 m *= lerp(1.0, maskv, saturate(MaskStrength));

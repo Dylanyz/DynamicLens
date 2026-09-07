@@ -449,6 +449,18 @@ struct DYNAMICLENS_API FDynamicLensImageCircleEdge
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge", meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float Opacity = 1.f;
 
+	/** A vignette-like darkening that starts this far inside the circle (fraction of the radius: 0.5 = from halfway out) and reaches Fade Amount at the circle edge, underneath the rim's own rolloff. 0 = off. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Fade", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float FadeReach = 0.f;
+
+	/** How dark the fade is at the circle edge (0 = none, 1 = black). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Fade", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float FadeAmount = 0.f;
+
+	/** Shape of the fade: 1 = even ramp, 2+ = stays clean longer then darkens near the edge, <1 = darkens early. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Fade", meta = (ClampMin = "0.25", ClampMax = "4.0", UIMin = "0.5", UIMax = "3.0"))
+	float FadeCurve = 1.f;
+
 	/** Offset of the circle centre from the frame centre, as a fraction of half the frame width (x) / height (y). A real 6 mm on a 35 mm gate sits a few percent off. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Edge|Geometry", meta = (ClampMin = "-0.3", ClampMax = "0.3", UIMin = "-0.1", UIMax = "0.1"))
 	FVector2D CenterOffset = FVector2D::ZeroVector;
@@ -528,6 +540,7 @@ struct DYNAMICLENS_API FDynamicLensImageCircleEdge
 	bool Equals(const FDynamicLensImageCircleEdge& O) const
 	{
 		return FMath::IsNearlyEqual(FalloffPower, O.FalloffPower) && FMath::IsNearlyEqual(Opacity, O.Opacity)
+			&& FMath::IsNearlyEqual(FadeReach, O.FadeReach) && FMath::IsNearlyEqual(FadeAmount, O.FadeAmount) && FMath::IsNearlyEqual(FadeCurve, O.FadeCurve)
 			&& CenterOffset.Equals(O.CenterOffset, 1e-4) && FMath::IsNearlyEqual(Ellipticity, O.Ellipticity)
 			&& FMath::IsNearlyEqual(Wobble, O.Wobble) && WobbleLobes == O.WobbleLobes && FMath::IsNearlyEqual(WobbleSeed, O.WobbleSeed)
 			&& FMath::IsNearlyEqual(EdgeNoise, O.EdgeNoise) && FMath::IsNearlyEqual(NoiseScale, O.NoiseScale)
