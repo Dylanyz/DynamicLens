@@ -184,4 +184,9 @@ Tools/data/presets.json      profile specs, fisheye profiles, presets (with sour
 * **tiedtke** - the ST-map profiles under `Content/Profiles/Tiedtke` (and their textures) are built from his free
   *Real Cinema Lenses* pack: real lens grids shot on an ARRI Mini and converted to ST maps in Nuke.
   https://tiedtke.gumroad.com/l/realcinemalenses?layout=profile
+  
+  [his youtube channel](https://www.youtube.com/channel/UCVuRDikGULup2KloWP8qg-g)
 * **Andy Davis (Imagery for Media)** - ARRI/Zeiss Master Prime and Zeiss Supreme distortion grids (VFX RnD Lens Files).
+  https://www.fab.com/sellers/Imagery%20for%20Media
+  
+  https://imag4media.com/
