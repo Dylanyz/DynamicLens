@@ -79,8 +79,9 @@ Five blocks, all with tooltips and hard clamps:
 * **Overscan**: Dynamic (what the frame needs at this focal length over the whole focus range, so a focus pull never
   resizes the render; rounded up to `Dynamic Step` (2%) with hysteresis for zooms; capped by max) or Fixed (constant for the shot - renders with zoom pulls, and
   fisheyes, which ship with Fixed 2.0). Beyond the available overscan the frame goes black at the edges: the limit of
-  what the render can show is the distorted image of the overscanned source rectangle, so the mask is an ellipse fitted
-  to its extents, computed every frame at the overscan ceiling. It sits outside the corners while there are pixels and
+  what the render can show is the distorted image of the overscanned source rectangle, so the mask is a superellipse
+  through its axis extents and its distorted corner (2 = ellipse for fisheyes, near-rectangular for ST maps), computed
+  every frame at the overscan ceiling. It sits outside the corners while there are pixels and
   sweeps inward at the picture's own rate as you zoom out, like a lens that stops covering the gate; the profile's
   physical image circle takes over whenever it is the tighter of the two.
 
@@ -145,7 +146,8 @@ rescaling the values, so the extended map stores displacement in the camera fram
 measured densely from the map's border rather than taken from Epic's 8-point estimate. Beyond the extension the image
 circle takes over. tiedtke's maps are clamped to [0,1] where the source leaves the frame (up to 7% of the width on
 some primes): those texels carry no information, so the extension finds the unclamped rectangle and extrapolates across
-the band. A camera crop always sees the centre of the map. The plugin also raises the Camera Calibration plugin's
+the band; the clamped area is wide at the corners and thin at the edge centres, so validity is per texel and the field is
+filled row by row then column by column. A camera crop always sees the centre of the map. The plugin also raises the Camera Calibration plugin's
 displacement map resolution from Epic's 256 to 2048 at startup when a project still has the default (cvar
 `DynamicLens.DisplacementMapResolution`; 256 shows as soft, stepped edges).
 
