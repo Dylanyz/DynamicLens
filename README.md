@@ -61,7 +61,8 @@ Five blocks, all with tooltips and hard clamps:
   wrong, far stronger at wide focal lengths; `DL_C_Vintage_Raw` keeps that look) - and wide boost (a creative layer:
   extra barrel below a focal length - off in measured presets).
 * **Image Circle**: on/off, softness (rolloff band as a fraction of the radius) and the **Edge** block: falloff power,
-  opacity; Geometry: centre offset, ellipticity, radius waviness (wobble / lobes / seed) and, separately, falloff-width
+  opacity; Fade: a vignette-like darkening underneath the rim (reach = how far inside the circle it starts, amount = how
+  dark at the edge, curve = its shape), independent of the rim rolloff; Geometry: centre offset, ellipticity, radius waviness (wobble / lobes / seed) and, separately, falloff-width
   waviness (the band gets wider and narrower around the circle: falloff wobble / lobes / seed); Optics: per-channel
   chromatic offsets (red / green / blue edge radius - blue rim, red in), radial scatter glow; Texture: breakup amount,
   scale, depth (how far inside the circle it reaches), blur, detail, optional full-frame mask texture you paint/scan.
