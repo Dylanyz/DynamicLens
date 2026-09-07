@@ -64,8 +64,10 @@ Five blocks, all with tooltips and hard clamps:
   opacity; Fade: a vignette-like darkening underneath the rim (reach = how far inside the circle it starts, amount = how
   dark at the edge, curve = its shape), independent of the rim rolloff; Geometry: centre offset, ellipticity, radius waviness (wobble / lobes / seed) and, separately, falloff-width
   waviness (the band gets wider and narrower around the circle: falloff wobble / lobes / seed); Optics: per-channel
-  chromatic offsets (red / green / blue edge radius - blue rim, red in), radial scatter glow; Texture: breakup amount,
-  scale, depth (how far inside the circle it reaches), blur, detail, optional full-frame mask texture you paint/scan.
+  chromatic offsets (red / green / blue edge radius - blue rim, red in), radial scatter glow; Texture: breakup amount
+  (a fraction of the radius), scale (cells around the rim: 96 = grain, 12 = lumps, 3 = a few globs; seamless around the
+  rim), stretch (radial vs around), seed, contrast (wave to blobs), depth (how far inside the circle it reaches), blur,
+  detail, optional full-frame mask texture you paint/scan.
   Every preset and profile has a `Reset To Shipped` button that re-imports it from `Tools/data`.
 * **Vignette**: Physical (cos^4 + barrel clipping) / Manual curves.
 * **Bokeh**: Physical (blades + barrel from specs, cat's-eye strength) / Manual, Iris (blade count from **Profile /
