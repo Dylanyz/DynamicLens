@@ -148,6 +148,28 @@ void DynamicLensMath::ValidExtents(const FDynamicLensParams& P, float Fx, float 
 	OutRy = RadialForward(O * HalfY, P) / HalfX;
 }
 
+void DynamicLensMath::ValidCorner(const FDynamicLensParams& P, float Fx, float Fy, float OverscanFactor, float& OutX, float& OutY)
+{
+	const float HalfX = 0.5f / FMath::Max(Fx, KINDA_SMALL_NUMBER);
+	const float HalfY = 0.5f / FMath::Max(Fy, KINDA_SMALL_NUMBER);
+	const float O = FMath::Max(OverscanFactor, 1.f);
+	const float Ru = O * FMath::Sqrt(HalfX * HalfX + HalfY * HalfY);
+	const float S = RadialForward(Ru, P) / FMath::Max(Ru, KINDA_SMALL_NUMBER);   // radial model: direction kept
+	OutX = O * S;                     // O * HalfX * S / HalfX
+	OutY = O * (HalfY / HalfX) * S;
+}
+
+float DynamicLensMath::SolveSquareness(float A, float B, float Xc, float Yc)
+{
+	const float U = FMath::Abs(Xc) / FMath::Max(A, KINDA_SMALL_NUMBER), V = FMath::Abs(Yc) / FMath::Max(B, KINDA_SMALL_NUMBER);
+	auto F = [&](float N) { return FMath::Pow(U, N) + FMath::Pow(V, N) - 1.f; };
+	if (F(2.f) <= 0.f) return 2.f;        // corner already inside the ellipse
+	if (F(64.f) > 0.f) return 64.f;       // corner outside even the near-rectangle: as square as it gets
+	float Lo = 2.f, Hi = 64.f;
+	for (int32 I = 0; I < 30; ++I) { const float M = 0.5f * (Lo + Hi); if (F(M) > 0.f) Lo = M; else Hi = M; }
+	return 0.5f * (Lo + Hi);
+}
+
 float DynamicLensMath::ProjectionG(EDynamicLensProjection Projection, float Theta)
 {
 	switch (Projection)

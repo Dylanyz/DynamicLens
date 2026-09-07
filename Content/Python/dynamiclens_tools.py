@@ -327,7 +327,7 @@ def build_image_circle_material(save=True, force=False):
                        ("SoftWobble", 0.0), ("SoftWobbleLobes", 3.0), ("SoftWobbleSeed", 0.0),
                        ("CAR", 0.0), ("CAG", 0.0), ("CAB", 0.0), ("Scatter", 0.0), ("MaskStrength", 0.0),
                        ("FadeReach", 0.0), ("FadeAmount", 0.0), ("FadeCurve", 1.0),
-                       ("NoiseStretch", 1.0), ("NoiseSeed", 0.0), ("NoiseContrast", 0.0)]
+                       ("NoiseStretch", 1.0), ("NoiseSeed", 0.0), ("NoiseContrast", 0.0), ("Squareness", 2.0)]
     params = {}
     for i, (nm, default) in enumerate(scalar_defaults):
         pnode = mel.create_material_expression(mat, unreal.MaterialExpressionScalarParameter, -700, 150 + 70 * i)
@@ -367,7 +367,9 @@ IMAGE_CIRCLE_HLSL = """
 float asp = max(Aspect, 0.01);
 float2 p = float2((UV.x - 0.5) * 2.0 - CenterX, ((UV.y - 0.5) * 2.0 - CenterY) / asp);
 p.y /= max(Ellipticity, 0.01);
-float r = length(p);
+// superellipse radius: 2 = ellipse, higher = rounded rectangle (the shape of what the render can show)
+float nS = clamp(Squareness, 1.5, 64.0);
+float r = (nS < 2.01) ? length(p) : pow(pow(abs(p.x), nS) + pow(abs(p.y), nS), 1.0 / nS);
 float th = atan2(p.y, p.x);
 // waviness of the radius (two harmonics so it does not look like a gear)
 float wob = 1.0 + Wobble * (0.7 * sin(WobbleLobes * th + WobbleSeed) + 0.3 * sin((2.0 * WobbleLobes + 1.0) * th + 2.3 * WobbleSeed));

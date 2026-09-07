@@ -248,7 +248,7 @@ private:
 	bool DriveSTMap(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float Focus, float W, float H, float WFull, float HFull, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRadius);
 	bool DriveProjection(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float W, float H, float AppliedOverscan, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRx, float& OutCircleRy);
 	void ApplyRendering(UCineCameraComponent* Cam, const FLensDistortionState& State, float AppliedOverscan);
-	void ApplyLook(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float CircleRadiusNorm, float Aspect, float CircleEllipticity);
+	void ApplyLook(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float CircleRadiusNorm, float Aspect, float CircleEllipticity, float CircleSquareness);
 	void CaptureLook(UCineCameraComponent* Cam);
 	void RestoreLook(UCineCameraComponent* Cam);
 	void StripForeignDistortionBlendables(UCineCameraComponent* Cam);
@@ -315,5 +315,6 @@ private:
 	FDynamicLensEval LastEval;
 	float LastCircleRadius = -1.f;
 	float LastCircleEllipticity = -1.f;
+	float LastCircleSquareness = -1.f;
 	bool bHasLastEval = false;
 };

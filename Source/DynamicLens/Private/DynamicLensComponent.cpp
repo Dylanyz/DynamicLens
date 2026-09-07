@@ -55,6 +55,7 @@ namespace
 	const FName CircleParamFadeReach(TEXT("FadeReach"));
 	const FName CircleParamFadeAmount(TEXT("FadeAmount"));
 	const FName CircleParamFadeCurve(TEXT("FadeCurve"));
+	const FName CircleParamSquareness(TEXT("Squareness"));
 }
 
 UDynamicLensComponent::UDynamicLensComponent()
@@ -324,8 +325,13 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	// what the render can show is the distorted image of the overscanned source rectangle, not a circle: an ellipse
 	// through its half-extents (DataRx, DataRy, half-frame-width units) covers the corners while there are pixels and
 	// sweeps in at the picture's own rate as the lens asks for more than the ceiling gives
-	float DataRx = 0.f, DataRy = 0.f;
-	auto MinData = [&](float Rx, float Ry) { if (Rx > 0.f && Ry > 0.f) { DataRx = (DataRx > 0.f) ? FMath::Min(DataRx, Rx) : Rx; DataRy = (DataRy > 0.f) ? FMath::Min(DataRy, Ry) : Ry; } };
+	float DataRx = 0.f, DataRy = 0.f, DataCx = 0.f, DataCy = 0.f;   // axis extents and the distorted corner
+	auto MinData = [&](float Rx, float Ry, float CxIn, float CyIn)
+	{
+		if (Rx <= 0.f || Ry <= 0.f) return;
+		if (DataRx <= 0.f || Rx < DataRx) { DataRx = Rx; DataCx = CxIn; }
+		if (DataRy <= 0.f || Ry < DataRy) { DataRy = Ry; DataCy = CyIn; }
+	};
 	const float Ceiling = FMath::Max((Resolved.Overscan.Mode == EDynamicLensOverscanMode::Fixed) ? Resolved.Overscan.FixedOverscan : Resolved.Overscan.MaxOverscan, 1.f);
 	// Dynamic overscan: round up to a step and only shrink by whole steps, so breathing doesn't resize the render every frame
 	auto DynamicApplied = [&](float NeededIn)
@@ -357,7 +363,7 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 		float Rx = 0.f, Ry = 0.f;
 		if (DriveProjection(Cam, Eval, Focal, W, H, Applied, Needed, State, Rx, Ry))
 		{
-			MinData(Rx, Ry);
+			MinData(Rx, Ry, Rx * 0.7071f, Ry * 0.7071f);   // a true circle/ellipse
 		}
 	}
 	else if (Type == EDynamicLensProfileType::STMap && Profile)
@@ -370,8 +376,8 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 			// continuously (outside the corners while there are pixels, sweeping inward at the picture's own rate as
 			// the lens asks for more than the ceiling gives) instead of switching on at the corners
 			const float Cover = Ceiling / FMath::Max(Needed, 1.f);   // fraction of each source edge the ceiling reaches (map border needs Needed, centre needs 1)
-			MinData(Cover, Cover * H / W);
-			if (Circle > 0.f) MinData(Circle, Circle * H / W);        // where the extrapolated map data ends
+			MinData(Cover, Cover * H / W, Cover, Cover * H / W);      // a scaled rectangle: the corner is at the extents
+			if (Circle > 0.f) MinData(Circle, Circle * H / W, Circle, Circle * H / W);   // where the extrapolated map data ends
 		}
 		else
 		{
@@ -382,9 +388,10 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	{
 		DriveParametric(Cam, Eval, Focal, W, H, Needed, State);
 		Applied = (Resolved.Overscan.Mode == EDynamicLensOverscanMode::Fixed) ? Resolved.Overscan.FixedOverscan : DynamicApplied(Needed);
-		float Rx = 0.f, Ry = 0.f;
+		float Rx = 0.f, Ry = 0.f, CxD = 0.f, CyD = 0.f;
 		DynamicLensMath::ValidExtents(Eval.Params, Focal / W, Focal / H, Ceiling, Rx, Ry);
-		MinData(Rx, Ry);
+		DynamicLensMath::ValidCorner(Eval.Params, Focal / W, Focal / H, Ceiling, CxD, CyD);
+		MinData(Rx, Ry, CxD, CyD);
 	}
 
 	Applied = FMath::Clamp(Applied, 1.f, 2.f);
@@ -394,14 +401,16 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	// pick the mask: the lens's physical image circle, or the data ellipse, whichever reaches the corner first
 	const float CornerNorm = FMath::Sqrt(1.f + FMath::Square(H / W));
 	const float Cx = 1.f / CornerNorm, Cy = (H / W) / CornerNorm;
-	float CircleEll = 1.f;
+	float CircleEll = 1.f, CircleSq = 2.f;
 	float MaskCornerR = (CircleRadius > 0.f) ? CircleRadius : 1e6f;
 	if (DataRx > 0.f && DataRy > 0.f)
 	{
-		const float DataCornerR = 1.f / FMath::Sqrt(FMath::Square(Cx / DataRx) + FMath::Square(Cy / DataRy));
+		// superellipse through the axis extents and the distorted corner: hugs the real valid region
+		const float N = DynamicLensMath::SolveSquareness(DataRx, DataRy, DataCx, DataCy);
+		const float DataCornerR = 1.f / FMath::Pow(FMath::Pow(Cx / DataRx, N) + FMath::Pow(Cy / DataRy, N), 1.f / N);
 		if (DataCornerR < MaskCornerR)
 		{
-			CircleRadius = DataRx; CircleEll = DataRy / DataRx; MaskCornerR = DataCornerR;
+			CircleRadius = DataRx; CircleEll = DataRy / DataRx; CircleSq = N; MaskCornerR = DataCornerR;
 		}
 	}
 	if (CircleRadius > 0.f && MaskCornerR < CornerNorm)
@@ -416,7 +425,7 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	}
 
 	if (bApplyDistortion) ApplyRendering(Cam, State, Applied);
-	ApplyLook(Cam, Eval, bApplyImageCircle ? CircleRadius : 0.f, W / H, CircleEll);
+	ApplyLook(Cam, Eval, bApplyImageCircle ? CircleRadius : 0.f, W / H, CircleEll, CircleSq);
 	if (bApplyBokeh && Eval.bBokeh && Eval.bDriveAccumulationDOF)
 	{
 		ApplyAccumulationDOF(Eval);
@@ -772,7 +781,7 @@ void UDynamicLensComponent::RestoreLook(UCineCameraComponent* Cam)
 	LastCircleRadius = -1.f;
 }
 
-void UDynamicLensComponent::ApplyLook(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float CircleRadiusNorm, float Aspect, float CircleEllipticity)
+void UDynamicLensComponent::ApplyLook(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float CircleRadiusNorm, float Aspect, float CircleEllipticity, float CircleSquareness)
 {
 	const bool bDoBokeh = bApplyBokeh && Eval.bBokeh;
 	const bool bDoVignette = bApplyVignette && Eval.bVignette;
@@ -801,7 +810,7 @@ void UDynamicLensComponent::ApplyLook(UCineCameraComponent* Cam, const FDynamicL
 				bCircleApplied = true;
 			}
 			const bool bEdgeChanged = !bHasLastEval || !LastEval.Edge.Equals(Eval.Edge) || !FMath::IsNearlyEqual(LastEval.ImageCircleSoftness, Eval.ImageCircleSoftness);
-			if (!FMath::IsNearlyEqual(LastCircleRadius, CircleRadiusNorm, 1e-4f) || !FMath::IsNearlyEqual(LastCircleEllipticity, CircleEllipticity, 1e-4f) || bEdgeChanged)
+			if (!FMath::IsNearlyEqual(LastCircleRadius, CircleRadiusNorm, 1e-4f) || !FMath::IsNearlyEqual(LastCircleEllipticity, CircleEllipticity, 1e-4f) || !FMath::IsNearlyEqual(LastCircleSquareness, CircleSquareness, 1e-3f) || bEdgeChanged)
 			{
 				const FDynamicLensImageCircleEdge& Ed = Eval.Edge;
 				CircleMID->SetScalarParameterValue(CircleParamRadius, CircleRadiusNorm);
@@ -812,6 +821,7 @@ void UDynamicLensComponent::ApplyLook(UCineCameraComponent* Cam, const FDynamicL
 				CircleMID->SetScalarParameterValue(CircleParamCenterX, Ed.CenterOffset.X);
 				CircleMID->SetScalarParameterValue(CircleParamCenterY, Ed.CenterOffset.Y);
 				CircleMID->SetScalarParameterValue(CircleParamEllipticity, Ed.Ellipticity * CircleEllipticity);
+				CircleMID->SetScalarParameterValue(CircleParamSquareness, CircleSquareness);
 				CircleMID->SetScalarParameterValue(CircleParamWobble, Ed.Wobble);
 				CircleMID->SetScalarParameterValue(CircleParamWobbleLobes, (float)Ed.WobbleLobes);
 				CircleMID->SetScalarParameterValue(CircleParamWobbleSeed, FMath::DegreesToRadians(Ed.WobbleSeed));
@@ -841,6 +851,7 @@ void UDynamicLensComponent::ApplyLook(UCineCameraComponent* Cam, const FDynamicL
 				}
 				LastCircleRadius = CircleRadiusNorm;
 				LastCircleEllipticity = CircleEllipticity;
+				LastCircleSquareness = CircleSquareness;
 			}
 		}
 	}

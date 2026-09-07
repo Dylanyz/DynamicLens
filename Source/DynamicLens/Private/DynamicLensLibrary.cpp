@@ -227,56 +227,83 @@ UTexture2D* UDynamicLensLibrary::BuildExtendedSTMap(UTexture2D* Map, bool bBotto
 	}
 	Map->Source.UnlockMip(0);
 
-	// valid domain: these maps are clamped to [0,1] where the source leaves the frame, so a band of border texels
-	// carries no information (Cooke FFi 27 mm: the left ~3% reads exactly 0). Find the inner rectangle that is not clamped.
-	auto Clamped = [](float V) { return V < 0.0005f || V > 0.9995f; };
-	auto ColValid = [&](int32 I) { int32 Bad = 0, N = 0; for (int32 J = GH / 5; J < GH * 4 / 5; ++J) { ++N; if (Clamped(Grid[J * GW + I].X)) ++Bad; } return Bad * 10 < N; };
-	auto RowValid = [&](int32 J) { int32 Bad = 0, N = 0; for (int32 I = GW / 5; I < GW * 4 / 5; ++I) { ++N; if (Clamped(Grid[J * GW + I].Y)) ++Bad; } return Bad * 10 < N; };
-	int32 L = 0, R = GW - 1, T = 0, B = GH - 1;
-	while (L < GW / 2 && !ColValid(L)) ++L;
-	while (R > GW / 2 && !ColValid(R)) --R;
-	while (T < GH / 2 && !RowValid(T)) ++T;
-	while (B > GH / 2 && !RowValid(B)) --B;
-	// the clamp has a soft ramp of a few texels: keep clear of it
-	const int32 Guard = FMath::Max(2, GW / 400);
-	if (L > 0) L = FMath::Min(L + Guard, GW / 2);
-	if (R < GW - 1) R = FMath::Max(R - Guard, GW / 2);
-	if (T > 0) T = FMath::Min(T + Guard, GH / 2);
-	if (B < GH - 1) B = FMath::Max(B - Guard, GH / 2);
+	// These maps are clamped to [0,1] where the source leaves the frame, and the clamped area is not a band: it is
+	// wide at the corners and thin (or absent) at the edge centres. Mark every clamped texel invalid, then fill the
+	// displacement field outward from the valid data - row by row (left/right) then column by column (top/bottom) - with
+	// the gradient measured over a 1.5% baseline just inside the valid data.
 	auto RowToV = [&](int32 J) { const float Rv = (J + 0.5f) / GH; return bBottomLeftOrigin ? (1.f - Rv) : Rv; };
-	const FVector2f DomMin((L + 0.5f) / GW, FMath::Min(RowToV(T), RowToV(B)));
-	const FVector2f DomMax((R + 0.5f) / GW, FMath::Max(RowToV(T), RowToV(B)));
+	auto ColToU = [&](int32 I) { return (I + 0.5f) / GW; };
+	auto Clamped = [](float V) { return V < 0.0005f || V > 0.9995f; };
+	TArray<FVector2f> Disp; Disp.SetNumUninitialized(GW * GH);
+	TArray<uint8> Valid; Valid.SetNumUninitialized(GW * GH);
+	for (int32 J = 0; J < GH; ++J)
+	{
+		for (int32 I = 0; I < GW; ++I)
+		{
+			const FVector2f F = Grid[J * GW + I];
+			Disp[J * GW + I] = F - FVector2f(ColToU(I), RowToV(J));
+			Valid[J * GW + I] = (!Clamped(F.X) && !Clamped(F.Y)) ? 1 : 0;
+		}
+	}
+	const int32 KX = FMath::Max(2, FMath::RoundToInt(GW * 0.015f)), KY = FMath::Max(2, FMath::RoundToInt(GH * 0.015f));
+	// rows: extrapolate left and right bands from that row's own valid stretch
+	for (int32 J = 0; J < GH; ++J)
+	{
+		int32 L = 0; while (L < GW && !Valid[J * GW + L]) ++L;
+		if (L >= GW) continue;                         // fully clamped row: the column pass fills it
+		int32 R = GW - 1; while (R > L && !Valid[J * GW + R]) --R;
+		if (R - L < 2 * KX + 2) continue;
+		const FVector2f DL = Disp[J * GW + L], DLi = Disp[J * GW + L + KX];
+		const FVector2f GL = (DL - DLi) / (ColToU(L) - ColToU(L + KX));
+		for (int32 I = 0; I < L; ++I) { Disp[J * GW + I] = DL + GL * (ColToU(I) - ColToU(L)); Valid[J * GW + I] = 1; }
+		const FVector2f DR = Disp[J * GW + R], DRi = Disp[J * GW + R - KX];
+		const FVector2f GR = (DR - DRi) / (ColToU(R) - ColToU(R - KX));
+		for (int32 I = R + 1; I < GW; ++I) { Disp[J * GW + I] = DR + GR * (ColToU(I) - ColToU(R)); Valid[J * GW + I] = 1; }
+		// interior holes (rare): fill from the left neighbour
+		for (int32 I = L + 1; I < R; ++I) { if (!Valid[J * GW + I]) { Disp[J * GW + I] = Disp[J * GW + I - 1]; Valid[J * GW + I] = 1; } }
+	}
+	// columns: rows that had no valid texel at all (top/bottom) from the nearest filled rows
+	for (int32 I = 0; I < GW; ++I)
+	{
+		int32 T = 0; while (T < GH && !Valid[T * GW + I]) ++T;
+		if (T >= GH) continue;
+		int32 Bt = GH - 1; while (Bt > T && !Valid[Bt * GW + I]) --Bt;
+		if (Bt - T < 2 * KY + 2) continue;
+		const FVector2f DT = Disp[T * GW + I], DTi = Disp[(T + KY) * GW + I];
+		const FVector2f GT = (DT - DTi) / (RowToV(T) - RowToV(T + KY));
+		for (int32 J = 0; J < T; ++J) { Disp[J * GW + I] = DT + GT * (RowToV(J) - RowToV(T)); Valid[J * GW + I] = 1; }
+		const FVector2f DB = Disp[Bt * GW + I], DBi = Disp[(Bt - KY) * GW + I];
+		const FVector2f GB = (DB - DBi) / (RowToV(Bt) - RowToV(Bt - KY));
+		for (int32 J = Bt + 1; J < GH; ++J) { Disp[J * GW + I] = DB + GB * (RowToV(J) - RowToV(Bt)); Valid[J * GW + I] = 1; }
+	}
 
-	// sample the grid at a UV in the map's own convention (v up if bottom-left origin)
-	auto Sample = [&](float U, float V) -> FVector2f
+	// bilinear displacement at a UV in the map's own convention (v up if bottom-left origin)
+	auto SampleD = [&](float U, float V) -> FVector2f
 	{
 		const float Row = bBottomLeftOrigin ? (1.f - V) : V;
 		const float X = FMath::Clamp(U * GW - 0.5f, 0.f, GW - 1.f), Y = FMath::Clamp(Row * GH - 0.5f, 0.f, GH - 1.f);
 		const int32 X0 = FMath::FloorToInt(X), Y0 = FMath::FloorToInt(Y);
 		const int32 X1 = FMath::Min(X0 + 1, GW - 1), Y1 = FMath::Min(Y0 + 1, GH - 1);
 		const float Tx = X - X0, Ty = Y - Y0;
-		const FVector2f A = FMath::Lerp(Grid[Y0 * GW + X0], Grid[Y0 * GW + X1], Tx);
-		const FVector2f Bv = FMath::Lerp(Grid[Y1 * GW + X0], Grid[Y1 * GW + X1], Tx);
+		const FVector2f A = FMath::Lerp(Disp[Y0 * GW + X0], Disp[Y0 * GW + X1], Tx);
+		const FVector2f Bv = FMath::Lerp(Disp[Y1 * GW + X0], Disp[Y1 * GW + X1], Tx);
 		return FMath::Lerp(A, Bv, Ty);
 	};
-	// displacement D(p) = F(p) - p, extrapolated linearly outside the valid domain from its border value and gradient
+	// displacement anywhere: inside the frame from the filled field, outside by extrapolating the frame border
 	auto Displacement = [&](FVector2f P) -> FVector2f
 	{
-		const FVector2f Pb(FMath::Clamp(P.X, DomMin.X, DomMax.X), FMath::Clamp(P.Y, DomMin.Y, DomMax.Y));
-		FVector2f D = Sample(Pb.X, Pb.Y) - Pb;
-		// gradient over a 1.5% baseline: a few-texel baseline picks up sampling noise and the clamp ramp
-		const float Dx = FMath::Min(FMath::Max(4.f / GW, 0.015f), 0.25f * (DomMax.X - DomMin.X)), Dy = FMath::Min(FMath::Max(4.f / GH, 0.015f), 0.25f * (DomMax.Y - DomMin.Y));
+		const FVector2f Pb(FMath::Clamp(P.X, 0.f, 1.f), FMath::Clamp(P.Y, 0.f, 1.f));
+		FVector2f D = SampleD(Pb.X, Pb.Y);
+		const float Dx = FMath::Max(4.f / GW, 0.015f), Dy = FMath::Max(4.f / GH, 0.015f);
 		if (P.X != Pb.X)
 		{
 			const float Inner = (P.X > Pb.X) ? Pb.X - Dx : Pb.X + Dx;
-			const FVector2f Din = Sample(Inner, Pb.Y) - FVector2f(Inner, Pb.Y);
-			D += (D - Din) / (Pb.X - Inner) * (P.X - Pb.X);
+			D += (D - SampleD(Inner, Pb.Y)) / (Pb.X - Inner) * (P.X - Pb.X);
 		}
 		if (P.Y != Pb.Y)
 		{
 			const float Inner = (P.Y > Pb.Y) ? Pb.Y - Dy : Pb.Y + Dy;
-			const FVector2f Din = Sample(Pb.X, Inner) - FVector2f(Pb.X, Inner);
-			D += (D - Din) / (Pb.Y - Inner) * (P.Y - Pb.Y);
+			D += (D - SampleD(Pb.X, Inner)) / (Pb.Y - Inner) * (P.Y - Pb.Y);
 		}
 		return D;
 	};

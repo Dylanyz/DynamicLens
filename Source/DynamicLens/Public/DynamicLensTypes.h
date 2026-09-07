@@ -870,6 +870,10 @@ namespace DynamicLensMath
 	DYNAMICLENS_API float ValidCircleRadius(const FDynamicLensParams& P, float Fx, float Fy, float OverscanFactor);
 	/** Half-extents (in half-frame-width units) of the distorted image of the overscanned source rectangle: the ellipse through these covers what the render can show. */
 	DYNAMICLENS_API void ValidExtents(const FDynamicLensParams& P, float Fx, float Fy, float OverscanFactor, float& OutRx, float& OutRy);
+	/** Where the overscanned source rectangle's corner lands after distortion (half-frame-width units). */
+	DYNAMICLENS_API void ValidCorner(const FDynamicLensParams& P, float Fx, float Fy, float OverscanFactor, float& OutX, float& OutY);
+	/** Superellipse exponent n with (Xc/A)^n + (Yc/B)^n = 1, so the shape with semi-axes A, B passes through the corner (Xc, Yc). 2 = ellipse, large = rectangle. */
+	DYNAMICLENS_API float SolveSquareness(float A, float B, float Xc, float Yc);
 
 	/** Projection radius in units of focal length: g(theta) for r = f * g(theta). */
 	DYNAMICLENS_API float ProjectionG(EDynamicLensProjection Projection, float ThetaRad);
