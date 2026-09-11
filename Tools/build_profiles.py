@@ -1,3 +1,7 @@
+# Copyright 2026 Dylan G (Mad Rice). Licensed under the Apache License, Version 2.0.
+# SPDX-License-Identifier: Apache-2.0
+# Third-party lens data under Content/Profiles/Tiedtke and Tools/data/raw is NOT covered; see NOTICE.
+
 """Build smooth lens profiles from a raw Lens File dump (DynamicLens/Tools).
 
 Input : data/raw/<name>.json  (output of dump_lensfiles.py: per lens file, distortion points)

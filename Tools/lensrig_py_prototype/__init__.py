@@ -1,3 +1,7 @@
+# Copyright 2026 Dylan G (Mad Rice). Licensed under the Apache License, Version 2.0.
+# SPDX-License-Identifier: Apache-2.0
+# Third-party lens data under Content/Profiles/Tiedtke and Tools/data/raw is NOT covered; see NOTICE.
+
 """DynamicLens — engine-wide, focal/focus-driven lens distortion + bokeh presets for UE 5.8.
 
 In the editor Python console:

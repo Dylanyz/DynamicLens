@@ -1,0 +1,51 @@
+DynamicLens
+Copyright 2026 Dylan G (Mad Rice)
+https://github.com/Dylanyz/DynamicLens
+
+This product includes software developed by Dylan G (Mad Rice).
+
+Licensed under the Apache License, Version 2.0. See LICENSE for the full
+terms. If you redistribute DynamicLens, in source or binary form, this
+NOTICE file must travel with it (Apache-2.0 section 4d).
+
+
+ATTRIBUTION
+-----------
+
+DynamicLens is built on lens measurements generously published by other
+people. Please keep these credits intact, and name them wherever you
+credit the plugin itself:
+
+* tiedtke
+  Real Cinema Lenses - real lens distortion grids shot on an ARRI Alexa
+  Mini and converted to ST maps in Nuke. Every profile and texture under
+  Content/Profiles/Tiedtke is derived from this pack.
+  https://tiedtke.gumroad.com/l/realcinemalenses
+  https://www.youtube.com/channel/UCVuRDikGULup2KloWP8qg-g
+
+* Andy Davis (Imagery for Media)
+  VFX RnD Lens Files - ARRI/Zeiss Master Prime and Zeiss Supreme
+  distortion grids. The parametric profiles under Content/Profiles
+  (AD_*) and the raw grids in Tools/data/raw are fitted from this data.
+  https://www.fab.com/sellers/Imagery%20for%20Media
+  https://imag4media.com/
+
+
+THIRD-PARTY CONTENT NOT COVERED BY THIS LICENSE
+-----------------------------------------------
+
+The Apache License covers the DynamicLens source code, tools, materials
+and preset data authored for this plugin. It does NOT relicense measured
+lens data that belongs to its original authors:
+
+* Content/Profiles/Tiedtke/**  (profiles and ST-map textures)
+      Derived from tiedtke's Real Cinema Lenses pack and redistributed
+      under his terms, not under Apache-2.0. Obtain the pack from the
+      link above and observe whatever licence ships with it.
+
+* Tools/data/raw/**  and the AD_* profile grids derived from it
+      Derived from Andy Davis's VFX RnD Lens Files under his terms.
+
+If you fork or redistribute DynamicLens commercially, check those two
+sources' own terms first. The plugin's code runs without them; the
+profiles are data, not code.

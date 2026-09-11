@@ -180,6 +180,24 @@ Tools/data/profiles          fitted grids (Tools/build_profiles.py)
 Tools/data/presets.json      profile specs, fisheye profiles, presets (with sources)
 ```
 
+## License
+
+Apache License 2.0 - see [LICENSE](LICENSE). Use it in anything, commercial work included,
+closed-source included. The one condition is that the credits travel with it: if you
+redistribute DynamicLens in source or binary form, keep [NOTICE](NOTICE) with it and name
+tiedtke and Andy Davis alongside me wherever you credit the plugin.
+
+**The measured lens data is not mine to relicense.** Apache-2.0 covers the source, tools,
+materials and the preset data written for this plugin. It does *not* cover:
+
+| Path | Belongs to | Terms |
+|---|---|---|
+| `Content/Profiles/Tiedtke/**` | tiedtke, from his *Real Cinema Lenses* pack | his, see the link below |
+| `Tools/data/raw/**` and the `AD_*` grids fitted from it | Andy Davis, from the VFX RnD Lens Files | his, see the link below |
+
+Forking or shipping commercially? Read those two sources' own terms first. The plugin's code
+runs without either of them - the profiles are data, not code.
+
 ## Credits
 * **tiedtke** - the ST-map profiles under `Content/Profiles/Tiedtke` (and their textures) are built from his free
   *Real Cinema Lenses* pack: real lens grids shot on an ARRI Mini and converted to ST maps in Nuke.
