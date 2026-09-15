@@ -20,6 +20,7 @@ param(
     [string] $Repo,
     [string] $Engine,
     [string] $PackageDir = "$env:TEMP\dlb",
+    [switch] $Status,
     [switch] $Install,
     [switch] $InstallOnly
 )
@@ -30,7 +31,8 @@ $ErrorActionPreference = "Stop"
 if (-not $Repo) { $Repo = Split-Path -Parent $PSScriptRoot }
 
 # Engine: prefer the version the .uplugin targets, else the newest UE_* install found.
-if (-not $Engine) {
+# Not needed for -Status, which is read-only and never invokes UAT.
+if (-not $Engine -and -not $Status) {
     $want = $null
     $upJson = Get-Content (Join-Path $Repo "DynamicLens.uplugin") -Raw | ConvertFrom-Json
     if ($upJson.EngineVersion -match '^(\d+)\.(\d+)') { $want = "UE_$($Matches[1]).$($Matches[2])" }
@@ -51,11 +53,46 @@ function Test-EditorRunning {
     return [bool](Get-Process UnrealEditor -ErrorAction SilentlyContinue)
 }
 
+# ---------------------------------------------------------------- status
+# One call that answers "where is this plugin up to, and what is the next action?"
+# Read-only. Safe any time, editor running or not.
+if ($Status) {
+    $instDll = Join-Path $Repo "Binaries\Win64\UnrealEditor-DynamicLens.dll"
+    $pendDll = Join-Path $PackageDir "Binaries\Win64\UnrealEditor-DynamicLens.dll"
+
+    $newestSrc = Get-ChildItem (Join-Path $Repo "Source") -Recurse -Include *.h,*.cpp,*.cs -ErrorAction SilentlyContinue |
+                 Sort-Object LastWriteTime -Descending | Select-Object -First 1
+
+    $inst = if (Test-Path $instDll) { Get-Item $instDll } else { $null }
+    $pend = if (Test-Path $pendDll) { Get-Item $pendDll } else { $null }
+    $editorUp = Test-EditorRunning
+
+    "DynamicLens status"
+    "  repo          $Repo"
+    "  newest source {0}  {1}" -f $(if ($newestSrc) { $newestSrc.LastWriteTime.ToString('yyyy-MM-dd HH:mm') } else { '(none)' }),
+                                 $(if ($newestSrc) { $newestSrc.Name } else { '' })
+    "  installed DLL {0}" -f $(if ($inst) { $inst.LastWriteTime.ToString('yyyy-MM-dd HH:mm') } else { 'NOT INSTALLED' })
+    "  built package {0}" -f $(if ($pend) { $pend.LastWriteTime.ToString('yyyy-MM-dd HH:mm') + "  ($PackageDir)" } else { 'none' })
+    "  editor        {0}" -f $(if ($editorUp) { 'RUNNING - installing is blocked' } else { 'not running - safe to install' })
+
+    $needsBuild   = $newestSrc -and (-not $inst -or $newestSrc.LastWriteTime -gt $inst.LastWriteTime) -and
+                    (-not $pend -or $newestSrc.LastWriteTime -gt $pend.LastWriteTime)
+    $needsInstall = $pend -and (-not $inst -or $pend.LastWriteTime -gt $inst.LastWriteTime)
+
+    ""
+    if ($needsBuild)        { "NEXT: source is newer than any build. Run this script with no switches." }
+    elseif ($needsInstall)  { if ($editorUp) { "NEXT: a newer build is waiting. ASK DYLAN to close the editor, then -InstallOnly." }
+                              else           { "NEXT: a newer build is waiting and the editor is closed. Run -InstallOnly." } }
+    else                    { "NEXT: nothing to do. The installed DLL is up to date with the source." }
+    return
+}
+
 $uplugin = Join-Path $Repo "DynamicLens.uplugin"
 $runUAT  = Join-Path $Engine "Engine\Build\BatchFiles\RunUAT.bat"
 foreach ($p in @($uplugin, $runUAT)) {
     if (-not (Test-Path $p)) { throw "Not found: $p" }
 }
+
 
 # ---------------------------------------------------------------- build
 if (-not $InstallOnly) {

@@ -27,6 +27,7 @@ here edits the live plugin, with no sync step. Only C++ needs a build.
 - How the effect is actually produced, and the Epic internals it works around → `.claude/refs/architecture.md`. **Read before changing any C++.**
 - Every component control and what it is for → `.claude/refs/using-the-component.md`
 - The preset/profile data model, the lens catalogue, adding a lens → `.claude/refs/presets-and-profiles.md`
+- Whether a restart can be avoided, and the restructure that would help → `.claude/refs/live-coding.md`
 - Installing a DLL under a live editor, and why we don't → `.claude/refs/hot-swap.md`
 - Keeping these docs true → `.claude/refs/maintenance.md`
 
@@ -67,8 +68,16 @@ To make the image circle bigger relative to frame, shrink the filmback or raise
 
 ## Iterating
 
+**If Dylan says "update the plugin", follow `.claude/rules/updating-the-plugin.md` step by step.**
+Start with the one call that tells you where things stand:
+
+```powershell
+Tools\build_dynamiclens.ps1 -Status      # read-only, safe with the editor open
+```
+
 **Content, Python, presets, profiles: no build, no restart.** Edit and it takes effect in the live
 editor. Preset and profile changes come from `Tools/data/presets.json` via `dl.import_presets()`.
+Most "updates" are this, and finish in one step.
 
 **C++ changes need a build, and installing the result needs the editor closed:**
 
