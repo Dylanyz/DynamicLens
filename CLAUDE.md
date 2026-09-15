@@ -9,6 +9,19 @@ data, not invented. Open source, Apache-2.0, at https://github.com/Dylanyz/Dynam
 install is a **directory junction to this folder**, not a copy. So editing a `.uasset` or a `.py`
 here edits the live plugin, with no sync step. Only C++ needs a build.
 
+## Hard rules
+
+1. **Never restart, close or relaunch the Unreal editor without asking Dylan and getting a yes.**
+   He is usually mid-shot with unsaved work. `.claude/rules/editor-restarts.md`.
+2. **Never touch `Saved/` or `Intermediate/`**, here or in any Unreal project. They are not yours,
+   they are not tracked, and deleting from them loses work that cannot be recovered.
+3. **Ask before deleting anything**, with specifics on what and why. Never run a recursive delete
+   on an assumption.
+4. **Never put third-party lens data under this repo's licence.** `Content/Profiles/Tiedtke/**` and
+   `Tools/data/raw/**` belong to tiedtke and Andy Davis. `.claude/rules/licensing-and-credits.md`.
+5. **`Tools/data/presets.json` is the source of truth**, not the generated assets. An editor-only
+   tweak dies at the next import. `.claude/rules/preset-data-flow.md`.
+
 ## Start here (progressive disclosure)
 
 - How the effect is actually produced, and the Epic internals it works around → `.claude/refs/architecture.md`. **Read before changing any C++.**
@@ -31,6 +44,26 @@ preset data flow, licensing and credits. Read them; they are the ones that bite.
 | `Tools/data/raw`, `Tools/data/profiles` | measured grids and the fits built from them |
 | `Tools/build_dynamiclens.ps1` | build, and install when the editor is closed |
 | `Binaries/`, `Intermediate/` | build products, gitignored, never committed |
+
+## Using it on a camera
+
+Nothing to install in a project beyond enabling the plugin; it is already in the engine.
+
+1. Enable **Dynamic Lens** in the project's plugin list. It pulls in `CameraCalibrationCore` and
+   `PythonScriptPlugin` itself.
+2. Select a CineCameraActor, **Add Component → Dynamic Lens**.
+3. Set **Preset**. The prefix says where the lens came from: `DL_AD_*` are Andy Davis's measured
+   ARRI/Zeiss grids and are the clean baseline, `DL_T_*` are the tiedtke ST-map lenses with real
+   character and real flaws, `DL_L_*` are the Lanthimos-film reconstructions, `DL_C_*` are Dylan's
+   own looks. Catalogue: `.claude/refs/presets-and-profiles.md`.
+4. The component's **Camera** row drives filmback, focal length, aperture and focus without leaving
+   the component. **A1/A2** step presets, **A3/A4** step focal length.
+5. Per-camera tweaks go in the **Override** blocks, which never modify the preset asset.
+   **Save As New Preset** promotes them to a new asset. Every control:
+   `.claude/refs/using-the-component.md`.
+
+To make the image circle bigger relative to frame, shrink the filmback or raise
+**Image Circle > Scale**. That is what the `_Frame` preset variants do.
 
 ## Iterating
 
