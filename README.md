@@ -13,12 +13,44 @@ Add a **Dynamic Lens** component to a camera, pick a **preset asset**, done. Thr
 
 Everything else is derived from physics and data-sheet numbers, not tuned by eye (see *Maths* below).
 
-## Install (this folder is the source of truth)
-```powershell
-# engine-level: every 5.8 project can enable it
-New-Item -ItemType Junction -Path "C:\Program Files\Epic Games\UE_5.8\Engine\Plugins\Marketplace\DynamicLens" -Target "C:\Users\DYLPC\Desktop\Coding\DynamicLens"
+## Install
+
+**Requires UE 5.8** plus Camera Calibration Core, which Dynamic Lens enables itself.
+
+### Option 1 - download a release (no compiler needed)
+
+Take the latest zip from [Releases](https://github.com/Dylanyz/DynamicLens/releases) and unzip it
+into your project's `Plugins` folder, so you end up with
+`MyProject/Plugins/DynamicLens/DynamicLens.uplugin`. Launch the project and enable **Dynamic Lens**
+in Settings > Plugins. The release carries prebuilt Win64 editor binaries, so nothing compiles on
+your machine.
+
+### Option 2 - build from source
+
+Clone into your project's `Plugins` folder:
+
 ```
-Enable **Dynamic Lens** in the project (pulls in Camera Calibration Core). Binaries are prebuilt in `Binaries/Win64`.
+git clone https://github.com/Dylanyz/DynamicLens.git MyProject/Plugins/DynamicLens
+```
+
+Binaries are not tracked, so the first launch offers to build the missing module. Say yes. You need
+a C++ toolchain: Visual Studio with the C++ workload **and the .NET Framework 4.8 SDK component**,
+without which Unreal Build Tool fails with `Could not find NetFxSDK install dir` before compiling
+anything.
+
+### Option 3 - engine-wide (what the author does)
+
+Installing into the engine lets every 5.8 project see the plugin with no per-project copy. It needs
+prebuilt binaries, so build the package first (see *Rebuild*), then junction the engine at this repo:
+
+```powershell
+New-Item -ItemType Junction `
+  -Path   "C:\Program Files\Epic Games\UE_5.8\Engine\Plugins\Marketplace\DynamicLens" `
+  -Target "<path to this repo>"
+```
+
+Note that an engine plugin is never compiled by the editor, so every C++ change means running the
+build script and restarting.
 
 First time in a project, Python console:
 ```python
@@ -164,11 +196,25 @@ displacement map resolution from Epic's 256 to 2048 at startup when a project st
   not reproduced there yet (Accumulation DOF has no barrel model), only in DiaphragmDOF.
 
 ## Rebuild
+
+```powershell
+Tools\build_dynamiclens.ps1              # packages to %TEMP%\dlb; safe while the editor runs
+Tools\build_dynamiclens.ps1 -InstallOnly # copies Binaries + Intermediate back; editor must be closed
+Tools\build_dynamiclens.ps1 -Status      # what is built, what is installed, what to do next
 ```
-RunUAT.bat BuildPlugin -Plugin="<repo>\DynamicLens.uplugin" -Package="%TEMP%\dlb" -TargetPlatforms=Win64 -Rocket
-```
-Short package path (MAX_PATH). Needs the .NET Framework 4.8 SDK (VS Installer) or the `UE_SDKS_ROOT` stub trick.
-Copy `Binaries` + `Intermediate` back, restart the editor.
+
+The script locates the repo and engine itself, builds to a staging folder so a failed build cannot
+destroy a good one, and refuses to install while the editor holds the DLL. A clean build measures
+about 75 seconds, of which roughly 12 is the compile.
+
+Prerequisites: a short package path (MAX_PATH) and the **.NET Framework 4.8 SDK**, added through the
+Visual Studio Installer as an individual component. Without it Unreal Build Tool cannot instantiate
+`SwarmInterface` and fails with `Could not find NetFxSDK install dir`. `UE_SDKS_ROOT` does not
+substitute for it.
+
+Loading a new module needs the editor restarted. There is no way around that for any change that
+adds or renames a `UPROPERTY`, because reflection data and object layout are fixed when the module
+loads.
 
 ## Layout
 ```
