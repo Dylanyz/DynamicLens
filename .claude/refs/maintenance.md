@@ -10,10 +10,10 @@ plugin or learned something about it.
 
 1. **Plugin behaviour changed?** Update the affected file in `.claude/refs/` *and* `README.md`.
    The README is the public explanation; these refs are the working notes. They must not disagree.
-2. **New control added?** Add it to `refs/using-the-component.md` with what it is *for*, not just
+2. **New control added?** Add it to `using-the-component.md` with what it is *for*, not just
    its range. Dylan describes looks, not parameters, so the docs should too.
 3. **New engine internal discovered** — an Epic behaviour that had to be worked around — goes in the
-   "Engine internals this fights" section of `refs/architecture.md`, together with the symptom that
+   "Engine internals this fights" section of `architecture.md`, together with the symptom that
    revealed it. These are the expensive facts, and the ones most likely to be "simplified" away by a
    later agent who does not know why the workaround is there.
 4. **A rule Dylan states about how to work** goes in `.claude/rules/`, quoted, with the why.
@@ -21,7 +21,7 @@ plugin or learned something about it.
 5. **Build recipe changed or verified on a new engine?** Update the header block and the `Verified:`
    date in `Tools/build_dynamiclens.ps1`.
 6. **New third-party data source?** `NOTICE` in the same commit, as a credit and as an excluded
-   path, then mirror it in `refs/presets-and-profiles.md`. See `rules/licensing-and-credits.md`.
+   path, then mirror it in `presets-and-profiles.md`. See `../rules/licensing-and-credits.md`.
 7. **Prune** what the session disproved. Delete it, do not strike it through, and log it below.
 8. **Project-specific facts never live here.** Which preset a given film used belongs in that
    film project's own `.claude/`. This repo documents the plugin only.
@@ -30,7 +30,7 @@ plugin or learned something about it.
 
 - **Engine version.** Everything here is UE 5.8, with the junction at
   `UE_5.8\Engine\Plugins\Marketplace\DynamicLens`. Moving to 5.9 needs a new junction, a rebuild,
-  and a re-verify of the Epic internals in `refs/architecture.md`, the most version-fragile part.
+  and a re-verify of the Epic internals in `architecture.md`, the most version-fragile part.
 - **`CameraCalibrationCore`.** If Epic fixes the displacement-value rescale in
   `BlendDisplacementMaps.usf`, or raises the default displacement map resolution, both the module's
   startup fixup and the camera-frame-units workaround can be retired.
