@@ -97,8 +97,10 @@ foreach ($p in @($uplugin, $runUAT)) {
 # ---------------------------------------------------------------- build
 if (-not $InstallOnly) {
 
-    # UBT probes every host platform's AutoSDK and errors out when UE_SDKS_ROOT is unset or bogus.
-    # An empty HostWin64 folder satisfies the probe without pretending we have Android/iOS SDKs.
+    # A writable UE_SDKS_ROOT quiets UBT's AutoSDK probe for platforms we do not target.
+    # NOTE: this does NOT satisfy the .NET Framework SDK requirement. UBT needs a real NetFxSDK to
+    # instantiate SwarmInterface, and without it BuildPlugin fails with a RulesError before
+    # compiling anything. See .claude/rules/build-and-install.md.
     if (-not $env:UE_SDKS_ROOT -or -not (Test-Path $env:UE_SDKS_ROOT)) {
         $stub = Join-Path $env:LOCALAPPDATA "DynamicLensBuild\AutoSDK"
         New-Item -ItemType Directory -Force -Path (Join-Path $stub "HostWin64") | Out-Null
@@ -106,11 +108,29 @@ if (-not $InstallOnly) {
         Write-Host "UE_SDKS_ROOT -> $stub (stub)" -ForegroundColor DarkGray
     }
 
-    if (Test-Path $PackageDir) { Remove-Item $PackageDir -Recurse -Force }
+    # Build into a staging dir and only replace the package on success. A previous version wiped
+    # $PackageDir first, so a failed build destroyed the last good build that was waiting to be
+    # installed. That actually happened on 2026-09-15 and cost the 09-07 package. Never do that.
+    $stage = "$PackageDir.new"
+    if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 
-    Write-Host "Building DynamicLens -> $PackageDir" -ForegroundColor Cyan
-    & $runUAT BuildPlugin -Plugin="$uplugin" -Package="$PackageDir" -Rocket -TargetPlatforms=Win64
-    if ($LASTEXITCODE -ne 0) { throw "BuildPlugin failed with exit code $LASTEXITCODE" }
+    Write-Host "Building DynamicLens -> $stage" -ForegroundColor Cyan
+    & $runUAT BuildPlugin -Plugin="$uplugin" -Package="$stage" -Rocket -TargetPlatforms=Win64
+    $uatExit = $LASTEXITCODE
+
+    $stagedDll = Join-Path $stage "Binaries\Win64\UnrealEditor-DynamicLens.dll"
+    if ($uatExit -ne 0 -or -not (Test-Path $stagedDll)) {
+        Write-Host ""
+        if (Test-Path (Join-Path $PackageDir "Binaries\Win64\UnrealEditor-DynamicLens.dll")) {
+            Write-Host "Build failed. The previous good package at $PackageDir is untouched." -ForegroundColor Yellow
+        }
+        Write-Host "If the log says \"Could not find NetFxSDK install dir\", see .claude/rules/build-and-install.md." -ForegroundColor Yellow
+        throw "BuildPlugin failed with exit code $uatExit"
+    }
+
+    # success: swap staging into place
+    if (Test-Path $PackageDir) { Remove-Item $PackageDir -Recurse -Force }
+    Move-Item $stage $PackageDir
 
     $dll = Join-Path $PackageDir "Binaries\Win64\UnrealEditor-DynamicLens.dll"
     if (-not (Test-Path $dll)) { throw "Build reported success but $dll is missing" }
