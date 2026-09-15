@@ -49,12 +49,13 @@ plugin or learned something about it.
   Amount built. That build was never installed and sat in `%TEMP%\dlb`.
 - 2026-09-11 — Repo made public; Apache-2.0 with `LICENSE`, `NOTICE` and per-file SPDX headers,
   tiedtke's and Andy Davis's data carved out.
-- 2026-09-15 — **Builds are blocked on this machine**: no .NET Framework SDK, so UBT cannot
-  instantiate SwarmInterface and `BuildPlugin` fails with a RulesError before compiling. Fix is
-  the .NET Framework 4.8 SDK component in the VS 18 Build Tools installer. Also on this date a
+- 2026-09-15 — **Builds were blocked, now fixed.** Was: no .NET Framework SDK, so UBT cannot
+  instantiate SwarmInterface and `BuildPlugin` fails with a RulesError before compiling. Fixed by adding the .NET
+  Framework 4.8 SDK component to VS 18 Build Tools (exact command in rules/build-and-install.md). Also on this date a
   build attempt destroyed the waiting 09-07 package, because the script wiped the package dir
   before building; it now stages and swaps only on success. The 09-07 work (Image Circle Scale,
-  Chromatic Amount) is still in git at 8c500fa and needs a rebuild once the SDK is installed.
+  Chromatic Amount) was rebuilt the same day from source and is waiting to be installed.
+  Clean build measured at 76 s total, 12 s of which is the compile.
 - 2026-09-15 — Docs moved into the repo as `CLAUDE.md` + `.claude/`. They were briefly a user-scope
   `/dynamiclens` skill, retired the same day at Dylan's request so the knowledge lives with the code
   and ships with the open-source repo. Build script moved to `Tools/`, made self-locating and

@@ -32,30 +32,47 @@ Build first, always. Then ask. Then install. Then he relaunches. Then re-run dep
 - **Checks `UnrealEditor.modules`.** A matching `BuildId` on both sides means the new DLL is
   compatible with the installed engine build and the next launch will not prompt to rebuild.
 
-## Current blocker: no .NET Framework SDK on this machine
+## Prerequisite: the .NET Framework SDK (installed 2026-09-15)
 
-`BuildPlugin` fails before compiling anything with:
+`BuildPlugin` fails before compiling anything, with a `RulesError`, when no .NET Framework SDK is
+present:
 
 ```
 Unable to instantiate module 'SwarmInterface': Could not find NetFxSDK install dir;
 Install a version of .NET Framework SDK at 4.6.0 or higher.
-Result: Failed (RulesError)
 ```
 
-Verified 2026-09-15: there is no `NETFXSDK` key under
-`HKLM\SOFTWARE\[WOW6432Node\]Microsoft\Microsoft SDKs`, nothing under
-`C:\Program Files (x86)\Windows Kits\NETFXSDK`, and the only toolchain installed is
-**Visual Studio 18.4.0 Build Tools** without the .NET Framework SDK component.
+SwarmInterface is an editor-target dependency, nothing to do with this plugin, so no flag skips it,
+and the `UE_SDKS_ROOT` stub does not substitute for it. On a fresh machine, install it before
+anything else:
 
-**The fix** is to add that one component, in the Visual Studio Installer: Build Tools →
-Modify → Individual components → **.NET Framework 4.8 SDK** (and the 4.8 targeting pack).
-It needs admin and is Dylan's call. Until then **no C++ in this plugin can be built on this
-machine**, and neither can CitySample's own modules if they ever need recompiling; both would hit
-the same wall.
+```powershell
+# needs elevation; raises a UAC prompt
+& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installers_installer.exe" modify `
+    --productId Microsoft.VisualStudio.Product.BuildTools `
+    --channelId VisualStudio.18.Release `
+    --add Microsoft.Net.Component.4.8.SDK `
+    --add Microsoft.Net.Component.4.8.TargetingPack `
+    --quiet --norestart
+```
 
-Because SwarmInterface is an editor-target dependency rather than anything to do with this plugin,
-there is no flag that skips it. Do not try to fake a NetFxSDK inside the AutoSDK stub; it gets
-further and then fails in the link.
+**`--productId` and `--channelId` are both required.** With only `--installPath`, even the correct
+one, the installer exits 1 and logs "An installed product matching the following parameters cannot
+be found". Get the right values from
+`vswhere.exe -all -products * -format json`. Verify afterwards: `NETFXSDK.8` should appear under
+`HKLM\SOFTWARE\WOW6432Node\Microsoft\Microsoft SDKs`.
+
+## How long a build takes
+
+Measured 2026-09-15 on a 9950X3D, full clean `BuildPlugin` of the one module (3,600 lines):
+
+| Stage | Time |
+|---|---|
+| UBT compile | 12 s |
+| Total, including UAT startup and packaging | 76 s |
+
+So a rebuild is about a minute and a quarter, and the *compile* itself is trivial. An incremental
+project compile of the same module is faster again. Build time is not a reason to avoid rebuilding.
 
 ## After installing, re-run the dependent Python
 
@@ -77,7 +94,7 @@ before running it, and get the tweak into `presets.json` first.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `Could not find NetFxSDK install dir`, RulesError | no .NET Framework SDK installed | add the .NET Framework 4.8 SDK component in the VS Installer; see the blocker section above |
+| `Could not find NetFxSDK install dir`, RulesError | no .NET Framework SDK installed | add the .NET Framework 4.8 SDK component; see the prerequisite section above |
 | Link error, cannot write the DLL | editor running | close it, asking first |
 | UBT fails registering build platforms | `UE_SDKS_ROOT` unset or bogus | the stub; the script handles it |
 | Build succeeds, editor unchanged | package never installed | `-InstallOnly` |
