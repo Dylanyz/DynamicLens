@@ -44,6 +44,15 @@ plugin or learned something about it.
 
 ## Log
 
+- 2026-09-15 — **v0.7.0 released.** First public release, prebuilt Win64 binaries attached. README
+  install section rewritten; the old one pointed at an absolute path on one machine and promised
+  binaries that .gitignore excludes, so nobody else could install it. Descriptor bumped to 0.7.0
+  with docs, support and author URLs filled in.
+- 2026-09-15 — Tested and rejected removing `"Installed": true`: it does not block a project-plugin
+  build, so it was never what blocked collaborators. Engine-wide layout kept; reasoning and the
+  measured comparison are in refs/live-coding.md.
+
+
 - 2026-09-06 — Plugin design settled: handler in Manual mode, no Lens Files on disk.
 - 2026-09-07 — Superellipse data mask, per-texel ST-map validity, Image Circle Scale and Chromatic
   Amount built. That build was never installed and sat in `%TEMP%\dlb`.
