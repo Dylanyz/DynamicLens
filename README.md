@@ -3,6 +3,13 @@
 Lens character for CineCameras that follows **focal length, focus distance and f-stop** every frame: distortion,
 vignette, image circle and bokeh, in the editor viewport, PIE and Movie Render Queue / Graph.
 
+### Watch the overview
+
+[![DynamicLens — overview video](https://img.youtube.com/vi/gpmav6ECbOc/maxresdefault.jpg)](https://youtu.be/gpmav6ECbOc)
+
+A walkthrough of what it does, every control on the component, and where the lens data came from —
+[youtu.be/gpmav6ECbOc](https://youtu.be/gpmav6ECbOc).
+
 Add a **Dynamic Lens** component to a camera, pick a **preset asset**, done. Three kinds of lens data:
 
 | Profile type | What it is | Zoomable | Source |
@@ -245,12 +252,20 @@ Forking or shipping commercially? Read those two sources' own terms first. The p
 runs without either of them - the profiles are data, not code.
 
 ## Credits
+
+**[SOURCES.md](SOURCES.md) records what each source contributed and how it is used** - the data, the
+research the design came from, and the further reading worth your time.
+
 * **tiedtke** - the ST-map profiles under `Content/Profiles/Tiedtke` (and their textures) are built from his free
   *Real Cinema Lenses* pack: real lens grids shot on an ARRI Mini and converted to ST maps in Nuke.
   https://tiedtke.gumroad.com/l/realcinemalenses?layout=profile
   
   [his youtube channel](https://www.youtube.com/channel/UCVuRDikGULup2KloWP8qg-g)
-* **Andy Davis (Imagery for Media)** - ARRI/Zeiss Master Prime and Zeiss Supreme distortion grids (VFX RnD Lens Files).
+* **Andy Davis (Imagery for Media)** - ARRI/Zeiss Master Prime and Zeiss Supreme distortion grids (VFX RnD Lens Files),
+  and the [VFX RnD writing](https://imag4media.com/vfx-rnd/) that the plugin's dynamic lens model and
+  breathing are built on.
   https://www.fab.com/sellers/Imagery%20for%20Media
   
   https://imag4media.com/
+* **H. H. Nasse / Carl Zeiss** - *[Depth of Field and Bokeh](https://diglloyd.com/articles/ZeissPDF/ZeissWhitePapers/Zeiss-DepthOfField-Bokeh.pdf)*
+  (2010), the optics behind the bokeh, cat's eye and vignette maths.
