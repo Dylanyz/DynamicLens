@@ -12,9 +12,11 @@ NOTICE file must travel with it (Apache-2.0 section 4d).
 ATTRIBUTION
 -----------
 
-DynamicLens is built on lens measurements generously published by other
-people. Please keep these credits intact, and name them wherever you
-credit the plugin itself:
+DynamicLens is built on lens measurements and research generously
+published by other people. Please keep these credits intact, and name
+them wherever you credit the plugin itself.
+
+SOURCES.md records what each source contributed, and how it is used.
 
 * tiedtke
   Real Cinema Lenses - real lens distortion grids shot on an ARRI Alexa
@@ -22,13 +24,24 @@ credit the plugin itself:
   Content/Profiles/Tiedtke is derived from this pack.
   https://tiedtke.gumroad.com/l/realcinemalenses
   https://www.youtube.com/channel/UCVuRDikGULup2KloWP8qg-g
+  These maps are numerically identical to Andy Davis's published
+  creative lens maps; credit both. See SOURCES.md.
 
 * Andy Davis (Imagery for Media)
   VFX RnD Lens Files - ARRI/Zeiss Master Prime and Zeiss Supreme
   distortion grids. The parametric profiles under Content/Profiles
   (AD_*) and the raw grids in Tools/data/raw are fitted from this data.
+  His published research also shaped the design of the plugin itself -
+  the dynamic lens model, lens breathing, and the rules the ST-map path
+  follows. SOURCES.md sets out what was taken from where.
   https://www.fab.com/sellers/Imagery%20for%20Media
   https://imag4media.com/
+  https://imag4media.com/vfx-rnd/
+
+* H. H. Nasse / Carl Zeiss Camera Lens Division
+  "Depth of Field and Bokeh" (March 2010) - the optics behind the
+  component's bokeh, cat's eye and vignette maths. Reference reading,
+  not data. See SOURCES.md.
 
 
 THIRD-PARTY CONTENT NOT COVERED BY THIS LICENSE

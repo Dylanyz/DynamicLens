@@ -30,7 +30,8 @@ anything implying Dylan can sublicense them.**
 | Situation | Do |
 |---|---|
 | Adding a new source file | copy the three-line SPDX header verbatim from an existing file |
-| Adding a lens from someone else's measured data | add them to `NOTICE` in the *same commit*, as a credit **and** as an excluded path; mirror it in `.claude/refs/presets-and-profiles.md` |
+| Adding a lens from someone else's measured data | add them to `NOTICE` in the *same commit*, as a credit **and** as an excluded path; mirror it in `.claude/refs/presets-and-profiles.md` and `SOURCES.md` |
+| Borrowing an *idea* - a paper, a blog post, someone's method | it still gets credited. `SOURCES.md`, with what was actually taken from it. Ideas are not data, so no `NOTICE` excluded path. |
 | Writing docs or comments | no absolute paths from this machine, no film-project specifics. Strangers read this repo. |
 | Asked to change the licence | MPL-2.0 is a one-file swap plus a README edit, and is the answer if he ever wants modifications forced back open. Confirm with him first; it is his call, not a maintenance decision. |
 | Tempted to commit `Binaries/` or a sample pack | don't. `.gitignore` covers it; keep it that way. |

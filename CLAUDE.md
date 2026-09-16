@@ -30,6 +30,7 @@ here edits the live plugin, with no sync step. Only C++ needs a build.
 - Whether a restart can be avoided, and the restructure that would help → `.claude/refs/live-coding.md`
 - Installing a DLL under a live editor, and why we don't → `.claude/refs/hot-swap.md`
 - Keeping these docs true → `.claude/refs/maintenance.md`
+- Where the data and the *ideas* came from, and how each was used → `SOURCES.md` (public)
 
 Behaviour rules auto-load from `.claude/rules/`: editor restarts, the build/install cycle, the
 preset data flow, licensing and credits. Read them; they are the ones that bite.
@@ -115,6 +116,7 @@ Run through `unreal-py` (`editor_run_python`) or a remote-exec helper. `import d
 | How the plugin works | `.claude/refs/` |
 | A behaviour rule for agents | `.claude/rules/` |
 | Anything the public should read | `README.md` |
+| A new data source, paper, or borrowed idea | `SOURCES.md`, plus `NOTICE` if it is data |
 | How one *film* uses the plugin | that film project's own `.claude/`, never here |
 
 ## Version control

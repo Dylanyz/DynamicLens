@@ -32,7 +32,14 @@ back to the JSON.
 | `DL_C_*` | Dylan's own looks | `DL_C_MasterHeavy`, `DL_C_Subtle`, `DL_C_Vintage`, `DL_C_Vintage_Raw`. **`DL_C_Vintage` is a favourite. Do not "correct" it without asking** — `_Raw` exists precisely to preserve the un-rescaled coefficient behaviour its look depends on. |
 
 Every number that did not come from a data sheet is marked "assumed" in the profile's Source field.
-Keep doing that.
+Keep doing that. Where each source came from and what it contributed: `SOURCES.md`.
+
+**`DL_T_*` and Andy Davis's creative lens maps are the same measurements.** Measured 2026-09-16:
+sampling 18 lenses across 15 series, tiedtke's ST maps and Andy Davis's published maps agree to
+within 0.00024 — one half-ulp of float16, i.e. storage rounding and nothing else. The data cannot
+say which way the sharing runs, so credit both, and do not describe them in docs as two independent
+measurement sets. Re-importing Andy's anamorphic maps would add nothing; his *spherical* sets are
+the real gap, since every `DL_T_*` is anamorphic.
 
 ## Picking a lens for a shot
 

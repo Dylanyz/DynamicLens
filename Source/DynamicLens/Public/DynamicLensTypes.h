@@ -647,7 +647,8 @@ struct DYNAMICLENS_API FDynamicLensBokeh
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bokeh|Accumulation DOF", meta = (EditCondition = "bEnabled"))
 	bool bDriveAccumulationDOF = true;
 
-	/** Accumulation DOF only: spherical aberration (Zeiss bokeh paper: under-corrected = soft-edged, bright-core background blur; over-corrected = bright rim / soap-bubble). 0 = ideal lens. */
+	/** Accumulation DOF only: spherical aberration. Under-corrected = soft-edged, bright-core background blur; over-corrected = bright rim / soap-bubble. 0 = ideal lens.
+	 *  (Nasse, "Depth of Field and Bokeh", Carl Zeiss, 2010 - see SOURCES.md.) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bokeh|Accumulation DOF", meta = (EditCondition = "bEnabled && bDriveAccumulationDOF", ClampMin = "0.0", ClampMax = "100.0", UIMin = "0.0", UIMax = "30.0"))
 	float SphericalAberration = 0.f;
 
