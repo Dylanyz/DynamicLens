@@ -31,6 +31,8 @@ SOURCES.md records what each source contributed, and how it is used.
   VFX RnD Lens Files - ARRI/Zeiss Master Prime and Zeiss Supreme
   distortion grids. The parametric profiles under Content/Profiles
   (AD_*) and the raw grids in Tools/data/raw are fitted from this data.
+  His freely published creative lens maps supply the spherical ST-map
+  profiles under Content/Profiles/AndyDavis (22 lens series, 110 primes).
   His published research also shaped the design of the plugin itself -
   the dynamic lens model, lens breathing, and the rules the ST-map path
   follows. SOURCES.md sets out what was taken from where.
@@ -58,6 +60,12 @@ lens data that belongs to its original authors:
 
 * Tools/data/raw/**  and the AD_* profile grids derived from it
       Derived from Andy Davis's VFX RnD Lens Files under his terms.
+
+* Content/Profiles/AndyDavis/**  (profiles and ST-map textures)
+      Derived from Andy Davis's freely published creative lens maps
+      (spherical), downsampled for import and redistributed under his
+      terms, not under Apache-2.0. The originals are a free release;
+      see https://imag4media.com/vfx-rnd/.
 
 If you fork or redistribute DynamicLens commercially, check those two
 sources' own terms first. The plugin's code runs without them; the
