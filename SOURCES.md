@@ -46,8 +46,10 @@ tracking team's solve.
 **Data used, ST maps:** his freely published *creative lens maps*, spherical sets only —
 22 series, 110 primes, under `Content/Profiles/AndyDavis` as the `DL_AD_*` ST-map presets.
 Single-focus, so they do not breathe, but they carry real measured character. His anamorphic sets
-are deliberately excluded; see below. Prepared by `Tools/prep_andy_stmaps.py`, imported by
-`dl.import_andy_stmaps()`.
+are deliberately excluded; see below. The half-res maps themselves ship in
+`Tools/data/stmaps/andy_spherical` with his permission, so `dl.import_andy_stmaps()` rebuilds every
+profile from a clean clone with nothing to download. `Tools/prep_andy_stmaps.py` regenerates them
+from his original release if you want a different resolution.
 
 **Not yet used:** his wider preset release covers 100+ lenses and 20+ camera bodies in the
 coefficient format — Cooke Panchro and TelePanchro, Hawk V-Lite 1.3x, Panavision MacroPanatar and

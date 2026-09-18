@@ -49,24 +49,28 @@ SOURCES.md records what each source contributed, and how it is used.
 THIRD-PARTY CONTENT NOT COVERED BY THIS LICENSE
 -----------------------------------------------
 
-The Apache License covers the DynamicLens source code, tools, materials
-and preset data authored for this plugin. It does NOT relicense measured
-lens data that belongs to its original authors:
+tiedtke and Andy Davis have each given permission for their lens data to
+be redistributed as part of this repository, so everything needed to
+rebuild the plugin ships with it. That permission is to REDISTRIBUTE, not
+to relicense: the Apache License covers the DynamicLens source code,
+tools, materials and preset data authored for this plugin, and does NOT
+cover measured lens data, which remains its original author's:
 
-* Content/Profiles/Tiedtke/**  (profiles and ST-map textures)
-      Derived from tiedtke's Real Cinema Lenses pack and redistributed
-      under his terms, not under Apache-2.0. Obtain the pack from the
-      link above and observe whatever licence ships with it.
+* Content/Profiles/Tiedtke/**  (Lens Files, profiles and ST-map textures)
+      From tiedtke's Real Cinema Lenses pack, redistributed with his
+      permission under his terms, not under Apache-2.0.
 
 * Tools/data/raw/**  and the AD_* profile grids derived from it
       Derived from Andy Davis's VFX RnD Lens Files under his terms.
 
-* Content/Profiles/AndyDavis/**  (profiles and ST-map textures)
-      Derived from Andy Davis's freely published creative lens maps
-      (spherical), downsampled for import and redistributed under his
-      terms, not under Apache-2.0. The originals are a free release;
-      see https://imag4media.com/vfx-rnd/.
+* Content/Profiles/AndyDavis/**  (profiles and ST-map textures) and
+  Tools/data/stmaps/**  (the half-res ST maps they are built from)
+      From Andy Davis's creative lens maps (spherical), downsampled for
+      import and redistributed with his permission under his terms, not
+      under Apache-2.0. See https://imag4media.com/vfx-rnd/.
 
-If you fork or redistribute DynamicLens commercially, check those two
-sources' own terms first. The plugin's code runs without them; the
-profiles are data, not code.
+The permission above was given to this project. If you fork or
+redistribute DynamicLens, and especially if you do so commercially, it
+does not automatically extend to you - ask tiedtke and Andy Davis
+yourself. The plugin's code runs without their data; the profiles are
+data, not code.

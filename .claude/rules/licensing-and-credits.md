@@ -19,11 +19,17 @@ Apache-2.0 covers the source, tools, materials and the preset data written for t
 
 | Path | Belongs to |
 |---|---|
-| `Content/Profiles/Tiedtke/**` | tiedtke |
+| `Content/Profiles/Tiedtke/**` (Lens Files, profiles, textures) | tiedtke |
 | `Tools/data/raw/**` and the `AD_*` grids fitted from it | Andy Davis |
+| `Content/Profiles/AndyDavis/**` and `Tools/data/stmaps/**` | Andy Davis |
 
 Those stay under their authors' own terms. **Do not add them to the licence, and do not write
 anything implying Dylan can sublicense them.**
+
+**Both authors have given Dylan permission to redistribute their data in this repo**, which is why
+it all ships here and a clean clone rebuilds everything. Permission to *redistribute* is not
+permission to *relicense* - the carve-out above still stands, and it does not extend to people who
+fork the repo. Keep that distinction in `NOTICE`; it is the whole point of the section.
 
 ## When X, do Y
 

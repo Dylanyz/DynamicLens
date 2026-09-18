@@ -235,7 +235,12 @@ def status():
 
 # --------------------------------------------------------------------------------------- tiedtke ST maps
 
-TIEDTKE_ROOT = "/Game/CinematicTemplate/Lenses"
+# tiedtke's Lens Files ship with the plugin (he gave permission), so the import works from a
+# clean clone. Only the LensFile assets are shipped, not his 200 MB of source textures: the
+# textures we actually use are already imported under Textures/, and _tiedtke_texture() falls
+# back to those. Point TIEDTKE_ROOT at his pack in a project to re-import from the originals.
+TIEDTKE_ROOT = "/DynamicLens/Profiles/Tiedtke/Source"
+TIEDTKE_ROOT_PACK = "/Game/CinematicTemplate/Lenses"
 TIEDTKE_PKG = PROFILE_PKG + "/Tiedtke"
 
 
@@ -272,11 +277,25 @@ def import_tiedtke(root=TIEDTKE_ROOT, save=True, series_filter=None):
         name = re.sub(r"_?\d+(_\d+)?x$", "", series)
         prof_name = "DLP_T_" + name
         prof = _create_data_asset(prof_name, TIEDTKE_PKG, unreal.DynamicLensProfile)
+        # keep what is already on the profile: it is the fallback when only the Lens Files ship
+        prior_maps = {e.get_editor_property("focal_mm"): e.get_editor_property("map")
+                      for e in prof.get_editor_property("st_maps")}
         prof.set_editor_property("st_maps", [])
         n = 0
         for focal, pkg in sorted(lenses):
             lf = unreal.load_asset(pkg)
             tex_pkg = textures.get(series, {}).get(focal)
+            if tex_pkg is None:
+                # Shipping only the Lens Files means there is no source texture to duplicate. The
+                # texture already on the existing profile IS the right map, so reuse it by identity
+                # rather than by guessing a name - the zooms (Angenieux Optimo, PS-Technik) do not
+                # follow the <series>_<focal>mm convention and a name guess silently empties them.
+                tex = prior_maps.get(focal)
+                if tex is not None:
+                    if unreal.DynamicLensLibrary.add_st_map_from_lens_file(prof, lf, focal, tex, squeeze):
+                        n += 1
+                    continue
+                _log(f"  skip {pkg}: no source texture and none already imported"); continue
             if lf is None or tex_pkg is None:
                 _log(f"  skip {pkg}: lens file or texture missing"); continue
             dst = f"{TIEDTKE_PKG}/Textures/{name}_{int(focal)}mm"
@@ -310,6 +329,8 @@ def import_tiedtke(root=TIEDTKE_ROOT, save=True, series_filter=None):
 
 # --------------------------------------------------------------------------------------- Andy Davis creative lens maps
 
+# the maps ship with the plugin, so the import works from a clean clone
+ANDY_STMAP_DIR = os.path.join(DATA_DIR, "stmaps", "andy_spherical")
 ANDY_PKG = PROFILE_PKG + "/AndyDavis"
 ANDY_PRESET_PKG = PRESET_PKG + "/AndyDavis"
 
@@ -368,17 +389,19 @@ def _import_texture(exr_path, dst_pkg, name, save=True):
 def import_andy_stmaps(root=None, save=True, series_filter=None):
     """Andy Davis's creative lens maps (spherical) -> one ST-map profile + preset per lens series.
 
-    `root` is the folder of half-res EXRs and manifest.json produced by Tools/prep_andy_stmaps.py;
-    it defaults to $DYNAMICLENS_ANDY_DIR. The maps are his free release, not redistributable here,
-    so nothing under it belongs to this repo - see NOTICE and SOURCES.md.
+    Defaults to the maps shipped in Tools/data/stmaps/andy_spherical, so a clean clone can rebuild
+    every profile with no extra downloads. Andy Davis gave permission to redistribute them; they
+    remain his, under his terms, not Apache-2.0 - see NOTICE and SOURCES.md. Pass `root` (or set
+    $DYNAMICLENS_ANDY_DIR) to import from a different set, e.g. maps you re-prepared at full
+    resolution with Tools/prep_andy_stmaps.py.
 
     Geometry (focal lengths, sensor, overscan) is measured and comes from the manifest and the
     textures. The editorial and physical layer comes from presets.json `andy_stmap_sets`.
     """
-    root = root or os.environ.get("DYNAMICLENS_ANDY_DIR")
-    if not root or not os.path.isdir(root):
-        raise RuntimeError("pass root=<folder with manifest.json> or set DYNAMICLENS_ANDY_DIR; "
-                           "generate it with Tools/prep_andy_stmaps.py")
+    root = root or os.environ.get("DYNAMICLENS_ANDY_DIR") or ANDY_STMAP_DIR
+    if not os.path.isfile(os.path.join(root, "manifest.json")):
+        raise RuntimeError(f"no manifest.json under {root}; pass root=<folder with manifest.json>, "
+                           "set DYNAMICLENS_ANDY_DIR, or regenerate with Tools/prep_andy_stmaps.py")
     manifest = json.load(open(os.path.join(root, "manifest.json")))
     cfg_all = json.load(open(os.path.join(DATA_DIR, "presets.json"))).get("andy_stmap_sets", {}).get("sets", {})
     created = []

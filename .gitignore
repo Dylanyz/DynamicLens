@@ -10,6 +10,10 @@ UE_Placeholder.uasset
 .vs/
 *.swp
 .DS_Store
-# large raw EXR grids never belong here
+# large raw EXR grids never belong here...
 *.exr
+# ...except the half-res ST maps the importer actually consumes. Andy Davis gave
+# permission to ship these; they are 32 MB total and make the spherical import
+# reproducible from a clean clone. See NOTICE and SOURCES.md.
+!Tools/data/stmaps/**/*.exr
 
