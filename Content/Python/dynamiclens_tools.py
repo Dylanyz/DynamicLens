@@ -263,23 +263,39 @@ def import_tiedtke(root=TIEDTKE_ROOT, save=True, series_filter=None):
             continue
         squeeze = float(m.group(1) + ("." + m.group(2) if m.group(2) else ""))
         if cls == "LensFile":
-            fm = re.search(r"_(\d+)mm", parts[-1]) or re.search(r"(\d+)mm", parts[-1])
-            if fm:
-                files.setdefault((series, squeeze), []).append((float(fm.group(1)), pkg))
+            # A zoom is named for its RANGE ("AngenieuxOptimo_44-440mm"), so a plain focal search
+            # picks up 440 and then never matches its map, which is shot at 50 mm. Strip the range
+            # first and let the pairing below supply the real focal from the texture.
+            bare = re.sub(r"\d+-\d+\s*mm", "", parts[-1])
+            fm = re.search(r"_(\d+)mm", bare) or re.search(r"(\d+)mm", bare)
+            files.setdefault((series, squeeze), []).append((float(fm.group(1)) if fm else None, pkg))
         elif cls == "Texture2D" and "Textures" in parts:
             fm = re.search(r"_(\d+)mm", parts[-1])
             if fm:
                 textures.setdefault(series, {})[float(fm.group(1))] = pkg
     created = []
-    for (series, squeeze), lenses in sorted(files.items()):
+    for (series, squeeze), lenses in sorted(files.items(), key=lambda kv: kv[0]):
         if series_filter and series not in series_filter:
             continue
         name = re.sub(r"_?\d+(_\d+)?x$", "", series)
+        zoom = re.search(r"(\d+)-(\d+)\s*mm", series)
+        tex_by_focal = textures.get(series, {})
+        # One Lens File whose focal we could not read, and exactly one texture: that is a zoom,
+        # and the texture name carries the focal the single map was actually shot at.
+        if len(lenses) == 1 and lenses[0][0] is None and len(tex_by_focal) == 1:
+            lenses = [(next(iter(tex_by_focal)), lenses[0][1])]
         prof_name = "DLP_T_" + name
         prof = _create_data_asset(prof_name, TIEDTKE_PKG, unreal.DynamicLensProfile)
         # keep what is already on the profile: it is the fallback when only the Lens Files ship
         prior_maps = {e.get_editor_property("focal_mm"): e.get_editor_property("map")
                       for e in prof.get_editor_property("st_maps")}
+        # ...including for a zoom whose focal we could not read and whose source texture is absent:
+        # the map already imported is the one tiedtke shipped, so take its focal
+        if len(lenses) == 1 and lenses[0][0] is None and len(prior_maps) == 1:
+            lenses = [(next(iter(prior_maps)), lenses[0][1])]
+        lenses = [(f, pkg) for f, pkg in lenses if f is not None]
+        if not lenses:
+            _log(f"  skip {series}: could not pair any Lens File with a map"); continue
         prof.set_editor_property("st_maps", [])
         n = 0
         for focal, pkg in sorted(lenses):
@@ -307,8 +323,22 @@ def import_tiedtke(root=TIEDTKE_ROOT, save=True, series_filter=None):
             if unreal.DynamicLensLibrary.add_st_map_from_lens_file(prof, lf, focal, tex, squeeze):
                 n += 1
         prof.set_editor_property("label", f"{name.replace('_', ' ')} {squeeze:g}x anamorphic (tiedtke ST maps)")
-        prof.set_editor_property("source", "Real lens grids shot on an ARRI Mini, converted to ST maps in Nuke by tiedtke (https://tiedtke.gumroad.com/l/realcinemalenses, v002). "
-                                           "Native frame 46 x 18.66 mm desqueezed (2.39:1). One map per prime, single focus. Physical specs are placeholders.")
+        src = ("Real lens grids shot on an ARRI Mini, converted to ST maps in Nuke by tiedtke "
+               "(https://tiedtke.gumroad.com/l/realcinemalenses, v002). Native frame 46 x 18.66 mm "
+               "desqueezed (2.39:1). Physical specs are placeholders.")
+        if zoom:
+            lo, hi = int(zoom.group(1)), int(zoom.group(2))
+            # A zoom, and tiedtke shipped one map for the whole range. Leave NominalFocalMm at 0 so
+            # the camera is free to zoom; the single map's distortion is applied across the range.
+            prof.set_editor_property("nominal_focal_mm", 0.0)
+            shot = ", ".join(str(int(f)) for f, _ in lenses)
+            src += (f" ZOOM {lo}-{hi} mm: the focal length is NOT locked, so the camera zooms "
+                    f"freely across the range. Only {shot} mm is measured, and that one map's "
+                    f"distortion is applied at every focal length - a real zoom's distortion "
+                    f"changes across its range, so treat the ends as approximate.")
+        else:
+            src += " One map per prime, single focus."
+        prof.set_editor_property("source", src)
         prof.set_editor_property("iris_blades", 11)
         prof.set_editor_property("front_diameter_mm", 110.0)
         prof.set_editor_property("max_aperture", 2.8)
@@ -317,7 +347,8 @@ def import_tiedtke(root=TIEDTKE_ROOT, save=True, series_filter=None):
         if save:
             unreal.EditorAssetLibrary.save_loaded_asset(prof)
         preset = _create_data_asset("DL_T_" + name, PRESET_PKG + "/Tiedtke", unreal.DynamicLensPreset)
-        _set_struct(preset, "distortion", {"profile": prof, "lock_focal_length": True})
+        # primes lock to their one focal length; zooms must stay free to zoom their range
+        _set_struct(preset, "distortion", {"profile": prof, "lock_focal_length": not zoom})
         preset.set_editor_property("description", f"tiedtke {name.replace('_', ' ')} {squeeze:g}x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.")
         if save:
             unreal.EditorAssetLibrary.save_loaded_asset(preset)
