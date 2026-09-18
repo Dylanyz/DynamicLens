@@ -29,6 +29,8 @@ here edits the live plugin, with no sync step. Only C++ needs a build.
 - The preset/profile data model, the lens catalogue, adding a lens → `.claude/refs/presets-and-profiles.md`
 - Whether a restart can be avoided, and the restructure that would help → `.claude/refs/live-coding.md`
 - Installing a DLL under a live editor, and why we don't → `.claude/refs/hot-swap.md`
+- Work that is researched and waiting on something → `.claude/refs/roadmap.md`. Check it when a
+  big piece of work lands; an entry may have just become proposable.
 - Keeping these docs true → `.claude/refs/maintenance.md`
 - Where the data and the *ideas* came from, and how each was used → `SOURCES.md` (public)
 
@@ -120,6 +122,7 @@ Run through `unreal-py` (`editor_run_python`) or a remote-exec helper. `import d
 | A new control or behaviour | `Source/DynamicLens`, plus the material parameter if it is visual |
 | How the plugin works | `.claude/refs/` |
 | A behaviour rule for agents | `.claude/rules/` |
+| Work worth doing but blocked on something else | `.claude/refs/roadmap.md`, with what it is gated on |
 | Anything the public should read | `README.md` |
 | A question like "what lenses are there / where did this one come from" | `Tools/data/lens_catalogue.json`, regenerated with `dl.export_catalogue()`. Never hand-edit it. |
 | A new data source, paper, or borrowed idea | `SOURCES.md`, plus `NOTICE` if it is data |
