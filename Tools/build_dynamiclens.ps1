@@ -161,7 +161,11 @@ foreach ($sub in @("Binaries\Win64", "Intermediate\Build")) {
     if (-not (Test-Path $src)) { continue }
     Write-Host "install $sub" -ForegroundColor Cyan
     robocopy $src $dst /E /NFL /NDL /NJH /NJS /NP | Out-Null
+    # robocopy uses 0-7 for success (1 = files copied, 3 = copied + extras). Only >= 8 is a
+    # real failure. Clear it afterwards so a successful copy does not leave a non-zero
+    # $LASTEXITCODE for the script to exit with, which reads as a failed install.
     if ($LASTEXITCODE -ge 8) { throw "robocopy failed ($LASTEXITCODE) for $sub" }
+    $global:LASTEXITCODE = 0
 }
 
 $installed = Join-Path $Repo "Binaries\Win64\UnrealEditor-DynamicLens.dll"
@@ -169,3 +173,5 @@ Write-Host ("INSTALLED {0:yyyy-MM-dd HH:mm}  {1}" -f (Get-Item $installed).LastW
 Write-Host ""
 Write-Host "Next: relaunch the editor, then re-run any dependent Python, e.g." -ForegroundColor Yellow
 Write-Host "  import dynamiclens_tools as dl; dl.build_image_circle_material(force=True); dl.import_presets()" -ForegroundColor Yellow
+
+exit 0
