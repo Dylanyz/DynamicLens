@@ -26,7 +26,8 @@ back to the JSON.
 
 | Prefix | Origin | Character |
 |---|---|---|
-| `DL_AD_*` | Andy Davis's measured ARRI/Zeiss grids | Clean and accurate. `DL_AD_Master`, `DL_AD_Supreme`. The baseline to compare against. |
+| `DL_AD_*` (parametric) | Andy Davis's measured ARRI/Zeiss Lens Files | Clean and accurate, and they **breathe** (a real focus stack). `DL_AD_Master`, `DL_AD_Supreme`. The baseline to compare against. |
+| `DL_AD_*` (ST map) | Andy Davis's creative lens maps, spherical | 22 series / 110 primes of measured spherical character, under `Profiles/AndyDavis`. Vintage Canon K-35 and FD, Nikon AI-S, Leica R, Cooke S4i (17 focals) and S7i, Leitz Thalia and Summilux-C, Tribe7 Blackwing7, Zeiss CP2/CP3/Supreme Radiance, ARRI Signature, and the modern full-frame sets. **Single focus, so no breathing.** |
 | `DL_T_*` | tiedtke ST maps, one per series | Real lenses with real flaws. Cooke FFi/SFi, Panavision C/D/E/G/Primo/AutoPanatar, Atlas Orion, Lomo Round Front, Elite MK, Kowa Cine Prominar, Iscorama Pre-36, Hawk V-Lite Vintage, Todd-AO, Angenieux Optimo, PS-Technik, ARRI/Zeiss Master Anamorphic. |
 | `DL_L_*` | Lanthimos-film reconstructions | The Favourite 6 mm and 10 mm (plus `_Frame` and `_Rect` variants), Poor Things 4 mm porthole, 8 mm, Petzval 58/85, Ultra Prime 10 mm, Master Zoom 16-110, Optimo 24-290, VistaVision Leica R. |
 | `DL_C_*` | Dylan's own looks | `DL_C_MasterHeavy`, `DL_C_Subtle`, `DL_C_Vintage`, `DL_C_Vintage_Raw`. **`DL_C_Vintage` is a favourite. Do not "correct" it without asking** — `_Raw` exists precisely to preserve the un-rescaled coefficient behaviour its look depends on. |

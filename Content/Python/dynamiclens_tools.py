@@ -7,6 +7,7 @@
     import dynamiclens_tools as dl
     dl.import_profiles()          # Tools/data/profiles/*.json  -> /DynamicLens/Profiles/DLP_<name>
     dl.import_presets()           # Tools/data/presets.json     -> /DynamicLens/Presets/DL_<name>
+    dl.import_andy_stmaps()       # Andy Davis spherical ST maps -> /DynamicLens/Profiles/AndyDavis
     dl.add_to_all_cameras("DL_Master")   # add a Dynamic Lens component to every CineCameraActor in the level
     dl.remove_from_all_cameras()
     dl.status()                   # what every Dynamic Lens component in the level is doing right now
@@ -305,6 +306,169 @@ def import_tiedtke(root=TIEDTKE_ROOT, save=True, series_filter=None):
         _log(f"tiedtke {prof_name}: {n} maps, squeeze {squeeze:g}")
     return created
 
+
+
+# --------------------------------------------------------------------------------------- Andy Davis creative lens maps
+
+ANDY_PKG = PROFILE_PKG + "/AndyDavis"
+ANDY_PRESET_PKG = PRESET_PKG + "/AndyDavis"
+
+
+def _andy_overscan(tex, n=64):
+    """Overscan the map needs, using the engine's own sampler.
+
+    This mirrors AddSTMapFromLensFile exactly and must stay that way: computing it offline from the
+    source EXR instead gives subtly different numbers (measured 1.1159 vs the correct 1.1250 on
+    Atlas Orion 50 mm), because the engine samples the texture source on its own grid and does not
+    flip V.
+    """
+    uv = unreal.DynamicLensLibrary.read_st_map_samples(tex, n, n)
+    if not uv or len(uv) < n * n * 2:
+        return 1.0
+    over = 1.0
+    for j in range(n):
+        for i in range(n):
+            if i not in (0, n - 1) and j not in (0, n - 1):
+                continue
+            u = (i + 0.5) / n
+            v = (j + 0.5) / n
+            su = uv[2 * (j * n + i)]
+            sv = uv[2 * (j * n + i) + 1]
+            if abs(u - 0.5) > 0.01:
+                over = max(over, abs(su - 0.5) / abs(u - 0.5))
+            if abs(v - 0.5) > 0.01:
+                over = max(over, abs(sv - 0.5) / abs(v - 0.5))
+    return min(max(over, 1.0), 2.0)
+
+
+def _import_texture(exr_path, dst_pkg, name, save=True):
+    """EXR -> Texture2D with the settings the ST-map path needs (matches the tiedtke textures)."""
+    dst = f"{dst_pkg}/{name}"
+    if not unreal.EditorAssetLibrary.does_asset_exist(dst):
+        task = unreal.AssetImportTask()
+        task.set_editor_property("filename", exr_path)
+        task.set_editor_property("destination_path", dst_pkg)
+        task.set_editor_property("destination_name", name)
+        task.set_editor_property("automated", True)
+        task.set_editor_property("replace_existing", True)
+        task.set_editor_property("save", False)
+        unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
+    tex = unreal.load_asset(dst)
+    if tex is None:
+        return None
+    tex.set_editor_property("compression_settings", unreal.TextureCompressionSettings.TC_HDR)
+    tex.set_editor_property("srgb", False)
+    tex.set_editor_property("mip_gen_settings", unreal.TextureMipGenSettings.TMGS_NO_MIPMAPS)
+    tex.set_editor_property("never_stream", True)
+    if save:
+        unreal.EditorAssetLibrary.save_loaded_asset(tex)
+    return tex
+
+
+def import_andy_stmaps(root=None, save=True, series_filter=None):
+    """Andy Davis's creative lens maps (spherical) -> one ST-map profile + preset per lens series.
+
+    `root` is the folder of half-res EXRs and manifest.json produced by Tools/prep_andy_stmaps.py;
+    it defaults to $DYNAMICLENS_ANDY_DIR. The maps are his free release, not redistributable here,
+    so nothing under it belongs to this repo - see NOTICE and SOURCES.md.
+
+    Geometry (focal lengths, sensor, overscan) is measured and comes from the manifest and the
+    textures. The editorial and physical layer comes from presets.json `andy_stmap_sets`.
+    """
+    root = root or os.environ.get("DYNAMICLENS_ANDY_DIR")
+    if not root or not os.path.isdir(root):
+        raise RuntimeError("pass root=<folder with manifest.json> or set DYNAMICLENS_ANDY_DIR; "
+                           "generate it with Tools/prep_andy_stmaps.py")
+    manifest = json.load(open(os.path.join(root, "manifest.json")))
+    cfg_all = json.load(open(os.path.join(DATA_DIR, "presets.json"))).get("andy_stmap_sets", {}).get("sets", {})
+    created = []
+    for series, data in sorted(manifest["sets"].items()):
+        if series_filter and series not in series_filter:
+            continue
+        cfg = cfg_all.get(series)
+        if not cfg:
+            _log(f"  skip {series}: no entry in presets.json andy_stmap_sets")
+            continue
+        name = cfg["name"]
+        sensor = data["sensor_mm"]
+        # A profile carries ONE NativeSensorMm, so every map in it must come off the same gate.
+        # ARRI Signature is the one mixed set (29 mm is a 3840x2160 crop, the rest are 4448x3096);
+        # an ST map shot on a crop cannot be restretched to the bigger sensor, because outside the
+        # crop there is simply no data. Keep the majority gate and say plainly what was dropped.
+        gate = tuple(data.get("gate_px", []))
+        lenses_in = [l for l in data["lenses"] if tuple(l["src_dims"]) == gate]
+        for l in data["lenses"]:
+            if tuple(l["src_dims"]) != gate:
+                _log(f"  {series} {l['focal_mm']}mm: skipped, gate {l['src_dims']} != series gate {list(gate)}")
+        prof = _create_data_asset("DLP_AD_" + name, ANDY_PKG, unreal.DynamicLensProfile)
+        entries = []
+        for lens in lenses_in:
+            exr = os.path.join(root, lens["file"])
+            if not os.path.isfile(exr):
+                _log(f"  skip {lens['file']}: missing")
+                continue
+            tex_name = f"{name}_{lens['focal_mm']}mm" + (f"_{lens['variant']}" if lens.get("variant") else "")
+            tex = _import_texture(exr, ANDY_PKG + "/Textures", tex_name, save=save)
+            if tex is None:
+                _log(f"  skip {tex_name}: texture import failed")
+                continue
+            e = unreal.DynamicLensSTMapEntry()
+            e.set_editor_property("focal_mm", float(lens["focal_mm"]))
+            e.set_editor_property("focus_cm", 0.0)
+            e.set_editor_property("map", tex)
+            # MapFormat must be set field by field. Python prints the struct as "{}" because its
+            # fields are not Blueprint-visible, so the defaults look harmless. They are not, and
+            # BOTH of these render a broken image:
+            #   PixelOrigin defaults to TopLeft; DriveSTMap passes it to BuildExtendedSTMap, which
+            #     then flips V -> black / wildly zoomed frame.
+            #   DistortionChannels defaults to BA; these maps carry the field in RG with B=0 and no
+            #     alpha, so the distortion pass reads zeros -> washed-out, zoomed, wrong colour.
+            # tiedtke's entries come from real Lens Files and carry BottomLeft + RG/RG. Match them.
+            fmt = unreal.CalibratedMapFormat()
+            fmt.set_editor_property("pixel_origin", unreal.CalibratedMapPixelOrigin.BOTTOM_LEFT)
+            fmt.set_editor_property("undistortion_channels", unreal.CalibratedMapChannels.RG)
+            fmt.set_editor_property("distortion_channels", unreal.CalibratedMapChannels.RG)
+            e.set_editor_property("map_format", fmt)
+            e.set_editor_property("needed_overscan", _andy_overscan(tex))
+            entries.append(e)
+        if not entries:
+            _log(f"  skip {series}: no maps")
+            continue
+        entries.sort(key=lambda e: e.get_editor_property("focal_mm"))
+        prof.set_editor_property("type", unreal.DynamicLensProfileType.ST_MAP)
+        prof.set_editor_property("native_sensor_mm", unreal.Vector2D(sensor[0], sensor[1]))
+        prof.set_editor_property("squeeze", float(data.get("squeeze", 1.0)))
+        prof.set_editor_property("st_maps", entries)
+        # The grid covers the whole gate, so the lens's circle is at least the gate diagonal.
+        # A measured floor, not a data-sheet number - same convention as the AD_* parametric profiles.
+        prof.set_editor_property("image_circle_mm", round((sensor[0] ** 2 + sensor[1] ** 2) ** 0.5, 2))
+        _apply_specs(prof, cfg)
+        prof.set_editor_property("label", cfg["label"])
+        gate = data.get("gate_px", [0, 0])
+        prof.set_editor_property("source",
+            f"Distortion: Andy Davis (Imagery for Media) creative lens maps, distort ST maps at "
+            f"{gate[0]}x{gate[1]}, downsampled 2x for import (measured worst-case error 0.0045 source px). "
+            f"Free release, see https://imag4media.com/vfx-rnd/ and SOURCES.md. "
+            f"Sensor {sensor[0]} x {sensor[1]} mm derived from the gate at the 8.25 um ARRI pitch"
+            + (" (ASSUMED: gate not recognised)" if data.get("sensor_assumed") else "")
+            + ". One map per prime, SINGLE FOCUS - these do not breathe. "
+              "Image circle = the gate diagonal, a measured floor not a data-sheet value. "
+              "Front diameter, iris blades, blade curvature and pupil visibility are PLACEHOLDERS, not measured.")
+        unreal.DynamicLensLibrary.refresh_profile(prof)
+        if save:
+            unreal.EditorAssetLibrary.save_loaded_asset(prof)
+        preset = _create_data_asset("DL_AD_" + name, ANDY_PRESET_PKG, unreal.DynamicLensPreset)
+        _set_struct(preset, "distortion", {"profile": prof, "lock_focal_length": True})
+        focals = ", ".join(str(int(e.get_editor_property("focal_mm"))) for e in entries)
+        preset.set_editor_property("description",
+            f"{cfg['label']}. {cfg.get('note', '')} Measured ST maps at {focals} mm "
+            f"(the nearest is used). Single focus, so no breathing.")
+        if save:
+            unreal.EditorAssetLibrary.save_loaded_asset(preset)
+        created.append(("DLP_AD_" + name, len(entries)))
+        _log(f"andy DLP_AD_{name}: {len(entries)} maps, sensor {sensor[0]}x{sensor[1]}")
+    _log(f"andy: {len(created)} profiles, {sum(n for _, n in created)} maps")
+    return created
 
 # --------------------------------------------------------------------------------------- image circle material
 

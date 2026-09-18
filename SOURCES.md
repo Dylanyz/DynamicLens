@@ -43,9 +43,15 @@ tracking team's solve.
 **Data used:** his distortion grids for ARRI/Zeiss Master Prime and Zeiss Supreme, fitted into the
 `AD_*` profiles (`Tools/data/raw/`). These carry focus-distance samples, so they drive breathing.
 
-**Not yet used:** his wider preset release covers 100+ lenses and 20+ camera bodies in the same
-format — ARRI Signature, Cooke Panchro and TelePanchro, Hawk V-Lite 1.3x, Panavision MacroPanatar
-and Sphero65 — plus 133 spherical and 83 anamorphic creative ST maps.
+**Data used, ST maps:** his freely published *creative lens maps*, spherical sets only —
+22 series, 110 primes, under `Content/Profiles/AndyDavis` as the `DL_AD_*` ST-map presets.
+Single-focus, so they do not breathe, but they carry real measured character. His anamorphic sets
+are deliberately excluded; see below. Prepared by `Tools/prep_andy_stmaps.py`, imported by
+`dl.import_andy_stmaps()`.
+
+**Not yet used:** his wider preset release covers 100+ lenses and 20+ camera bodies in the
+coefficient format — Cooke Panchro and TelePanchro, Hawk V-Lite 1.3x, Panavision MacroPanatar and
+Sphero65. Those carry focus stacks, so unlike the ST maps they would breathe.
 
 **Further reading he recommends,** all of it relevant to this plugin:
 

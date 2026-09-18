@@ -55,8 +55,9 @@ Nothing to install in a project beyond enabling the plugin; it is already in the
    `PythonScriptPlugin` itself.
 2. Select a CineCameraActor, **Add Component → Dynamic Lens**.
 3. Set **Preset**. The prefix says where the lens came from: `DL_AD_*` are Andy Davis's measured
-   ARRI/Zeiss grids and are the clean baseline, `DL_T_*` are the tiedtke ST-map lenses with real
-   character and real flaws, `DL_L_*` are the Lanthimos-film reconstructions, `DL_C_*` are Dylan's
+   lenses - the ARRI/Zeiss grids are the clean baseline and breathe, and his spherical ST maps
+   under `Profiles/AndyDavis` add 22 series of real character without breathing. `DL_T_*` are
+   the tiedtke ST-map lenses with real character and real flaws, `DL_L_*` are the Lanthimos-film reconstructions, `DL_C_*` are Dylan's
    own looks. Catalogue: `.claude/refs/presets-and-profiles.md`.
 4. The component's **Camera** row drives filmback, focal length, aperture and focus without leaving
    the component. **A1/A2** step presets, **A3/A4** step focal length.
@@ -102,6 +103,7 @@ Run through `unreal-py` (`editor_run_python`) or a remote-exec helper. `import d
 | `dl.import_presets()` | rewrite preset assets from `presets.json` (`only=[...]` for one) |
 | `dl.import_profiles()` / `import_projection_profiles()` / `import_derived_profiles()` | rebuild profile assets |
 | `dl.import_tiedtke()` | re-import the ST-map lenses from the tiedtke pack |
+| `dl.import_andy_stmaps(root=...)` | import Andy Davis's spherical ST maps (prep with `Tools/prep_andy_stmaps.py`) |
 | `dl.build_image_circle_material(force=True)` | rebuild the image-circle material after an HLSL change |
 | `dl.import_all()` | all of the above, in order |
 | `dl.reset_asset(path)` | restore one asset to its shipped values |

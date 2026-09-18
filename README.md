@@ -153,7 +153,11 @@ L_PoorThings_4mm_Porthole (OpTex 4mm S16 on 35), L_PoorThings_8mm and 8mm_Frame 
 rolling corners), L_PoorThings_Petzval_58 / _85 (round Waterhouse iris, swirl), L_PoorThings_UltraPrime_10mm
 (placeholder distortion), L_PoorThings_MasterZoom_16-110, L_PoorThings_Optimo_24-290, L_PoorThings_VistaVision_LeicaR
 (the reanimation sequence; use a 1.5:1 filmback) - lens list from Noam Kroll's article on the film - plus one per tiedtke series
-(`Presets/Tiedtke/DL_T_*`). Every number that is not from a data sheet is marked "assumed" in the profile's Source field.
+(`Presets/Tiedtke/DL_T_*`), plus 22 spherical series from Andy Davis's creative lens maps
+(`Presets/AndyDavis/DL_AD_*`): vintage Canon K-35 and FD, Nikon AI-S, Leica R, Cooke S4i (17 focal lengths) and S7i,
+Leitz Thalia and Summilux-C, Tribe7 Blackwing7, Zeiss CP2 / CP3 / Supreme Radiance, ARRI Signature, and the modern
+full-frame sets. Those are single-focus maps, so unlike `Master` and `Supreme` they do not breathe.
+Every number that is not from a data sheet is marked "assumed" in the profile's Source field.
 
 ## Film formats behind the Lanthimos presets
 * *The Favourite*: Panavision Millennium XL2, 35 mm 4-perf, released 1.85:1 -> native gate 24.89 x 13.45 mm
