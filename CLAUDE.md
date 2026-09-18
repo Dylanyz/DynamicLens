@@ -43,7 +43,9 @@ preset data flow, licensing and credits. Read them; they are the ones that bite.
 | `Content/Presets`, `Content/Profiles`, `Content/Materials` | generated assets, `/DynamicLens/...` in the editor |
 | `Content/Python/dynamiclens_tools.py` | editor tools, `import dynamiclens_tools as dl` |
 | `Tools/data/presets.json` | **source of truth** for every profile and preset |
+| `Tools/data/lens_catalogue.json` | **generated** index of every preset: who measured it, squeeze, focal range, whether it breathes or zooms, how hard it distorts. Read this before walking the asset registry. |
 | `Tools/data/raw`, `Tools/data/profiles` | measured grids and the fits built from them |
+| `Tools/read_lensfiles.py` | reads Unreal Lens File `.uasset` distortion tables without an editor |
 | `Tools/build_dynamiclens.ps1` | build, and install when the editor is closed |
 | `Binaries/`, `Intermediate/` | build products, gitignored, never committed |
 
@@ -106,6 +108,7 @@ Run through `unreal-py` (`editor_run_python`) or a remote-exec helper. `import d
 | `dl.import_andy_stmaps(root=...)` | import Andy Davis's spherical ST maps (prep with `Tools/prep_andy_stmaps.py`) |
 | `dl.build_image_circle_material(force=True)` | rebuild the image-circle material after an HLSL change |
 | `dl.import_all()` | all of the above, in order |
+| `dl.export_catalogue()` | rewrite `Tools/data/lens_catalogue.json` - every preset, its provenance and its optics |
 | `dl.reset_asset(path)` | restore one asset to its shipped values |
 | `dl.add_to_all_cameras(preset=...)` | bulk-add the component |
 
@@ -118,6 +121,7 @@ Run through `unreal-py` (`editor_run_python`) or a remote-exec helper. `import d
 | How the plugin works | `.claude/refs/` |
 | A behaviour rule for agents | `.claude/rules/` |
 | Anything the public should read | `README.md` |
+| A question like "what lenses are there / where did this one come from" | `Tools/data/lens_catalogue.json`, regenerated with `dl.export_catalogue()`. Never hand-edit it. |
 | A new data source, paper, or borrowed idea | `SOURCES.md`, plus `NOTICE` if it is data |
 | How one *film* uses the plugin | that film project's own `.claude/`, never here |
 

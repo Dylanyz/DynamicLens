@@ -61,7 +61,8 @@ cover measured lens data, which remains its original author's:
       permission under his terms, not under Apache-2.0.
 
 * Tools/data/raw/**  and the AD_* profile grids derived from it
-      Derived from Andy Davis's VFX RnD Lens Files under his terms.
+      Derived from Andy Davis's VFX RnD Lens Files, including the
+      coefficients read out of his Cinelens release, under his terms.
 
 * Content/Profiles/AndyDavis/**  (profiles and ST-map textures) and
   Tools/data/stmaps/**  (the half-res ST maps they are built from)

@@ -764,3 +764,215 @@ def rename_assets_v06():
                 if unreal.EditorAssetLibrary.rename_asset(f"{pkg}/{old}", f"{pkg}/{new}"):
                     n += 1; _log(f"renamed {old} -> {new}")
     return n
+
+
+# ------------------------------------------------------------------------------- the lens catalogue
+
+# Who each preset prefix's measurements come from. The catalogue carries this on every entry so a
+# consumer (the preset browser, a docs page) never has to re-derive provenance from a name.
+ORIGINS = {
+    "AD": {"author": "Andy Davis", "org": "Imagery for Media", "url": "https://imag4media.com/vfx-rnd/",
+           "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"},
+    "T": {"author": "tiedtke", "org": "Real Cinema Lenses",
+          "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
+          "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"},
+    "L": {"author": "Dylan G (Mad Rice)", "org": "DynamicLens",
+          "url": "https://github.com/Dylanyz/DynamicLens",
+          "licence": "Apache-2.0 (reconstruction of a film's look, not measured third-party data)"},
+    "C": {"author": "Dylan G (Mad Rice)", "org": "DynamicLens",
+          "url": "https://github.com/Dylanyz/DynamicLens", "licence": "Apache-2.0"},
+}
+
+TYPE_NAME = {
+    unreal.DynamicLensProfileType.PARAMETRIC: "Parametric",
+    unreal.DynamicLensProfileType.ST_MAP: "STMap",
+    unreal.DynamicLensProfileType.PROJECTION: "Projection",
+}
+
+
+def _stmap_edge_shift(maps, n=48):
+    """How much the strongest map BENDS the image, as a percent, ignoring any uniform scale.
+
+    Measured as the swing in the radial ratio |source - centre| / |uv - centre| between the
+    tightest and widest sample. Three things this deliberately does not do, each of which was
+    tried first and was wrong:
+
+      * Not NeededOverscan. That is one-sided - it only counts a map pulling the source outside
+        the frame - so every barrel lens stores exactly 1.0 and reads as undistorted. 20 of the
+        22 Andy Davis spherical sets sit at 1.0 for that reason.
+      * Not a straight (su,sv) - (u,v) difference. read_st_map_samples returns V in the map's own
+        bottom-left convention, so that measures the flip, not the lens (~190% for everything).
+      * Not the peak ratio. These maps carry a uniform scale: the Zeiss CP3 85 mm map is flat at
+        0.947 at every radius, which is a 5.3% zoom and no bend at all. Taking the peak gave every
+        spherical prime the same ~6% and made 85 mm read as more distorted than 18 mm.
+    """
+    worst = 0.0
+    for e in maps:
+        tex = e.get_editor_property("map")
+        if tex is None:
+            continue
+        uv = unreal.DynamicLensLibrary.read_st_map_samples(tex, n, n)
+        if not uv or len(uv) < n * n * 2:
+            continue
+        lo, hi = None, None
+        for j in range(n):
+            for i in range(n):
+                du, dv = (i + 0.5) / n - 0.5, (j + 0.5) / n - 0.5
+                r = (du * du + dv * dv) ** 0.5
+                if r < 0.1:                       # the ratio is all noise near the centre
+                    continue
+                su = uv[2 * (j * n + i)] - 0.5
+                sv = uv[2 * (j * n + i) + 1] - 0.5
+                ratio = ((su * su + sv * sv) ** 0.5) / r
+                lo = ratio if lo is None else min(lo, ratio)
+                hi = ratio if hi is None else max(hi, ratio)
+        if lo is not None:
+            worst = max(worst, hi - lo)
+    return round(worst * 100.0, 2)
+
+
+def _parametric_edge_shift(rows, sensor):
+    """How far the frame corner moves, as a percent of its radius, at the strongest focal.
+
+    Deliberately the same quantity the ST-map profiles report through NeededOverscan, so the two
+    are comparable in a browser. Radial terms only; tangential barely moves a corner.
+    """
+    worst = 0.0
+    for row in rows:
+        for p in row.get_editor_property("by_focus"):
+            shift = (float(p.get_editor_property("k1")) + float(p.get_editor_property("k2"))
+                     + float(p.get_editor_property("k3")))   # normalised corner radius, r = 1
+            worst = max(worst, abs(shift))
+    return round(worst * 100.0, 2)
+
+
+def _profile_facts(prof):
+    """Everything about one profile a browser would want to show at a glance."""
+    if prof is None:
+        return None
+    ptype = TYPE_NAME.get(prof.get_editor_property("type"), "Unknown")
+    sensor = prof.get_editor_property("native_sensor_mm")
+    focus = [float(f) for f in prof.get_editor_property("focus_cm")]
+    rows = prof.get_editor_property("rows")
+    maps = prof.get_editor_property("st_maps")
+    overscan = None
+
+    if ptype == "STMap":
+        focals = sorted(float(e.get_editor_property("focal_mm")) for e in maps)
+        # every shipped ST map is a single-focus measurement; FocusCm is 0 on all of them
+        focus = sorted({float(e.get_editor_property("focus_cm")) for e in maps})
+        overscan = max([float(e.get_editor_property("needed_overscan")) for e in maps] or [1.0])
+        edge_shift_pct = _stmap_edge_shift(maps)
+        samples = len(maps)
+    elif ptype == "Parametric":
+        focals = sorted(float(r.get_editor_property("focal_mm")) for r in rows)
+        edge_shift_pct = _parametric_edge_shift(rows, sensor)
+        samples = sum(len(r.get_editor_property("by_focus")) for r in rows)
+    else:
+        focals, edge_shift_pct, samples = [], None, 0
+
+    squeeze = float(prof.get_editor_property("squeeze"))
+    return {
+        "asset": prof.get_path_name().split(".")[0],
+        "type": ptype,
+        "label": prof.get_editor_property("label"),
+        "coverage": prof.get_editor_property("coverage"),
+        "source": prof.get_editor_property("source"),
+        "squeeze": squeeze,
+        "anamorphic": squeeze > 1.001,
+        "sensor_mm": [round(sensor.x, 3), round(sensor.y, 3)],
+        "image_circle_mm": round(float(prof.get_editor_property("image_circle_mm")), 2),
+        "max_aperture": float(prof.get_editor_property("max_aperture")),
+        "iris_blades": int(prof.get_editor_property("iris_blades")),
+        "blade_curvature": float(prof.get_editor_property("blade_curvature")),
+        "front_diameter_mm": float(prof.get_editor_property("front_diameter_mm")),
+        "nominal_focal_mm": float(prof.get_editor_property("nominal_focal_mm")),
+        "projection": str(prof.get_editor_property("projection")).split(".")[-1] if ptype == "Projection" else None,
+        "max_field_angle_deg": float(prof.get_editor_property("max_field_angle_deg")) if ptype == "Projection" else None,
+        "focals_mm": focals,
+        "focal_min_mm": min(focals) if focals else None,
+        "focal_max_mm": max(focals) if focals else None,
+        "focus_cm": focus,
+        # a profile only breathes if it was measured at more than one focus distance
+        "breathes": len(focus) > 1,
+        "measurements": samples,
+        "needed_overscan": round(overscan, 4) if overscan else None,
+        "edge_shift_pct": edge_shift_pct,
+    }
+
+
+def export_catalogue(path=None, save=True):
+    """Every preset, with who measured it and what it does -> Tools/data/lens_catalogue.json.
+
+    Generated, never hand-edited: re-run it after any import so it stays true. It is the one place
+    that answers "what lenses does this plugin have and where did each come from", and it is what
+    a preset browser should read rather than walking the asset registry itself.
+    """
+    path = path or os.path.join(DATA_DIR, "lens_catalogue.json")
+    ar = unreal.AssetRegistryHelpers.get_asset_registry()
+    assets = ar.get_assets(unreal.ARFilter(class_names=["DynamicLensPreset"], recursive_classes=True))
+    entries = []
+    for a in assets:
+        preset = unreal.load_asset(str(a.get_editor_property("package_name")))
+        if preset is None:
+            continue
+        name = preset.get_name()
+        m = re.match(r"DL_([A-Z]+)_", name)
+        prefix = m.group(1) if m else ""
+        dist = preset.get_editor_property("distortion")
+        prof = _profile_facts(dist.get_editor_property("profile"))
+        circle = preset.get_editor_property("image_circle")
+        vign = preset.get_editor_property("vignette")
+        pkg = preset.get_path_name().split(".")[0]
+        entries.append({
+            "preset": name,
+            "asset": pkg,
+            "folder": pkg.rsplit("/", 1)[0],
+            "prefix": prefix,
+            "origin": ORIGINS.get(prefix, {}),
+            "display_name": (prof or {}).get("label") or name,
+            "description": preset.get_editor_property("description"),
+            "distortion_amount": float(dist.get_editor_property("amount")),
+            "breathing": float(dist.get_editor_property("breathing")),
+            "lock_focal_length": bool(dist.get_editor_property("lock_focal_length")),
+            # a lens you can zoom freely: nothing pins the camera to one focal length
+            "zoomable": not bool(dist.get_editor_property("lock_focal_length")),
+            "image_circle_enabled": bool(circle.get_editor_property("enabled")),
+            "vignette_enabled": bool(vign.get_editor_property("enabled")),
+            "profile": prof,
+        })
+    entries.sort(key=lambda e: e["preset"])
+    doc = {
+        "_doc": "Generated by dl.export_catalogue(). Every DynamicLens preset with its provenance, "
+                "optics and coverage. Do not hand-edit - re-run it after any import. The source of "
+                "truth for the preset data itself stays Tools/data/presets.json.",
+        "_metrics": {
+            "edge_shift_pct": "How much the lens bends the image, ignoring any uniform scale. "
+                              "STMap: the swing in the radial ratio between the tightest and "
+                              "widest sample of the strongest map. Parametric: |K1+K2+K3| at the "
+                              "normalised corner. Projection: not defined. The two derivations "
+                              "rank consistently but are NOT the same quantity - do not plot an "
+                              "ST-map lens and a parametric one on one bar without saying so.",
+            "scale": "Roughly: under 5 is a well corrected modern prime, 10-20 is strong "
+                     "character, over 20 is a vintage anamorphic.",
+        },
+        "_licence": "This file describes third-party measured data. See NOTICE and SOURCES.md: "
+                    "tiedtke's and Andy Davis's lens data is redistributed with permission under "
+                    "their own terms, NOT under this repo's Apache-2.0 licence.",
+        "counts": {
+            "presets": len(entries),
+            "anamorphic": sum(1 for e in entries if (e["profile"] or {}).get("anamorphic")),
+            "spherical": sum(1 for e in entries if e["profile"] and not e["profile"]["anamorphic"]),
+            "breathing": sum(1 for e in entries if (e["profile"] or {}).get("breathes")),
+            "zoomable": sum(1 for e in entries if e["zoomable"]),
+        },
+        "by_origin": {},
+        "presets": entries,
+    }
+    for e in entries:
+        doc["by_origin"].setdefault(e["prefix"], []).append(e["preset"])
+    if save:
+        with open(path, "w") as f:
+            json.dump(doc, f, indent=1)
+    _log(f"catalogue: {len(entries)} presets -> {path}")
+    return doc

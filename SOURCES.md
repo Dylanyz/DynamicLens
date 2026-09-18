@@ -42,6 +42,8 @@ tracking team's solve.
 
 **Data used:** his distortion grids for ARRI/Zeiss Master Prime and Zeiss Supreme, fitted into the
 `AD_*` profiles (`Tools/data/raw/`). These carry focus-distance samples, so they drive breathing.
+They come from his **Cinelens** release; `Tools/read_lensfiles.py` reads his UE Lens File assets
+without an editor, so those fits can be rebuilt from the originals on any machine.
 
 **Data used, ST maps:** his freely published *creative lens maps*, spherical sets only —
 22 series, 110 primes, under `Content/Profiles/AndyDavis` as the `DL_AD_*` ST-map presets.
@@ -51,9 +53,30 @@ are deliberately excluded; see below. The half-res maps themselves ship in
 profile from a clean clone with nothing to download. `Tools/prep_andy_stmaps.py` regenerates them
 from his original release if you want a different resolution.
 
-**Not yet used:** his wider preset release covers 100+ lenses and 20+ camera bodies in the
-coefficient format — Cooke Panchro and TelePanchro, Hawk V-Lite 1.3x, Panavision MacroPanatar and
-Sphero65. Those carry focus stacks, so unlike the ST maps they would breathe.
+**Not yet used:** the rest of his **Cinelens** release. It advertises 100+ lenses across 10 sets,
+but the distortion tables are mostly empty — the lens objects are there to map focus pulls, and his
+page says as much ("addtl work can be added including LensDistortion and Vignetting"). Read with
+`Tools/read_lensfiles.py`, all 106 land in `Tools/data/raw/andy_davis_cinelens.json`:
+
+| Set | Lenses | Carry distortion |
+|---|---|---|
+| ARRI/Zeiss Master | 17 | 17 — already shipped as `DLP_AD_ARRI_Master` |
+| Zeiss Supreme | 14 | 14 — already shipped as `DLP_AD_ZEISS_Supreme` |
+| ARRI Signature | 16 | 2, and the 15 mm's coefficients are all zero |
+| Cooke FFi ANA 1.8x | 9 | 7, of which the 85 mm macro is all zero |
+| Cooke Panchro + TelePanchro | 16 | 0 |
+| Hawk V-Lite ANA 1.3x | 10 | 0 |
+| Panavision C + MacroPanatar ANA 2.0x | 15 | 0 |
+| Panavision Sphero65 | 9 | 0 |
+
+So the whole release adds **six usable new lenses**, all Cooke FFi ANA 1.8x (32, 40, 50, 75, 100,
+135 mm). Every one is a single focus sample, so none of them breathe — the focus stacks are only in
+the two sets already fitted. Their six measured focals would, though, be the first anamorphic the
+plugin could zoom continuously rather than snap between primes.
+
+They are held back for one reason: they use the **3DE4 Anamorphic Standard Degree 4** model
+(14 coefficients, UE's `UAnamorphicLensModel`), and the parametric path here only evaluates
+Brown-Conrady through `USphericalLensModel`. Supporting them is a C++ change, not a data import.
 
 **Further reading he recommends,** all of it relevant to this plugin:
 
