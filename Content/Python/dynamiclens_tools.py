@@ -661,7 +661,12 @@ if (Scatter > 0.001 && tb > 0.001)
     {
         float u = (k + 0.5) / 8.0 * 2.0 - 1.0;
         float v = sin(u * 7.0) * 0.35;
-        acc3 += SceneTextureLookup(UV + (dir * u + tng * v) * len, 14, false).rgb;
+        // UV is viewport UV; SceneTextureLookup wants buffer UV. They only coincide when the viewport
+        // fills the whole scene-colour buffer, which is true in the editor but not under Movie Render
+        // Graph (overscan makes the buffer larger). Convert, then clamp to the input's valid rect, or
+        // the taps read unwritten memory and come back as NaN/Inf - neon speckle around the rim.
+        float2 suv = ViewportUVToSceneTextureUV(UV + (dir * u + tng * v) * len, 14);
+        acc3 += SceneTextureLookup(ClampSceneTextureUV(suv, 14), 14, false).rgb;
     }
     float3 blur = acc3 / 8.0;
     col = lerp(col, blur * (1.0 + 0.15 * Scatter), tb * Scatter);

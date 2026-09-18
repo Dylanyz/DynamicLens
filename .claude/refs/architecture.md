@@ -96,6 +96,15 @@ for chromatic aberration, an 8-tap radial scatter glow, the vignette-like Fade, 
 texture. **If you change the HLSL you must rebuild the material**, and a rebuild orphans any live
 MID, so `ClearEffect`/`ApplyLook` null it deliberately.
 
+**Anything in that HLSL that samples the scene itself must go through
+`ViewportUVToSceneTextureUV` then `ClampSceneTextureUV`.** The `UV` input is a `ScreenPosition`, i.e.
+*viewport* UV, while `SceneTextureLookup` wants *buffer* UV. The two coincide only when the viewport
+fills the whole scene-colour buffer, which is true in the editor and false under Movie Render Graph,
+where camera overscan makes the buffer bigger than the frame. The Scatter taps passed viewport UV
+straight through, walked off the valid rect in every MRG render, and read unwritten memory, which
+came back as NaN/Inf and encoded as neon magenta/green speckle in a band around the rim - only in
+renders, never in the viewport, which is why it survived so long (2026-09-18, `ls_s1_demo1_mck_window`).
+
 ## ST maps
 
 tiedtke's maps are **clamped to [0,1] where the source leaves the frame** — wide bands at the
