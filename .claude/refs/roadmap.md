@@ -46,3 +46,50 @@ lurch at 50 mm. Check it against the tiedtke ST map for the same lens before shi
 genuinely bad, say so in the profile's `Source` rather than quietly smoothing it.
 
 **Needs a build and therefore a restart.** Ask Dylan; see `.claude/rules/editor-restarts.md`.
+
+---
+
+## The DL_L_* fisheye rework
+
+**Gated on:** two things, in order. (1) The wide-field-source research launched 2026-09-19 - whether
+UE can supply more than ~81 deg off-axis per frame (panoramic MRG pass, SceneCaptureCube, fulldome
+techniques, path-traced camera rays). That answer changes the whole design, because the current plan
+is a workaround for a limit that may not be real. (2) Dylan's choice between fitting the projection
+to the circle or keeping the physically stated field - explained under "the choice" below.
+
+**Why.** Measured 2026-09-19: every projection preset shows 65-81 deg of field and 1.25-1.48x
+angular compression regardless of focal length, so a 4 mm 180 deg fisheye and a 10 mm look the same.
+The full diagnosis, with numbers, is in `.claude/refs/overscan-and-image-circle.md`.
+
+**The choice.** Unreal can source only ~81 deg off-axis from one rectilinear render at the 2.0
+overscan ceiling. Either (a) put those 81 deg where the real lens would put them, which leaves the
+picture stopping well short of the image circle - today's behaviour, porthole 23% small and
+elliptical - or (b) fit the projection so 81 deg fills the circle at its real physical size, which
+makes the circle correct and round at the cost of bending harder than the real lens does. Recommended
+(b): the thing being matched is a film frame, not a test chart. Moot if the research finds a real
+>90 deg source.
+
+**The work, once unblocked:**
+
+1. **A one-parameter projection family** on `UDynamicLensProfile`, replacing the four-way
+   `EDynamicLensProjection` enum with a continuous `k`: `r = (f/k)tan(k*theta)` for k>0,
+   `r = f*theta` at k=0, `r = (f/|k|)sin(|k|*theta)` for k<0. k=1 rectilinear, 0.5 stereographic,
+   0 equidistant, -0.5 equisolid, -1 orthographic. Keep the enum as a preset-authoring convenience
+   that writes k. This is what makes a tunable "how fisheye" possible at all.
+2. **Make `Distortion > Amount` reach `DriveProjection`.** It currently only multiplies
+   Brown-Conrady coefficients (`FDynamicLensSettings::Evaluate`), so on every `DL_L_*` ultra-wide
+   the Amount slider, the multiplier and the override block all do nothing. Blend k from 1
+   (rectilinear) toward the profile's k, and allow past it for exaggeration.
+3. **Image Circle > Coverage**, circle diameter over frame diagonal: 0.3 a tight porthole, 1.0
+   exactly kissing the corners, above ~1.2 invisible. Replaces `Scale`, which currently appears to
+   do nothing on these presets because it only moves the loser of the two masks.
+4. **Report which mask is active** in the details panel. Today you cannot tell whether you are
+   looking at the lens's image circle or the data limit, which is why this took a session to find.
+5. **`DL_L_Favourite_10mm_Rect`**: fixed overscan 1.5, needs 1.62, so its frame edges are sourced
+   from outside the render and smear. Independent of everything above - just raise it.
+
+**Do not touch `DL_L_PoorThings_Petzval_58` or `_85`.** Dylan likes the swirl. They are parametric,
+not projection, so nothing here reaches them - keep it that way.
+
+**Change the presets in place, not as _v2 variants** (Dylan, 2026-09-19). Restore points for the
+revert: DynamicLens `aa13e04`, CitySample Diversion `dv.commit.48`.
