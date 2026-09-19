@@ -22,9 +22,11 @@ Overscan is one number, `AppliedOverscan`, a multiplier on the rendered frame. T
    and resets TAA.
 3. `ApplyRendering` writes `Cam->Overscan = Applied - 1` and `Handler->SetOverscanFactor(Applied)`.
 
-**Hard ceiling of 2.0.** `Applied` is clamped to [1, 2] in `ApplyToCamera`, and again in
-`ApplyRendering` where `Cam->Overscan` is clamped to [0, 1]. Epic's camera overscan is a 0–1 field,
-so 2x the frame is the most that can be asked for through this route.
+**Ceiling of 2.0, and it is ours.** `Applied` is clamped to [1, 2] in `ApplyToCamera`, and again in
+`ApplyRendering` where `Cam->Overscan` is clamped to [0, 1]. **Epic does not clamp overscan** —
+`UCameraComponent::Overscan` carries `ClampMax="1.0"` but that is details-panel metadata only, and
+`FMinimalViewInfo::ApplyOverscan` has no upper limit. Both of our clamps are a choice nobody has
+revisited. See the roadmap entry.
 
 `MaxOverscan` is a *ceiling, not a target*: everything that needs "how far can we see" uses the
 ceiling, so the mask does not swim as dynamic overscan steps.
