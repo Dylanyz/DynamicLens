@@ -87,6 +87,94 @@ offers for that, and what each option costs, is in `.claude/refs/wide-field-sour
 
 The `[1, 2]` ceiling itself is **self-imposed** - Epic does not clamp overscan. See the roadmap entry.
 
+## Filmback, focal length and overscan are the same knob
+
+Established 2026-09-19 by a third investigation. `DriveProjection` computes
+`theta_cap = atan(O * W / 2f)` (`DynamicLensComponent.cpp:586-588`) and
+`UCineCameraComponent::GetHorizontalFieldOfViewInternal` computes `2*atan(W*O / 2f)`
+(`CineCameraComponent.cpp:301`). **Filmback width, one-over-focal-length and overscan enter the maths
+only as their product.** There is no independent gain from any one of them.
+
+But `W` and `f` also rescale the *output* fisheye image plane (`DynamicLensComponent.cpp:598`:
+`X = (U - 0.5f) * W`), and overscan does not. So they reach the same field angle by **shrinking the
+porthole**, while overscan reaches it and **grows** the porthole. From an 8 mm, 24.89 mm gate, O=2
+baseline of 72.2 deg / circle 0.810:
+
+| change | theta_cap | circle (half-widths) |
+|---|---|---|
+| overscan x2 (O=4) | 80.9 deg | **0.907** up |
+| filmback x2 (W=49.78) | 80.9 deg | **0.454** down |
+| focal /2 (f=4) | 80.9 deg | **0.454** down |
+| overscan x4 (O=8) | 85.4 deg | **0.958** up |
+| filmback x4 | 85.4 deg | **0.240** down |
+
+**Overscan strictly dominates.** Widening the filmback or shortening the focal is a worse way to
+spend the same physics. This is also why the `_Frame` presets, which shrink the gate, enlarge the
+circle and lose field angle - they are moving up this same table.
+
+## The centre is critically sampled, and the rim has surplus
+
+The intuitive objection to a very wide rectilinear source is that it spends all its pixels at the rim
+and starves the centre. At a **fixed** render width that is true and brutal: at 175 deg HFOV on a
+1920-wide render the central 40 deg of field is 31 pixels across, while a rim pixel spans 0.16 arcmin,
+nine times finer than the eye.
+
+**That is not what this plugin does.** With `bScaleResolutionWithOverscan` the render target is
+`1920*O` wide, so on-axis source density is `1920*f/W` px/rad - **independent of O** - and the
+equidistant output circle has exactly the same density. They are algebraically identical, so:
+
+| preset | O | theta_cap | circle | **source px per output px at centre** | at the rim |
+|---|---|---|---|---|---|
+| `DL_L_PoorThings_4mm_Porthole` | 2 | 80.9 deg | 0.454 | **1.000** | 11.4x @ 73 deg |
+| `DL_L_PoorThings_8mm` | 2 | 72.2 deg | 0.810 | **1.000** | 5.6x @ 65 deg |
+| `DL_L_Favourite_6mm` | 2 | 76.4 deg | 0.643 | **1.000** | 7.7x @ 69 deg |
+
+The fisheye centre is critically sampled today and the rim carries 5-11x surplus. Past `O = 2` the
+centre falls off as **exactly `2/O`**, and that is entirely Epic's clamp at
+`CameraStackTypes.cpp:542` (`OverscanResolutionFraction` to `[1,2]`), not physics. Pay `(O/2)^2` in
+pixels and it comes back to 1.000.
+
+## Two real quality bugs on the fisheyes today
+
+Both are present at the current overscan of 2.0 and neither has anything to do with distortion maths.
+
+**LOD and Nanite coarsen badly.** Both derive one scalar from the *on-axis* pixel density -
+`ComputeBoundsScreenSize` uses `0.5f * ProjMatrix.M[0][0]` (`SceneManagement.cpp:939`) and Nanite's
+`FPackedView::UpdateLODScales` uses `0.5f * ViewToClip.M[1][1] * ViewSizeAndInvSize.Y`
+(`NaniteShared.cpp:197-202`), both proportional to `1/tan(halfFOV)`. On the 4 mm porthole at O=2 the
+render is 161.7 deg wide, so **every mesh in frame picks LOD as if it were 6.2x further away**, and
+Nanite clusters are 6.2x coarser - applied uniformly, including at the rim where the source already
+has surplus pixels. The 8 mm at 144.4 deg is 3.1x. Partly fixable per camera with
+`r.StaticMeshLODDistanceScale` and Nanite's LOD scale factor.
+
+**The near plane eats the rim.** Clipping is on view-space `Z = d*cos(theta)`, not on ray distance, so
+at the default 10 cm near plane everything nearer than **0.64 m along the ray** is clipped at 81 deg
+off-axis, 1.15 m at 85 deg, 2.87 m at 88 deg. An ultra-wide fisheye therefore eats a growing sphere of
+nearby geometry. Fixable: `UCineCameraComponent::CustomNearClippingPlane` has
+`ClampMin = "0.00001"` (`CineCameraComponent.h:87`) and feeds `GetFinalPerspectiveNearClipPlane`, and
+reversed-Z with infinite far tolerates a millimetre near plane well. **Worth setting on every
+`DL_L_*` camera regardless of what else changes.**
+
+## How far overscan actually reaches
+
+`theta_cap = atan(O*W/2f)`, so each doubling of overscan halves the remaining gap to 90 deg. On the
+4 mm from O=2: **+4.5 deg, +2.3 deg, +1.1 deg, +0.6 deg**.
+
+| preset | O=2 | O=3 | O=4 | O=6 | O for 85 deg |
+|---|---|---|---|---|---|
+| `DL_L_PoorThings_4mm_Porthole` | 80.9 / 0.454 | 83.9 / 0.471 | 85.4 / 0.479 | 86.9 / 0.488 | **3.67** |
+| `DL_L_Favourite_6mm` | 76.4 / 0.643 | 80.9 / 0.680 | 83.1 / 0.699 | 85.4 / 0.719 | 5.51 |
+| `DL_L_PoorThings_8mm` | 72.2 / 0.810 | 77.9 / 0.874 | 80.9 / 0.907 | 83.9 / 0.941 | 7.35 |
+| `DL_L_Favourite_6mm_Frame` | 67.4 / 0.980 | 74.5 / 1.083 | 78.2 / 1.138 | 82.1 / 1.194 | - |
+| `DL_L_PoorThings_8mm_Frame` | 66.8 / 0.998 | 74.1 / 1.106 | 77.9 / 1.164 | 81.9 / 1.223 | - |
+
+(theta_cap in degrees / circle radius in half-widths. The circle **grows** with overscan, so raising
+it also closes some of the 23% porthole deficit.)
+
+The last 5 degrees of a 180 deg fisheye - where all its character lives - stay unreachable. That part
+is a hard wall: `atan(K) < 90` for every finite `K`, in any engine. Only a cube map or multi-view
+source crosses it.
+
 ## Why the image circle "does not appear when it should"
 
 On every `DL_L_*` fisheye the data limit is tighter than the lens circle, so what you see is the data

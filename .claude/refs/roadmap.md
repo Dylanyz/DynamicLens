@@ -106,33 +106,61 @@ revert: DynamicLens `aa13e04`, CitySample Diversion `dv.commit.48`.
 
 ---
 
-## Overscan: decide the ceiling deliberately
+## Raise the overscan ceiling from 2 to 4
 
-**Gated on:** nothing technical. It is small, it is independent of the fisheye work, and it wants a
-decision from Dylan about what the ceiling should be rather than research.
+**Gated on:** Dylan's go-ahead. Nothing technical. This is the cheapest real improvement available to
+the fisheyes and it is independent of the cube-capture question - do it either way.
 
-**What was found.** DynamicLens clamps overscan to `[1,2]` in two places - `Applied` in
-`ApplyToCamera` and `Cam->Overscan` to `[0,1]` in `ApplyRendering`. **Both are self-imposed.** Epic
-does not clamp it: `UCameraComponent::Overscan` carries `ClampMax="1.0"` but that is UPROPERTY
-metadata enforced only by the details panel (`Classes\Camera\CameraComponent.h:135-136`), and
-`SetOverscan()` at `:138` assigns with no clamp. `FMinimalViewInfo::ApplyOverscan`
-(`Private\Camera\CameraStackTypes.cpp:517-546`) composes multiplicatively and applies as
-`atan(scalar * tan(halfFOV))` with **no upper clamp**. The one real clamp is
-`OverscanResolutionFraction` to `[1,2]` when `bScaleResolutionWithOverscan` (`:539-542`).
+**What it buys.** `theta_cap = atan(O * W / 2f)`, so raising the ceiling to 4 takes the shipping
+fisheyes from **66.8-80.9 deg** to **77.9-85.4 deg** of field, and *grows* the image circle at the
+same time (the 4 mm porthole goes 0.454 -> 0.479 half-widths, closing part of its 23% deficit). No
+cube capture, no new rendering path. Full numbers in `.claude/refs/overscan-and-image-circle.md`.
 
-**Why it matters, and why it is not a fisheye fix.** Going past 2.0 does not rescue the fisheyes -
-85 deg on an 8 mm needs overscan 7.3 and 90 deg needs infinity. But the `[1,2]` limit is currently an
-accident rather than a decision, it silently caps what heavily distorted ST-map lenses can ask for,
-and it is the difference between `DL_L_Favourite_10mm_Rect` being fixable by raising a number and
-being fixable at all.
+**What it costs, and it is a choice.** Epic clamps `OverscanResolutionFraction` to `[1,2]`
+(`CameraStackTypes.cpp:542`), which is the *only* thing that turns extra overscan into lost centre
+resolution - the fisheye centre is otherwise sampled at exactly 1.000 at any overscan. So at O=4
+either accept a centre 2x softer for free, or keep it sharp for 4x the GPU pixels. Make that visible
+in the UI; do not let it be silent.
 
-**The work:**
+**Every ceiling that has to move together:**
 
-1. Decide the ceiling with Dylan. 2.0 is defensible on resolution grounds; if it stays, say so in a
-   comment at both clamp sites so the next person does not assume it is Epic's.
-2. If it is raised, `bScaleResolutionWithOverscan` must be handled: Epic caps
-   `OverscanResolutionFraction` at 2 regardless, so past 2.0 the render target stops growing and the
-   picture softens instead of gaining pixels. That tradeoff has to be visible in the UI, not silent.
-3. Re-check the Movie Render Graph interaction. The double-count described in
-   `.claude/refs/architecture.md` was diagnosed at overscan 2.0; nothing has verified it behaves at 3
-   or 4.
+| Site | Clamp |
+|---|---|
+| `DynamicLensComponent.cpp:401` | `Applied = FMath::Clamp(Applied, 1.f, 2.f)` |
+| `DynamicLensComponent.cpp:569` | `O = FMath::Clamp(AppliedOverscan, 1.f, 2.f)` in `DriveProjection` |
+| `DynamicLensComponent.cpp:663` | `CamOverscan = FMath::Clamp(AppliedOverscan - 1.f, 0.f, 1.f)`, written straight to `Cam->Overscan` |
+| `DynamicLensTypes.h:766, 775` | `MaxOverscan` / `FixedOverscan` `ClampMax = "2.0"` (metadata) |
+| `LensDistortionSceneViewExtension.cpp:667` | engine-side: `InverseOverscan` clamped `[0,2]` on the SVE path - a third 2 to clear |
+| `DynamicLensComponent.cpp:600` | `Theta < HALF_PI - 0.01f`, a hard 89.43 deg cap inside the ST-map bake |
+
+Line 663 matters most: it writes `Cam->Overscan` directly, bypassing `SetOverscan`, with its own
+`[0,1]` clamp. `FMinimalViewInfo::ApplyOverscan` has **no** upper bound, so that assignment can
+legitimately carry 3.0 for O=4.
+
+**Three ways to keep centre resolution**, none needing an engine change: set
+`bScaleResolutionWithOverscan = false` and raise primary screen percentage instead
+(`kMaxResolutionFraction = 4.0f`, `SceneView.h:2277`); or render oversized in Movie Render Graph and
+downscale, which is where these presets get finished anyway (ceiling: O=8 on a 1920 output needs
+15360 wide, just inside the 16384 D3D12 limit); or accept the softness.
+
+**Re-check the Movie Render Graph double-count** (`.claude/refs/architecture.md`) at the new ceiling.
+It was diagnosed at 2.0 and nothing has verified it behaves at 3 or 4.
+
+---
+
+## Two quality bugs on the fisheyes, unrelated to distortion
+
+**Gated on:** nothing. Both are small and both are worth doing whatever else happens.
+
+**Near plane eats the rim.** Clipping is on view-space `Z = d*cos(theta)`, not ray distance, so at the
+default 10 cm near plane everything nearer than 0.64 m *along the ray* is clipped at 81 deg off-axis -
+2.87 m at 88 deg. Set `UCineCameraComponent::CustomNearClippingPlane` (`ClampMin = "0.00001"`,
+`CineCameraComponent.h:87`) to about a millimetre on `DL_L_*` cameras. Reversed-Z with infinite far
+handles it. This gets worse if the overscan ceiling goes up, so do it first.
+
+**LOD and Nanite coarsen by 6x on the porthole.** Both derive one scalar from *on-axis* pixel density
+(`SceneManagement.cpp:939`, `NaniteShared.cpp:197-202`), proportional to `1/tan(halfFOV)`. The 4 mm at
+O=2 renders 161.7 deg wide, so every mesh picks LOD as if 6.2x further away and Nanite clusters are
+6.2x coarser - uniformly, including at the rim where the source already has 5-11x surplus pixels.
+The 8 mm at 144.4 deg is 3.1x. Compensate per camera with `r.StaticMeshLODDistanceScale` and Nanite's
+LOD scale factor. Needs a value that tracks the actual FOV rather than a magic number.
