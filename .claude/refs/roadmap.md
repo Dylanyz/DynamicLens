@@ -51,11 +51,21 @@ genuinely bad, say so in the profile's `Source` rather than quietly smoothing it
 
 ## The DL_L_* fisheye rework
 
-**Gated on:** two things, in order. (1) The wide-field-source research launched 2026-09-19 - whether
-UE can supply more than ~81 deg off-axis per frame (panoramic MRG pass, SceneCaptureCube, fulldome
-techniques, path-traced camera rays). That answer changes the whole design, because the current plan
-is a workaround for a limit that may not be real. (2) Dylan's choice between fitting the projection
-to the circle or keeping the physically stated field - explained under "the choice" below.
+**Gated on:** Dylan's decision, now that the research is in
+(`.claude/refs/wide-field-source.md`). UE can supply more than 81 deg off-axis, but only by rendering
+six faces: `USceneCaptureComponentCube` is the one mechanism that works in the level viewport, PIE
+*and* Movie Render Graph. It costs a second `FSceneRenderer`, and it loses screen-space reflections,
+DFAO history and motion blur, with Lumen needing hardware ray tracing to survive the face seams.
+
+So there are two different shapes this work can take, and they want different code:
+
+- **Cube source.** The lenses become their real projections - a 220 deg Nikkor actually 220 deg - and
+  the image circle falls out of the physics with no compromise. Bigger job, and the fisheye presets
+  would render differently from every other preset in the plugin.
+- **Stay one-faced.** Everything below still applies, and the projection gets fitted to the circle
+  because 81 deg is all there is. Cheap, self-contained, no rendering features lost.
+
+Dylan was weighing these as of 2026-09-19 and had not decided. Do not start either without an answer.
 
 **Why.** Measured 2026-09-19: every projection preset shows 65-81 deg of field and 1.25-1.48x
 angular compression regardless of focal length, so a 4 mm 180 deg fisheye and a 10 mm look the same.
@@ -93,3 +103,36 @@ not projection, so nothing here reaches them - keep it that way.
 
 **Change the presets in place, not as _v2 variants** (Dylan, 2026-09-19). Restore points for the
 revert: DynamicLens `aa13e04`, CitySample Diversion `dv.commit.48`.
+
+---
+
+## Overscan: decide the ceiling deliberately
+
+**Gated on:** nothing technical. It is small, it is independent of the fisheye work, and it wants a
+decision from Dylan about what the ceiling should be rather than research.
+
+**What was found.** DynamicLens clamps overscan to `[1,2]` in two places - `Applied` in
+`ApplyToCamera` and `Cam->Overscan` to `[0,1]` in `ApplyRendering`. **Both are self-imposed.** Epic
+does not clamp it: `UCameraComponent::Overscan` carries `ClampMax="1.0"` but that is UPROPERTY
+metadata enforced only by the details panel (`Classes\Camera\CameraComponent.h:135-136`), and
+`SetOverscan()` at `:138` assigns with no clamp. `FMinimalViewInfo::ApplyOverscan`
+(`Private\Camera\CameraStackTypes.cpp:517-546`) composes multiplicatively and applies as
+`atan(scalar * tan(halfFOV))` with **no upper clamp**. The one real clamp is
+`OverscanResolutionFraction` to `[1,2]` when `bScaleResolutionWithOverscan` (`:539-542`).
+
+**Why it matters, and why it is not a fisheye fix.** Going past 2.0 does not rescue the fisheyes -
+85 deg on an 8 mm needs overscan 7.3 and 90 deg needs infinity. But the `[1,2]` limit is currently an
+accident rather than a decision, it silently caps what heavily distorted ST-map lenses can ask for,
+and it is the difference between `DL_L_Favourite_10mm_Rect` being fixable by raising a number and
+being fixable at all.
+
+**The work:**
+
+1. Decide the ceiling with Dylan. 2.0 is defensible on resolution grounds; if it stays, say so in a
+   comment at both clamp sites so the next person does not assume it is Epic's.
+2. If it is raised, `bScaleResolutionWithOverscan` must be handled: Epic caps
+   `OverscanResolutionFraction` at 2 regardless, so past 2.0 the render target stops growing and the
+   picture softens instead of gaining pixels. That tradeoff has to be visible in the UI, not silent.
+3. Re-check the Movie Render Graph interaction. The double-count described in
+   `.claude/refs/architecture.md` was diagnosed at overscan 2.0; nothing has verified it behaves at 3
+   or 4.

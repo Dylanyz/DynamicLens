@@ -80,7 +80,10 @@ which a rectilinear source cannot supply at any finite overscan (85° on an 8 mm
 7.3). So every preset lands in the same narrow 65–81° / 1.25–1.48x band and reads as "a wide lens".
 
 **This is a limit of sourcing a fisheye from one rectilinear render, not a bug in the presets.**
-Raising the ceiling does not fix it; only a cube-map or multi-view source would.
+Raising the ceiling does not fix it; only a cube-map or multi-view source would. What Unreal actually
+offers for that, and what each option costs, is in `.claude/refs/wide-field-source.md`.
+
+The `[1, 2]` ceiling itself is **self-imposed** - Epic does not clamp overscan. See the roadmap entry.
 
 ## Why the image circle "does not appear when it should"
 

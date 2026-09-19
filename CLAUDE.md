@@ -26,6 +26,7 @@ here edits the live plugin, with no sync step. Only C++ needs a build.
 
 - How the effect is actually produced, and the Epic internals it works around → `.claude/refs/architecture.md`. **Read before changing any C++.**
 - How overscan and the image circle are computed, and where that model breaks down → `.claude/refs/overscan-and-image-circle.md`
+- Whether Unreal can render past 90° off-axis at all, and at what cost → `.claude/refs/wide-field-source.md`
 - Every component control and what it is for → `.claude/refs/using-the-component.md`
 - The preset/profile data model, the lens catalogue, adding a lens → `.claude/refs/presets-and-profiles.md`
 - Where the Lanthimos lens numbers came from, measured vs assumed → `Tools/data/research/lanthimos-lenses.md`
