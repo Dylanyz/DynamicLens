@@ -59,6 +59,9 @@ the workarounds away.
 
 ## Overscan
 
+**The derivation, the measured numbers and the known failures are in
+`.claude/refs/overscan-and-image-circle.md`.** What follows is the short version.
+
 Distortion pulls image in from outside the frame, so the render must be wider than the frame. Too
 little and the edges are empty; too much and you waste resolution and trigger a resize.
 
@@ -95,6 +98,9 @@ graph - verified with FXAA (2026-09-19, `ls_s1_demo1_mck_window`, `DL_L_Favourit
 overscan 2.0, 854x480). Whether the component should force SVE under MRP, or at least warn, is open.
 
 ## The image circle / data mask
+
+Full treatment, including why the lens's own circle currently never wins on a `DL_L_*` preset:
+`.claude/refs/overscan-and-image-circle.md`.
 
 Two different things produce a dark edge, and the tighter one wins:
 

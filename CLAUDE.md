@@ -25,8 +25,10 @@ here edits the live plugin, with no sync step. Only C++ needs a build.
 ## Start here (progressive disclosure)
 
 - How the effect is actually produced, and the Epic internals it works around → `.claude/refs/architecture.md`. **Read before changing any C++.**
+- How overscan and the image circle are computed, and where that model breaks down → `.claude/refs/overscan-and-image-circle.md`
 - Every component control and what it is for → `.claude/refs/using-the-component.md`
 - The preset/profile data model, the lens catalogue, adding a lens → `.claude/refs/presets-and-profiles.md`
+- Where the Lanthimos lens numbers came from, measured vs assumed → `Tools/data/research/lanthimos-lenses.md`
 - Whether a restart can be avoided, and the restructure that would help → `.claude/refs/live-coding.md`
 - Installing a DLL under a live editor, and why we don't → `.claude/refs/hot-swap.md`
 - Work that is researched and waiting on something → `.claude/refs/roadmap.md`. Check it when a
