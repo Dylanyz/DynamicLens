@@ -1,35 +1,45 @@
 {
-	"FileVersion": 3,
-	"Version": 7,
-	"VersionName": "0.7.0",
-	"FriendlyName": "Dynamic Lens",
-	"Description": "Focal-length / focus / f-stop driven lens distortion, vignette and bokeh character for CineCameras. Add a Dynamic Lens component to a camera, pick a preset, done. Profiles fitted from measured cinema lenses.",
-	"Category": "Cinematics",
-	"CreatedBy": "Mad Rice (Dylan Gitalis)",
-	"CreatedByURL": "https://github.com/Dylanyz",
-	"DocsURL": "https://github.com/Dylanyz/DynamicLens#readme",
-	"MarketplaceURL": "",
-	"SupportURL": "https://github.com/Dylanyz/DynamicLens/issues",
-	"EngineVersion": "5.8.0",
-	"CanContainContent": true,
-	"IsBetaVersion": true,
-	"Installed": true,
-	"Modules": [
-		{
-			"Name": "DynamicLens",
-			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64" ]
-		}
-	],
-	"Plugins": [
-		{
-			"Name": "CameraCalibrationCore",
-			"Enabled": true
-		},
-		{
-			"Name": "PythonScriptPlugin",
-			"Enabled": true
-		}
-	]
+ "FileVersion": 3,
+ "Version": 7,
+ "VersionName": "0.7.0",
+ "FriendlyName": "Dynamic Lens",
+ "Description": "Focal-length / focus / f-stop driven lens distortion, vignette and bokeh character for CineCameras. Add a Dynamic Lens component to a camera, pick a preset, done. Profiles fitted from measured cinema lenses.",
+ "Category": "Cinematics",
+ "CreatedBy": "Mad Rice (Dylan Gitalis)",
+ "CreatedByURL": "https://github.com/Dylanyz",
+ "DocsURL": "https://github.com/Dylanyz/DynamicLens#readme",
+ "MarketplaceURL": "",
+ "SupportURL": "https://github.com/Dylanyz/DynamicLens/issues",
+ "EngineVersion": "5.8.0",
+ "CanContainContent": true,
+ "IsBetaVersion": true,
+ "Installed": true,
+ "Modules": [
+  {
+   "Name": "DynamicLens",
+   "Type": "Runtime",
+   "LoadingPhase": "Default",
+   "PlatformAllowList": [
+    "Win64"
+   ]
+  },
+  {
+   "Name": "DynamicLensEditor",
+   "Type": "Editor",
+   "LoadingPhase": "PostEngineInit",
+   "PlatformAllowList": [
+    "Win64"
+   ]
+  }
+ ],
+ "Plugins": [
+  {
+   "Name": "CameraCalibrationCore",
+   "Enabled": true
+  },
+  {
+   "Name": "PythonScriptPlugin",
+   "Enabled": true
+  }
+ ]
 }

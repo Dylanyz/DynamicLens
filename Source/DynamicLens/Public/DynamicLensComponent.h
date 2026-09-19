@@ -203,6 +203,17 @@ public:
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Dynamic Lens", meta = (DisplayName = "Next Focal"))
 	void A4_NextFocal();
 
+	/**
+	 * Switch to a preset the same way the A1/A2 buttons do: clear the old effect, honour the Match
+	 * Camera options (match on change, or just refresh the override blocks), and re-apply.
+	 *
+	 * This is the one path a preset change should ever take. The Preset Browser calls it, so the
+	 * checkboxes in Match Camera mean exactly the same thing however the preset was picked.
+	 * Returns false when the preset is null or already the current one.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Lens")
+	bool ApplyPreset(UDynamicLensPreset* NewPreset);
+
 	/** Set the camera's filmback, squeeze and crop to the preset profile's native format (the sensor the lens data was made for). */
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Dynamic Lens")
 	void MatchCameraToProfile();

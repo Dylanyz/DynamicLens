@@ -1019,8 +1019,12 @@ void UDynamicLensComponent::StepPreset(int32 Direction)
 		for (int32 I = 0; I < Assets.Num(); ++I) { if (Assets[I].PackageName == CurPkg) { Cur = I; break; } }
 	}
 	const int32 Next = (Cur < 0) ? (Direction > 0 ? 0 : Assets.Num() - 1) : (Cur + Direction + Assets.Num()) % Assets.Num();
-	UDynamicLensPreset* NewPreset = Cast<UDynamicLensPreset>(Assets[Next].GetAsset());
-	if (!NewPreset || NewPreset == Preset) return;
+	ApplyPreset(Cast<UDynamicLensPreset>(Assets[Next].GetAsset()));
+}
+
+bool UDynamicLensComponent::ApplyPreset(UDynamicLensPreset* NewPreset)
+{
+	if (!NewPreset || NewPreset == Preset) return false;
 #if WITH_EDITOR
 	Modify();
 #endif
@@ -1032,6 +1036,7 @@ void UDynamicLensComponent::StepPreset(int32 Direction)
 	else if (MatchCamera.bRefreshOverrides) CopyAllFromPreset();
 	UpdateProfileInfo();
 	if (UCineCameraComponent* Cam = GetTargetCamera(); Cam && bEnabled) Apply(Cam);
+	return true;
 }
 
 void UDynamicLensComponent::A1_PreviousPreset() { StepPreset(-1); }

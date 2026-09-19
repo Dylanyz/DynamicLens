@@ -3,6 +3,8 @@
 // Third-party lens data under Content/Profiles/Tiedtke and Tools/data/raw is NOT covered; see NOTICE.
 
 #include "DynamicLensTypes.h"
+#include "DynamicLensLibrary.h"
+#include "Engine/Texture2D.h"
 #if WITH_EDITOR
 #include "IPythonScriptPlugin.h"
 #endif
@@ -537,4 +539,206 @@ void UDynamicLensProfile::ResetToShipped()
 void UDynamicLensPreset::ResetToShipped()
 {
 	DynamicLensRunPython(FString::Printf(TEXT("import dynamiclens_tools as dl; dl.reset_asset('%s')"), *GetPathName()));
+}
+
+// --- Asset Registry tags: the Preset Browser's whole data source ------------------------------
+// Written when the asset is saved, read back from FAssetData without loading anything. See the
+// comment on the declaration for why loading is not an option.
+
+namespace
+{
+	/**
+	 * How curved the lens is: the largest departure from a straight (linear) mapping, as a fraction
+	 * of half the frame width. 0 = perfectly rectilinear, 0.05 = a visible bend, 0.2+ = a fisheye.
+	 *
+	 * Deliberately NOT the overscan the lens needs, which was the obvious choice and is wrong.
+	 * Overscan measures how far the map's source samples fall outside the frame, and that depends on
+	 * how whoever built the map chose to scale it. tiedtke's maps spread 1.06-2.0; Andy Davis's are
+	 * pre-scaled to sit inside the gate and so report 1.0 across the board, which would draw an
+	 * empty bar for 19 real lenses that visibly bend.
+	 *
+	 * So: fit the best pure scale through the sampled mapping, then report the worst residual left
+	 * over. A global zoom is not distortion and divides out; curvature is what survives. Same
+	 * measure for all three profile kinds, so the number compares across the whole catalogue.
+	 */
+	float DynamicLensCurvatureFromSamples(const TArray<FVector2f>& Src, const TArray<FVector2f>& Dst)
+	{
+		if (Src.Num() == 0 || Src.Num() != Dst.Num()) return 0.f;
+		// least-squares scale S minimising |Dst - S * Src|, both centred on the optical axis
+		double Num = 0.0, Den = 0.0;
+		for (int32 I = 0; I < Src.Num(); ++I)
+		{
+			Num += (double)Src[I].X * Dst[I].X + (double)Src[I].Y * Dst[I].Y;
+			Den += (double)Src[I].X * Src[I].X + (double)Src[I].Y * Src[I].Y;
+		}
+		if (Den <= UE_DOUBLE_SMALL_NUMBER) return 0.f;
+		const float S = (float)(Num / Den);
+
+		float Worst = 0.f;
+		for (int32 I = 0; I < Src.Num(); ++I)
+		{
+			Worst = FMath::Max(Worst, (Dst[I] - Src[I] * S).Size());
+		}
+		return Worst;
+	}
+
+	float DynamicLensDistortionMagnitude(const UDynamicLensProfile& P)
+	{
+		constexpr int32 N = 32;
+		TArray<FVector2f> Src, Dst;
+		Src.Reserve(N * N);
+		Dst.Reserve(N * N);
+
+		switch (P.Type)
+		{
+		case EDynamicLensProfileType::STMap:
+		{
+#if WITH_EDITORONLY_DATA
+			// the middle prime stands for the series; sampling every map would read a lot of
+			// texture source for a number that barely moves between focal lengths
+			if (P.STMaps.Num() == 0) return 0.f;
+			const FDynamicLensSTMapEntry& Entry = P.STMaps[P.STMaps.Num() / 2];
+			UTexture2D* Map = Cast<UTexture2D>(Entry.Map);
+			TArray<float> UV;
+			if (!Map || !UDynamicLensLibrary::ReadSTMapSamples(Map, N, N, UV)) return 0.f;
+
+			// Peak displacement from identity, which for a measured map IS the curvature: these maps
+			// carry no global zoom to divide out, so the scale fit the other branches need would only
+			// add noise here.
+			//
+			// Two traps, both of which silently produce a number that looks fine and means nothing:
+			//   ReadSTMapSamples walks rows top-down while the maps are BottomLeft origin, so V must
+			//     be flipped or every lens reads ~1.9 (nearly a whole frame) and they all look alike.
+			//   The map clamps to [0,1] where the source leaves frame; those pinned samples are not
+			//     measurements and must be dropped, or they swamp the peak.
+			constexpr float Eps = 1e-4f;
+			float Worst = 0.f;
+			for (int32 J = 0; J < N; ++J)
+			{
+				for (int32 I = 0; I < N; ++I)
+				{
+					const int32 K = 2 * (J * N + I);
+					if (!UV.IsValidIndex(K + 1)) continue;
+					const float SU = UV[K], SV = UV[K + 1];
+					if (SU <= Eps || SU >= 1.f - Eps || SV <= Eps || SV >= 1.f - Eps) continue;
+					const float U = (I + 0.5f) / N;
+					const float V = 1.f - (J + 0.5f) / N;
+					Worst = FMath::Max(Worst, FVector2f(SU - U, SV - V).Size());
+				}
+			}
+			return Worst * 2.f;   // UV units -> half-frame units, matching the other branches
+#else
+			return 0.f;
+#endif
+		}
+		case EDynamicLensProfileType::Parametric:
+		{
+			if (P.Rows.Num() == 0) return 0.f;
+			const float W = FMath::Max(P.NativeSensorMm.X, 1.f);
+			const float H = FMath::Max(P.NativeSensorMm.Y, 1.f);
+			float Worst = 0.f;
+			// every measured focal, not just the middle: a zoom usually bends most at its wide end
+			for (const FDynamicLensProfileRow& Row : P.Rows)
+			{
+				if (Row.ByFocus.Num() == 0) continue;
+				const float Fx = FMath::Max(Row.FocalMm / W, KINDA_SMALL_NUMBER);
+				const float Fy = FMath::Max(Row.FocalMm / H, KINDA_SMALL_NUMBER);
+				const float HalfX = 0.5f / Fx, HalfY = 0.5f / Fy;
+				const float CornerR = FMath::Sqrt(HalfX * HalfX + HalfY * HalfY);
+				// same guard ComputeOverscan uses: without it a large K3 runs away past the corner and
+				// reports a bend no real lens has (Zeiss Supreme measured 0.89 against 0.05 with it)
+				const FDynamicLensParams Params =
+					DynamicLensMath::MakeMonotonic(Row.ByFocus.Last(), CornerR);   // last focus entry stands for infinity
+
+				Src.Reset(); Dst.Reset();
+				for (int32 J = 0; J < N; ++J)
+				{
+					for (int32 I = 0; I < N; ++I)
+					{
+						// view-space position on the frame, then where the lens bends it to
+						const float X = (((I + 0.5f) / N) - 0.5f) * 2.f * HalfX;
+						const float Y = (((J + 0.5f) / N) - 0.5f) * 2.f * HalfY;
+						const float R = FMath::Sqrt(X * X + Y * Y);
+						if (R <= KINDA_SMALL_NUMBER) continue;
+						const float Scale = DynamicLensMath::RadialForward(R, Params) / R;
+						// back to half-frame units so the result compares with the ST-map branch
+						Src.Add(FVector2f(X / HalfX, Y / HalfY));
+						Dst.Add(FVector2f(X * Scale / HalfX, Y * Scale / HalfY));
+					}
+				}
+				Worst = FMath::Max(Worst, DynamicLensCurvatureFromSamples(Src, Dst));
+			}
+			return Worst;
+		}
+		case EDynamicLensProfileType::Projection:
+		{
+			// an ideal fisheye: compare its r = f * g(theta) against the rectilinear r = f * tan(theta).
+			// Capped at 75 degrees because tan runs away towards 90 and would swamp the fit with one
+			// sample; a fisheye pegs the bar either way, which is the honest answer for it.
+			const float MaxTheta = FMath::DegreesToRadians(FMath::Clamp(P.MaxFieldAngleDeg, 1.f, 75.f));
+			for (int32 I = 1; I <= N; ++I)
+			{
+				const float Theta = MaxTheta * I / N;
+				Src.Add(FVector2f(FMath::Tan(Theta), 0.f));
+				Dst.Add(FVector2f(DynamicLensMath::ProjectionG(P.Projection, Theta), 0.f));
+			}
+			return DynamicLensCurvatureFromSamples(Src, Dst);
+		}
+		default:
+			return 0.f;
+		}
+	}
+
+	/** Who measured the data, from the documented DL_<x>_ name prefix (see Tools/data/presets.json "prefixes"). */
+	FString DynamicLensFamilyFromName(const FString& AssetName)
+	{
+		if (AssetName.StartsWith(TEXT("DL_AD_"))) return TEXT("AndyDavis");
+		if (AssetName.StartsWith(TEXT("DL_T_")))  return TEXT("Tiedtke");
+		if (AssetName.StartsWith(TEXT("DL_L_")))  return TEXT("Lanthimos");
+		if (AssetName.StartsWith(TEXT("DL_C_")))  return TEXT("Custom");
+		return TEXT("Custom");
+	}
+}
+
+void UDynamicLensPreset::GetAssetRegistryTags(FAssetRegistryTagsContext Context) const
+{
+	Super::GetAssetRegistryTags(Context);
+
+	using FTag = UObject::FAssetRegistryTag;
+	Context.AddTag(FTag(DynamicLensTags::Description, Description, FTag::TT_Hidden));
+	Context.AddTag(FTag(DynamicLensTags::Family, DynamicLensFamilyFromName(GetName()), FTag::TT_Alphabetical));
+
+	const UDynamicLensProfile* P = Distortion.Profile;
+	if (!P)
+	{
+		// still tagged, so the browser can show and filter presets that carry no lens yet
+		Context.AddTag(FTag(DynamicLensTags::Label, GetName(), FTag::TT_Alphabetical));
+		Context.AddTag(FTag(DynamicLensTags::Type, TEXT("None"), FTag::TT_Alphabetical));
+		return;
+	}
+
+	float MinMm = 0.f, MaxMm = 0.f;
+	P->GetFocalRange(MinMm, MaxMm);
+	// a prime reports its nominal focal; GetFocalRange only covers grids and map sets
+	if (MaxMm <= 0.f && P->NominalFocalMm > 0.f) { MinMm = MaxMm = P->NominalFocalMm; }
+
+	const int32 MapCount = (P->Type == EDynamicLensProfileType::STMap) ? P->STMaps.Num() : P->Rows.Num();
+	const bool bBreathes = P->Type == EDynamicLensProfileType::Parametric && P->FocusCm.Num() > 1;
+
+	const UEnum* TypeEnum = StaticEnum<EDynamicLensProfileType>();
+	const FString TypeName = TypeEnum ? TypeEnum->GetNameStringByValue((int64)P->Type) : TEXT("Unknown");
+
+	Context.AddTag(FTag(DynamicLensTags::Label, P->Label.IsEmpty() ? GetName() : P->Label, FTag::TT_Alphabetical));
+	Context.AddTag(FTag(DynamicLensTags::Source, P->Source, FTag::TT_Hidden));
+	Context.AddTag(FTag(DynamicLensTags::ProfilePath, P->GetPathName(), FTag::TT_Hidden));
+	Context.AddTag(FTag(DynamicLensTags::Type, TypeName, FTag::TT_Alphabetical));
+	Context.AddTag(FTag(DynamicLensTags::Squeeze, FString::SanitizeFloat(P->Squeeze), FTag::TT_Numerical));
+	Context.AddTag(FTag(DynamicLensTags::FocalMin, FString::SanitizeFloat(MinMm), FTag::TT_Numerical));
+	Context.AddTag(FTag(DynamicLensTags::FocalMax, FString::SanitizeFloat(MaxMm), FTag::TT_Numerical));
+	Context.AddTag(FTag(DynamicLensTags::ImageCircleMm, FString::SanitizeFloat(P->EffectiveImageCircleMm()), FTag::TT_Numerical));
+	Context.AddTag(FTag(DynamicLensTags::MaxAperture, FString::SanitizeFloat(P->MaxAperture), FTag::TT_Numerical));
+	Context.AddTag(FTag(DynamicLensTags::SensorMm, FString::Printf(TEXT("%.2fx%.2f"), P->NativeSensorMm.X, P->NativeSensorMm.Y), FTag::TT_Dimensional));
+	Context.AddTag(FTag(DynamicLensTags::MapCount, FString::FromInt(MapCount), FTag::TT_Numerical));
+	Context.AddTag(FTag(DynamicLensTags::Breathes, bBreathes ? TEXT("1") : TEXT("0"), FTag::TT_Numerical));
+	Context.AddTag(FTag(DynamicLensTags::Distortion, FString::SanitizeFloat(DynamicLensDistortionMagnitude(*P)), FTag::TT_Numerical));
 }

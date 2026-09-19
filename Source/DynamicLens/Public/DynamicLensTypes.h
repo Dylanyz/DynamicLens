@@ -9,6 +9,7 @@
 #include "Engine/DataAsset.h"
 #include "CineCameraSettings.h"
 #include "LensData.h"
+#include "UObject/AssetRegistryTagsContext.h"
 #include "DynamicLensTypes.generated.h"
 
 class UTexture;
@@ -857,7 +858,61 @@ public:
 	/** Resolve the preset for a camera state (see FDynamicLensSettings::Evaluate). */
 	UFUNCTION(BlueprintPure, Category = "Dynamic Lens")
 	FDynamicLensEval Evaluate(float FocalMm, float FocusCm, float FStop, float SensorWmm, float SensorHmm, float AmountMultiplier = 1.f, int32 CameraBlades = 0, float CameraSqueeze = 1.f) const;
+
+	/**
+	 * Summary of this preset's lens, written into the Asset Registry when the asset is saved.
+	 *
+	 * The Preset Browser filters and sorts the whole catalogue from these tags WITHOUT loading a
+	 * single asset. That matters: Profile and STMaps[].Map are hard TObjectPtrs, so loading one
+	 * ST-map preset to read its label drags in its textures (the shipped set is ~107 MB of them).
+	 * Tag names live in DynamicLensTags so the editor module cannot drift from what is written here.
+	 *
+	 * Tags are baked at save time, so presets saved before these existed carry none and the browser
+	 * falls back to the asset name. Re-run dl.import_presets() to fill them in.
+	 */
+	virtual void GetAssetRegistryTags(FAssetRegistryTagsContext Context) const override;
 };
+
+/**
+ * Asset Registry tag names written by UDynamicLensPreset::GetAssetRegistryTags and read by the
+ * Preset Browser. One place, so a typo cannot silently empty a filter.
+ */
+namespace DynamicLensTags
+{
+	/** Lens series name, from the profile's Label ("ARRI Signature Prime (spherical, T1.8)"). */
+	const FName Label(TEXT("DL.Label"));
+	/** The preset's own Description. */
+	const FName Description(TEXT("DL.Description"));
+	/** Who the measured data came from, from the DL_<x>_ name prefix: AD / T / L / C. */
+	const FName Family(TEXT("DL.Family"));
+	/** Full attribution text from the profile's Source. Shown verbatim so credit travels with the UI. */
+	const FName Source(TEXT("DL.Source"));
+	/** Profile asset path, so the browser can name the profile without loading it. */
+	const FName ProfilePath(TEXT("DL.ProfilePath"));
+	/** EDynamicLensProfileType as a string: Parametric / STMap / Projection. */
+	const FName Type(TEXT("DL.Type"));
+	/** Anamorphic squeeze; 1 = spherical. The Spherical/Anamorphic filter reads this. */
+	const FName Squeeze(TEXT("DL.Squeeze"));
+	/** Focal coverage in mm. Equal values mean a prime. */
+	const FName FocalMin(TEXT("DL.FocalMin"));
+	const FName FocalMax(TEXT("DL.FocalMax"));
+	/** Image circle diameter in mm at the sensor (0 = covers everything). */
+	const FName ImageCircleMm(TEXT("DL.ImageCircleMm"));
+	/** Widest T-stop of the series. */
+	const FName MaxAperture(TEXT("DL.MaxAperture"));
+	/** Native sensor, "WxH" in mm. */
+	const FName SensorMm(TEXT("DL.SensorMm"));
+	/** How many measured focals back the profile (ST maps, or parametric rows). */
+	const FName MapCount(TEXT("DL.MapCount"));
+	/** 1 when the distortion changes with focus (a parametric focus stack), else 0. */
+	const FName Breathes(TEXT("DL.Breathes"));
+	/**
+	 * How curved the lens is: the worst departure from a straight mapping, as a fraction of half the
+	 * frame. Measured from the profile's own data. 0 = rectilinear; a clean modern prime lands near
+	 * 0.05, a characterful anamorphic near 0.13, a big zoom near 0.30, and a fisheye pegs above 0.5.
+	 */
+	const FName Distortion(TEXT("DL.Distortion"));
+}
 
 namespace DynamicLensMath
 {

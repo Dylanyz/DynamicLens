@@ -684,6 +684,32 @@ return col * m;
 """
 
 
+def resave_presets():
+    """Re-save every preset asset so its Asset Registry tags are (re)written.
+
+    The Preset Browser reads DL.* tags straight from the registry and never loads an asset - loading
+    the catalogue would pull in every ST-map texture (~107 MB). Those tags come from
+    UDynamicLensPreset::GetAssetRegistryTags, which only runs when the asset is saved, so a preset
+    written before the tags existed carries none and the browser shows its name with no filters.
+
+    import_presets() only covers the 19 presets in presets.json; the tiedtke and Andy Davis sets
+    come from their own importers. This touches all of them without re-importing anything.
+    """
+    paths = unreal.EditorAssetLibrary.list_assets(PRESET_PKG, recursive=True, include_folder=False)
+    saved, skipped = 0, 0
+    for path in paths:
+        asset = unreal.load_asset(path)
+        if not isinstance(asset, unreal.DynamicLensPreset):
+            skipped += 1
+            continue
+        # only_if_is_dirty=False: nothing about the asset changed, we are saving purely to make the
+        # engine re-run GetAssetRegistryTags and write the new tags into the registry
+        if unreal.EditorAssetLibrary.save_loaded_asset(asset, only_if_is_dirty=False):
+            saved += 1
+    _log(f"resave_presets: {saved} presets re-saved ({skipped} non-preset assets skipped)")
+    return saved
+
+
 def import_all(tiedtke=True):
     build_image_circle_material()
     import_profiles()
@@ -692,6 +718,7 @@ def import_all(tiedtke=True):
     import_presets()
     if tiedtke:
         import_tiedtke()
+    resave_presets()
 
 
 # --------------------------------------------------------------------------------------- derived prime profiles
