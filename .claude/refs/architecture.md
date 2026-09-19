@@ -72,6 +72,28 @@ little and the edges are empty; too much and you waste resolution and trigger a 
 - `MaxOverscan` is a ceiling, not a target. Everything that needs to know "how far can we see"
   uses the ceiling, not the current value, so the mask does not swim as overscan steps.
 
+### Movie Render Graph double-counts overscan on the post-process path
+
+**Render Mode must be Temporal Super Resolution for anything rendered through Movie Render Graph.**
+Post Process Material mode renders roughly `Overscan`x too tight in MRG while looking correct in the
+viewport.
+
+`ApplyRendering` sets `Cam->bCropOverscan = false` on the post-process-material path, because the
+distortion material is what maps the overscanned source back to the frame. MRG reads that as
+`ViewInfo.CropFraction == 1.0` and takes its `bCameraRequestsNoCrop` branch
+(`MovieGraphDeferredPass::GetResolutionAndCameraInfo`): it leaves the accumulator at output size and
+never centre-cuts, but `ReapplyOverscanPreservingEngineScaling` still expands the FOV *and* sets
+`OverscanResolutionFraction = 1 + Overscan`. The overscan is applied twice on the way in and
+consumed once by the distortion material, so the frame comes out about `Overscan`x tight. The
+engine deliberately ignores `bScaleResolutionWithOverscan` here, so we cannot turn the second
+application off from our side.
+
+The SVE path sets `bCropOverscan = true`, which puts MRG on the branch it handles correctly:
+accumulator enlarged by the overscan, `OverscanResolutionFraction` left at 1, centre-cut at write
+time. Framing then matches the viewport exactly. It does **not** require TSR anti-aliasing in the
+graph - verified with FXAA (2026-09-19, `ls_s1_demo1_mck_window`, `DL_L_Favourite_10mm`, fixed
+overscan 2.0, 854x480). Whether the component should force SVE under MRP, or at least warn, is open.
+
 ## The image circle / data mask
 
 Two different things produce a dark edge, and the tighter one wins:
