@@ -164,3 +164,27 @@ O=2 renders 161.7 deg wide, so every mesh picks LOD as if 6.2x further away and 
 6.2x coarser - uniformly, including at the rim where the source already has 5-11x surplus pixels.
 The 8 mm at 144.4 deg is 3.1x. Compensate per camera with `r.StaticMeshLODDistanceScale` and Nanite's
 LOD scale factor. Needs a value that tracks the actual FOV rather than a magic number.
+
+## Panavision C Series 20 mm edge smear (tiedtke ST-map clamp detection)
+
+**Gated on:** nothing but a build/restart slot. Seen 2026-09-21 on a Black Eye camera in a film
+project, preset `DL_T_Panavision_C_Series` at 20 mm with Match Camera To Profile: vertical smear
+down the right edge, a dark strip down the left edge, smeared bottom-left corner.
+
+**What was ruled out.** Overscan is sufficient - the component read needed 1.06 against applied
+1.08 (Dynamic, ceiling 1.5). The image circle radius was 1.41 half-widths, well past the corners of
+a 2.39 frame, so no mask covers the edge either.
+
+**Working theory.** The 20 mm map is the widest in the set, and tiedtke's maps clamp to [0,1] where
+the source leaves the frame - widest on the left and right of a 2x anamorphic, which is where the
+artifacts sit. `BuildExtendedSTMap` in `DynamicLensLibrary.cpp` is meant to detect those clamped
+bands and extrapolate over them; a needed overscan as low as 1.06 on the widest map suggests the
+clamp is *not* being detected here, so the smear is sampled straight through and the overscan is
+measured off clamped texels. Same class of bug as the earlier Cooke FFi edge smear.
+
+**Next steps.**
+1. Read the 20 mm map with `Tools/read_lensfiles.py`: where the clamp bands start, and whether
+   they use the soft ramp the guard band assumes. Compare the 30 mm map.
+2. Step the same camera to 30 mm. If 30 is clean, it is this map's clamp detection, not the preset.
+3. Fix goes in `BuildExtendedSTMap` (clamp detection or guard band). C++, so build, then install on
+   Dylan's next restart per `.claude/rules/updating-the-plugin.md`. Confirm on the Cooke FFi too.
