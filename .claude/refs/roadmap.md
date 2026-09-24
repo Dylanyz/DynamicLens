@@ -55,15 +55,14 @@ measurably wrong with it, then `.claude/refs/wide-field-source.md` for what Unre
 past 90 deg off-axis. `Tools/data/research/lanthimos-lenses.md` has the provenance of every `DL_L_*`
 number, measured versus assumed.
 
-**6. Separately, the Preset Browser is mid-flight** and has a build sitting uninstalled — see the
-next section. It is the only entry here with pending state on disk, so clear it before starting
-anything else that touches `Source/DynamicLens`.
+**6. The Preset Browser is installed** (2026-09-24) and waiting only on Dylan's review - see the
+next section.
 
 ---
 
-## Preset Browser — built and committed, one install behind
+## Preset Browser — installed, waiting on Dylan's review
 
-**Gated on:** one editor restart, then Dylan looking at it. The code is done and in HEAD; nothing
+**Gated on:** Dylan looking at it. The code is done and in HEAD; nothing
 about it is waiting on a decision.
 
 **What it is.** A dockable *Lens Presets* window (Window > Cinematics) plus a **Browse** button in
@@ -74,29 +73,19 @@ Clicking a lens applies it to every selected camera in one undo transaction. Bui
 alphabetical dropdown stopped scaling at 60 presets, and because the `DL_*` prefixes encode
 provenance rather than optics, so spherical and anamorphic can never sort together by name.
 
-**State, 2026-09-24:**
+**State, 2026-09-24 (late):**
 
 | | |
 |---|---|
-| Code | in HEAD, added by `aa13e04`. Both modules compile clean. |
-| Installed DLL | 2026-09-18 13:22 — **predates the curvature-metric fix** |
-| Waiting package | 2026-09-18 13:55 in `%TEMP%\dlb`, matches HEAD's C++ |
-| Preset tags | all 60 carry `DL.*`, but `DL.Distortion` still holds the **old** overscan numbers (1.0-2.0) |
+| Code | in HEAD. Both modules compile clean. |
+| Installed DLL | 2026-09-24, matches HEAD (it also carries the Force Bokeh Quality fix) |
+| Preset tags | all 60 re-saved; `DL.Distortion` holds the curvature metric (CP.3 0.051, Master Anamorphic 0.128, Optimo 0.300, Favourite 6mm 0.606) |
 | The UI | **has never been looked at.** Written blind; nobody has seen it render. |
 
-**Next actions, in order:**
-
-1. Ask Dylan to close the editor, then install. His interactive shell blocks unsigned scripts, so it
-   needs the bypass form (the tool-side call does not):
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File Tools\build_dynamiclens.ps1 -InstallOnly
-   ```
-2. After he relaunches, **`dl.resave_presets()` is required.** It rewrites `DL.Distortion` with the
-   curvature metric. Expect roughly 0.05 for a clean modern prime, 0.13 for a characterful
-   anamorphic, 0.30 for the Angenieux Optimo zoom and ~0.6 for the fisheyes. If the values still
-   read 1.0-2.0 afterwards, the install did not take.
-3. Open the browser and get Dylan's eyes on the layout. Expect fixes; each one costs a build plus a
-   restart, so gather them all before rebuilding.
+**Next action:** open **Window > Cinematics > Dynamic Lens Preset Browser** and get Dylan's eyes on
+the layout. Expect fixes; each one costs a build plus a restart, so gather them all before
+rebuilding. Once it is signed off: document it (`todo.md`) and push it to a release (Dylan,
+2026-09-24: "push preset browser to release once it's ready").
 
 **Two traps, both hit already:**
 
@@ -306,9 +295,54 @@ bands and extrapolate over them; a needed overscan as low as 1.06 on the widest 
 clamp is *not* being detected here, so the smear is sampled straight through and the overscan is
 measured off clamped texels. Same class of bug as the earlier Cooke FFi edge smear.
 
+**Checked 2026-09-24, not reproduced.** A plain CineCamera in `/Game/DynamicLensTest/L_DLTest`
+(CitySample), 23 x 18.66 mm at 2x squeeze, 20 mm, f/8, PIE: both edges clean. What was learned:
+
+- **The 20 mm and 30 mm maps are the same data** in tiedtke's pack (as is Panavision E 60 = 50),
+  so "step to 30 mm" cannot tell map from preset. See `.claude/refs/andy-davis-vs-tiedtke.md`.
+- The clamp bands are clean hard clamps, 40-75 texels wide per row on a 3656-wide map, with a
+  linear ramp straight into valid data. No soft ramp, so the missing guard band (the comment in
+  `BuildExtendedSTMap` mentions one, the code has none) is not what bites here.
+- The maps are half-float: near 1.0 the step is 1/2048 = 0.00049, just under the 0.9995 clamp test,
+  so the last valid texel on the right is sometimes marked clamped. One texel; harmless.
+- So the smear is probably specific to that camera: Black Eye rig, its crop, or a filmback that
+  Match Camera To Profile did not actually set. **Needs the original shot** to go further.
+
 **Next steps.**
-1. Read the 20 mm map with `Tools/read_lensfiles.py`: where the clamp bands start, and whether
-   they use the soft ramp the guard band assumes. Compare the 30 mm map.
-2. Step the same camera to 30 mm. If 30 is clean, it is this map's clamp detection, not the preset.
+1. Get the camera settings from the film project's shot (filmback, crop, squeeze, overscan mode).
+2. Reproduce with those numbers on `DLTest_Cam`.
 3. Fix goes in `BuildExtendedSTMap` (clamp detection or guard band). C++, so build, then install on
    Dylan's next restart per `.claude/rules/updating-the-plugin.md`. Confirm on the Cooke FFi too.
+
+## ST-map distortion collapses after ~20 s in an unfocused PIE session
+
+**Gated on:** confirming it happens in interactive use. Seen only under automation (2026-09-24).
+
+**Symptom.** Any `DL_T_*` preset in PIE: after roughly 10-40 s the whole frame becomes a
+radial zoom-smear of the centre, and stays that way for the rest of the session. `Apply Distortion`
+off shows the scene fine. A parametric preset in the same broken session renders fine; switching
+back to the ST map breaks again. Re-applying the preset or forcing a new extended map (tiny filmback
+change) does not fix it. Frame rate is steady (~100 fps), no GC link (a forced `obj gc` is fine),
+nothing in `LogCameraCalibrationCore` at Verbose, dynamic resolution was off.
+
+**Why it may be harness-only.** The editor window was never focused, and every look was a
+`HighResShot`. Frequent screenshots (every ~2.5 s) kept it healthy for 30 s+; a 10 s gap broke it.
+Dylan works with a focused, realtime viewport, so first check whether it happens to him at all.
+
+**Repro.** `/Game/DynamicLensTest/L_DLTest`, `DLTest_Cam`, `DL_T_Panavision_C_Series`, 20 mm,
+23 x 18.66 mm, squeeze 2, PIE, wait 40 s, `HighResShot`. Then try the same in Movie Render Graph -
+that is the case that would matter.
+
+## Switching Render Mode to TSR during PIE crashes the renderer
+
+**Gated on:** nothing. Found 2026-09-24 while chasing the entry above: with an ST-map preset in PIE,
+setting `RenderMode = TemporalSuperResolution` from script asserted
+`InTexture.IsValid()` in `ScreenPass.inl:171`. Probably the SVE state is handed a displacement map
+that is not allocated yet on that frame. Guard in `ApplyRendering` (skip the SVE hand-off until the
+handler's displacement RTs have a resource), then re-test.
+
+## Match Camera To Profile did not take when called from script in PIE
+
+Seen 2026-09-24: `match_camera_to_profile()` on the PIE copy right after setting the preset left the
+filmback at 23.76 x 18.66, squeeze 1. May be ordering (called in the same frame as the preset
+change) rather than a bug. Check before relying on it in any automation.
