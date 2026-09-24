@@ -98,6 +98,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Dynamic Lens|Layers", meta = (EditCondition = "bApplyBokeh"))
 	bool bForceBokehQuality = true;
 
+	/**
+	 * Near clip plane used while a fisheye (projection) preset is applied, cm. Unreal clips on view depth, not distance
+	 * along the ray, so at 81 deg off-axis the default 10 cm hides everything nearer than 64 cm along the ray and eats
+	 * the rim. The camera's own setting comes back when the preset changes or the component is removed. 0 = leave it.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Dynamic Lens|Layers", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "10.0", Units = cm))
+	float FisheyeNearClipCm = 0.1f;
+
 	/** Black out everything the lens can't show: beyond its image circle, and beyond the pixels the overscan provides. Real lenses do exactly this. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Layers")
 	bool bApplyImageCircle = true;
@@ -188,6 +196,8 @@ public:
 	UPROPERTY(VisibleAnywhere, Transient, Category = "Dynamic Lens|Debug") FVector2D BarrelRadiusLengthMm = FVector2D::ZeroVector;
 	/** Radius of the visible image circle, 1 = half the frame width (0 = whole frame visible). */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "Dynamic Lens|Debug") float ImageCircleRadius = 0.f;
+	/** Which edge is being drawn: the lens's own image circle, or the limit of what the render can show (the data limit), or none. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = "Dynamic Lens|Debug") FString ActiveMask;
 	/** Notes from the last evaluation (e.g. sensor fit fallback). */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "Dynamic Lens|Debug") FString Notes;
 
@@ -323,6 +333,9 @@ private:
 	float ProjectionCircleRadius = 0.f;
 	float ProjectionCircleRy = 0.f;
 	float ProjectionKeyScale = 1.f;
+	float ProjectionKeyK = 99.f;
+	bool ProjectionKeyFit = false;
+	float ProjectionFieldScale = 1.f;
 
 	struct FLookBackup
 	{
@@ -337,7 +350,10 @@ private:
 		bool bSqueeze = false; float Squeeze = 1.f;
 		int32 LensBlades = 7; float LensSqueeze = 1.f; float LensSensorWidth = 24.89f; bool bLensDriven = false;
 		float Overscan = 0.f; bool bCropOverscan = false; bool bScaleRes = false;
+		bool bNearClip = false; float NearClip = 10.f;
 	} Backup;
+	bool bNearClipTouched = false;
+	void UpdateNearClip(UCineCameraComponent* Cam, bool bWant);
 
 	FDynamicLensEval LastEval;
 	float LastCircleRadius = -1.f;

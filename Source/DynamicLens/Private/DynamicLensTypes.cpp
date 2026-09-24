@@ -202,6 +202,36 @@ bool DynamicLensMath::ProjectionTheta(EDynamicLensProjection Projection, float R
 	}
 }
 
+float DynamicLensMath::ProjectionGK(float K, float Theta)
+{
+	if (FMath::Abs(K) < 1e-4f) return Theta;
+	if (K > 0.f) return FMath::Tan(FMath::Min(K * Theta, HALF_PI - 1e-4f)) / K;
+	const float A = -K;
+	return FMath::Sin(FMath::Min(A * Theta, HALF_PI)) / A;
+}
+
+bool DynamicLensMath::ProjectionThetaK(float K, float ROverF, float& OutTheta)
+{
+	if (FMath::Abs(K) < 1e-4f) { OutTheta = ROverF; return true; }
+	if (K > 0.f) { OutTheta = FMath::Atan(K * ROverF) / K; return true; }
+	const float A = -K;
+	if (A * ROverF > 1.f) return false;
+	OutTheta = FMath::Asin(A * ROverF) / A;
+	return true;
+}
+
+float UDynamicLensProfile::GetProjectionK() const
+{
+	if (bUseProjectionK) return ProjectionK;
+	switch (Projection)
+	{
+	case EDynamicLensProjection::Stereographic: return 0.5f;
+	case EDynamicLensProjection::Equisolid:     return -0.5f;
+	case EDynamicLensProjection::Orthographic:  return -1.f;
+	default:                                    return 0.f;
+	}
+}
+
 // ------------------------------------------------------------------------------------------------ profile
 
 FDynamicLensParams FDynamicLensParams::Lerp(const FDynamicLensParams& A, const FDynamicLensParams& B, float T)

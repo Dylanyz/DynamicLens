@@ -14,6 +14,7 @@
 #include "UObject/Package.h"
 #include "UObject/SavePackage.h"
 #include "Engine/Texture2D.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "TextureResource.h"
 #include "LensDistortionModelHandlerBase.h"
 #include "LensFile.h"
@@ -29,6 +30,9 @@
 namespace
 {
 	constexpr int32 ProjectionMapSize = 256;
+	// Highest overscan the component will apply (render = frame * O). Presets default to 2; 2-4 trades centre
+	// sharpness for field (Epic clamps the resolution fraction to 2, so past O=2 the centre softens by 2/O).
+	constexpr float MaxOverscanCeiling = 4.f;
 	const FName CircleParamRadius(TEXT("Radius"));
 	const FName CircleParamSoftness(TEXT("Softness"));
 	const FName CircleParamAspect(TEXT("Aspect"));
@@ -364,6 +368,7 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 		if (DataRx <= 0.f || Rx < DataRx) { DataRx = Rx; DataCx = CxIn; }
 		if (DataRy <= 0.f || Ry < DataRy) { DataRy = Ry; DataCy = CyIn; }
 	};
+	const float OverscanCap = (RenderMode == EDynamicLensRenderMode::TemporalSuperResolution) ? 2.f : MaxOverscanCeiling;   // Epic clamps the SVE path to 2
 	const float Ceiling = FMath::Max((Resolved.Overscan.Mode == EDynamicLensOverscanMode::Fixed) ? Resolved.Overscan.FixedOverscan : Resolved.Overscan.MaxOverscan, 1.f);
 	// Dynamic overscan: round up to a step and only shrink by whole steps, so breathing doesn't resize the render every frame
 	auto DynamicApplied = [&](float NeededIn)
@@ -392,6 +397,7 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	{
 		// fisheye maths: the whole frame wants as much source as it can get; the image circle takes the rest
 		Applied = (Resolved.Overscan.Mode == EDynamicLensOverscanMode::Fixed) ? Resolved.Overscan.FixedOverscan : Resolved.Overscan.MaxOverscan;
+		Applied = FMath::Min(Applied, OverscanCap);   // the bake must use what the camera will actually render
 		float Rx = 0.f, Ry = 0.f;
 		if (DriveProjection(Cam, Eval, Focal, W, H, Applied, Needed, State, Rx, Ry))
 		{
@@ -426,7 +432,13 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 		MinData(Rx, Ry, CxD, CyD);
 	}
 
-	Applied = FMath::Clamp(Applied, 1.f, 2.f);
+	Applied = FMath::Clamp(Applied, 1.f, OverscanCap);
+	if (Applied > 2.001f || (OverscanCap < 2.001f && Ceiling > 2.001f))
+	{
+		Notes += (RenderMode == EDynamicLensRenderMode::TemporalSuperResolution)
+			? TEXT("Overscan above 2 is not possible inside TSR (Epic clamps it): capped at 2. Use Post Process Material for more. ")
+			: FString::Printf(TEXT("Overscan %.2f: centre resolution is %.0f%% (Epic caps the render at 2x the frame). "), Applied, 200.f / Applied);
+	}
 
 	// vignette and cat's eye belong to the picture you can see: if the image circle is inside the frame corners,
 	// evaluate them at the circle's edge instead of the (black) frame corner
@@ -445,6 +457,8 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 			CircleRadius = DataRx; CircleEll = DataRy / DataRx; CircleSq = N; MaskCornerR = DataCornerR;
 		}
 	}
+	ActiveMask = (MaskCornerR >= CornerNorm || (CircleRadius <= 0.f)) ? TEXT("none (frame fully inside)")
+		: (CircleEll == 1.f && CircleSq == 2.f) ? TEXT("lens image circle") : TEXT("data limit (edge of what the render can show)");
 	if (CircleRadius > 0.f && MaskCornerR < CornerNorm)
 	{
 		const float S = MaskCornerR / CornerNorm;
@@ -456,6 +470,7 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 		Eval.BarrelLengthMm = EdgeEval.BarrelLengthMm;
 	}
 
+	UpdateNearClip(Cam, bApplyDistortion && Type == EDynamicLensProfileType::Projection && FisheyeNearClipCm > 0.f);
 	if (bApplyDistortion) ApplyRendering(Cam, State, Applied);
 	ApplyLook(Cam, Eval, bApplyImageCircle ? CircleRadius : 0.f, W / H, CircleEll, CircleSq);
 	if (bApplyBokeh && Eval.bBokeh && Eval.bDriveAccumulationDOF)
@@ -594,11 +609,26 @@ bool UDynamicLensComponent::DriveProjection(UCineCameraComponent* Cam, const FDy
 {
 	const UDynamicLensProfile* Profile = Resolved.Distortion.Profile;
 	const float ThetaMax = FMath::DegreesToRadians(FMath::Clamp(Profile->MaxFieldAngleDeg, 10.f, 110.f));
-	const float O = FMath::Clamp(AppliedOverscan, 1.f, 2.f);
+	const float O = FMath::Clamp(AppliedOverscan, 1.f, MaxOverscanCeiling);
 	const EDynamicLensProjection Proj = Profile->Projection;
 
+	// The continuous family and the fit are opt-in per profile, so every preset authored before them renders exactly as
+	// it did: the old path below is taken bit for bit when neither is set.
+	const bool bKPath = Profile->bUseProjectionK || Profile->bFitFieldToCircle;
+	float K = Profile->GetProjectionK();
+	if (Profile->bUseProjectionK)
+	{
+		const float Amount = Resolved.Distortion.Amount * AmountMultiplier;   // 0 = rectilinear, 1 = the profile, >1 = more fisheye
+		K = FMath::Clamp(1.f + (K - 1.f) * Amount, -1.5f, 1.f);
+	}
+	const bool bFit = Profile->bFitFieldToCircle;
+	const float CircleMm = bFit ? 0.5f * Profile->EffectiveImageCircleMm() * FMath::Max(Resolved.ImageCircle.Scale, 0.1f) : 0.f;
+	auto G = [&](float Theta) { return bKPath ? DynamicLensMath::ProjectionGK(K, Theta) : DynamicLensMath::ProjectionG(Proj, Theta); };
+	auto ThetaOf = [&](float ROverF, float& Out) { return bKPath ? DynamicLensMath::ProjectionThetaK(K, ROverF, Out) : DynamicLensMath::ProjectionTheta(Proj, ROverF, Out); };
+
 	const bool bDirty = !ProjectionMap || !FMath::IsNearlyEqual(ProjectionKeyFocal, Focal, 1e-3f) || !ProjectionKeySensor.Equals(FVector2D(W, H), 1e-3)
-		|| !FMath::IsNearlyEqual(ProjectionKeyOverscan, O, 1e-3f) || ProjectionKeyType != (int32)Proj || !FMath::IsNearlyEqual(ProjectionKeyMaxAngle, ThetaMax, 1e-4f) || !FMath::IsNearlyEqual(ProjectionKeyScale, Resolved.ImageCircle.Scale, 1e-4f);
+		|| !FMath::IsNearlyEqual(ProjectionKeyOverscan, O, 1e-3f) || ProjectionKeyType != (int32)Proj || !FMath::IsNearlyEqual(ProjectionKeyMaxAngle, ThetaMax, 1e-4f) || !FMath::IsNearlyEqual(ProjectionKeyScale, Resolved.ImageCircle.Scale, 1e-4f)
+		|| !FMath::IsNearlyEqual(ProjectionKeyK, bKPath ? K : 99.f, 1e-4f) || ProjectionKeyFit != bFit;
 	if (bDirty)
 	{
 		if (!ProjectionMap)
@@ -614,6 +644,39 @@ bool UDynamicLensComponent::DriveProjection(UCineCameraComponent* Cam, const FDy
 		const float LimX = O * 0.5f * W, LimY = O * 0.5f * H;
 		const float ThetaCapX = FMath::Atan(LimX / Focal);
 		const float ThetaCapY = FMath::Atan(LimY / Focal);
+
+		// Fit: theta(r) = S * theta_lens(r), with the largest S <= 1 for which every in-frame point inside the circle has
+		// source. The binding points are where each ray from the centre leaves the circle-and-frame region.
+		float FieldScale = 1.f;
+		if (bFit && CircleMm > KINDA_SMALL_NUMBER)
+		{
+			auto Feasible = [&](float S)
+			{
+				for (int32 A = 0; A <= 90; ++A)
+				{
+					const float Phi = FMath::DegreesToRadians((float)A);
+					const float Cs = FMath::Cos(Phi), Sn = FMath::Sin(Phi);
+					float REdge = CircleMm;
+					if (Cs > 1e-4f) REdge = FMath::Min(REdge, 0.5f * W / Cs);
+					if (Sn > 1e-4f) REdge = FMath::Min(REdge, 0.5f * H / Sn);
+					float Theta;
+					if (!ThetaOf(REdge / Focal, Theta)) Theta = ThetaMax;
+					Theta = FMath::Min(Theta, ThetaMax) * S;
+					if (Theta >= HALF_PI - 0.01f) return false;
+					const float Ru = Focal * FMath::Tan(Theta);
+					if (Ru * Cs > LimX || Ru * Sn > LimY) return false;
+				}
+				return true;
+			};
+			if (!Feasible(1.f))
+			{
+				float Lo = 0.02f, Hi = 1.f;
+				for (int32 It = 0; It < 30; ++It) { const float Mid = 0.5f * (Lo + Hi); (Feasible(Mid) ? Lo : Hi) = Mid; }
+				FieldScale = Lo;
+			}
+		}
+		ProjectionFieldScale = FieldScale;
+
 		FTexture2DMipMap& Mip = ProjectionMap->GetPlatformData()->Mips[0];
 		float* Data = static_cast<float*>(Mip.BulkData.Lock(LOCK_READ_WRITE));
 		for (int32 J = 0; J < ProjectionMapSize; ++J)
@@ -626,14 +689,18 @@ bool UDynamicLensComponent::DriveProjection(UCineCameraComponent* Cam, const FDy
 				const float R = FMath::Sqrt(X * X + Y * Y);
 				float SU = U, SV = V;                                     // identity for anything the lens can't show
 				float Theta;
-				if (R > KINDA_SMALL_NUMBER && DynamicLensMath::ProjectionTheta(Proj, R / Focal, Theta) && Theta <= ThetaMax && Theta < HALF_PI - 0.01f)
+				if (R > KINDA_SMALL_NUMBER && ThetaOf(R / Focal, Theta) && Theta <= ThetaMax)
 				{
-					const float Ru = Focal * FMath::Tan(Theta);       // radius in the rectilinear render
-					const float SX = X / R * Ru, SY = Y / R * Ru;
-					if (FMath::Abs(SX) <= LimX && FMath::Abs(SY) <= LimY)
+					Theta *= FieldScale;
+					if (Theta < HALF_PI - 0.01f)
 					{
-						SU = 0.5f + SX / W;
-						SV = 0.5f + SY / H;
+						const float Ru = Focal * FMath::Tan(Theta);       // radius in the rectilinear render
+						const float SX = X / R * Ru, SY = Y / R * Ru;
+						if (FMath::Abs(SX) <= LimX && FMath::Abs(SY) <= LimY)
+						{
+							SU = 0.5f + SX / W;
+							SV = 0.5f + SY / H;
+						}
 					}
 				}
 				float* Px = Data + 2 * (J * ProjectionMapSize + I);
@@ -643,17 +710,31 @@ bool UDynamicLensComponent::DriveProjection(UCineCameraComponent* Cam, const FDy
 		Mip.BulkData.Unlock();
 		ProjectionMap->UpdateResource();
 
-		// visible circle: where the source runs out (x or y edge) or the lens's own field limit, whichever is first
-		const float RadX = Focal * DynamicLensMath::ProjectionG(Proj, FMath::Min(ThetaCapX, ThetaMax));
-		const float RadY = Focal * DynamicLensMath::ProjectionG(Proj, FMath::Min(ThetaCapY, ThetaMax));
-		const float RadMax = Focal * DynamicLensMath::ProjectionG(Proj, ThetaMax) * FMath::Max(Resolved.ImageCircle.Scale, 0.1f);
-		ProjectionCircleRadius = FMath::Min(RadX, RadMax) / (0.5f * W);
-		ProjectionCircleRy = FMath::Min(RadY, RadMax) / (0.5f * W);
+		if (bFit && CircleMm > KINDA_SMALL_NUMBER)
+		{
+			// fitted: the circle is the lens's own, round, at its physical size
+			ProjectionCircleRadius = ProjectionCircleRy = CircleMm / (0.5f * W);
+		}
+		else
+		{
+			// visible circle: where the source runs out (x or y edge) or the lens's own field limit, whichever is first
+			const float RadX = Focal * G(FMath::Min(ThetaCapX, ThetaMax));
+			const float RadY = Focal * G(FMath::Min(ThetaCapY, ThetaMax));
+			const float RadMax = Focal * G(ThetaMax) * FMath::Max(Resolved.ImageCircle.Scale, 0.1f);
+			ProjectionCircleRadius = FMath::Min(RadX, RadMax) / (0.5f * W);
+			ProjectionCircleRy = FMath::Min(RadY, RadMax) / (0.5f * W);
+		}
 		ProjectionNeededOverscan = O;
 
 		ProjectionKeyFocal = Focal; ProjectionKeySensor = FVector2D(W, H); ProjectionKeyOverscan = O;
 		ProjectionKeyType = (int32)Proj; ProjectionKeyMaxAngle = ThetaMax; ProjectionKeyScale = Resolved.ImageCircle.Scale;
+		ProjectionKeyK = bKPath ? K : 99.f; ProjectionKeyFit = bFit;
 		TransientLensFile = nullptr;
+	}
+	if (bFit && ProjectionFieldScale < 0.999f)
+	{
+		Notes += FString::Printf(TEXT("Field fitted to the image circle: %.0f%% of the lens's angle (Unreal renders ~%.0f deg off-axis at this overscan). "),
+			ProjectionFieldScale * 100.f, FMath::RadiansToDegrees(FMath::Atan(O * 0.5f * W / Focal)));
 	}
 
 	const FVector2D FxFy(Focal / W, Focal / H);
@@ -688,7 +769,7 @@ bool UDynamicLensComponent::DriveProjection(UCineCameraComponent* Cam, const FDy
 
 void UDynamicLensComponent::ApplyRendering(UCineCameraComponent* Cam, const FLensDistortionState& State, float AppliedOverscan)
 {
-	const float CamOverscan = FMath::Clamp(AppliedOverscan - 1.f, 0.f, 1.f);
+	const float CamOverscan = FMath::Clamp(AppliedOverscan - 1.f, 0.f, (RenderMode == EDynamicLensRenderMode::TemporalSuperResolution) ? 1.f : MaxOverscanCeiling - 1.f);
 	Cam->Overscan = CamOverscan;
 	Cam->bScaleResolutionWithOverscan = Resolved.Overscan.bScaleResolutionWithOverscan;
 	bOverscanTouched = true;
@@ -700,7 +781,11 @@ void UDynamicLensComponent::ApplyRendering(UCineCameraComponent* Cam, const FLen
 
 	UCameraCalibrationSubsystem* Sub = GEngine ? GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>() : nullptr;
 	ACameraActor* CamActor = Cast<ACameraActor>(GetOwner());
-	const bool bWantSVE = (RenderMode == EDynamicLensRenderMode::TemporalSuperResolution) && Sub && CamActor;
+	// never hand the SVE a displacement map without a GPU resource: switching Render Mode mid-PIE on an ST map asserted
+	// InTexture.IsValid() in ScreenPass.inl (2026-09-24). Stay on the material path for the frame instead.
+	auto HasResource = [](const UTextureRenderTarget2D* RT) { return RT && RT->GetResource() && RT->GetResource()->TextureRHI.IsValid(); };
+	const bool bSVEReady = HasResource(Handler->GetUndistortionDisplacementMap()) && HasResource(Handler->GetDistortionDisplacementMap());
+	const bool bWantSVE = (RenderMode == EDynamicLensRenderMode::TemporalSuperResolution) && Sub && CamActor && bSVEReady;
 
 	if (bWantSVE)
 	{
@@ -732,6 +817,27 @@ void UDynamicLensComponent::ApplyRendering(UCineCameraComponent* Cam, const FLen
 			AppliedMID = MID;
 		}
 		Cam->bCropOverscan = false;
+	}
+}
+
+void UDynamicLensComponent::UpdateNearClip(UCineCameraComponent* Cam, bool bWant)
+{
+	if (bWant)
+	{
+		if (!bNearClipTouched)
+		{
+			Backup.bNearClip = Cam->bOverride_CustomNearClippingPlane;
+			Backup.NearClip = Cam->CustomNearClippingPlane;
+			bNearClipTouched = true;
+		}
+		Cam->bOverride_CustomNearClippingPlane = true;
+		Cam->CustomNearClippingPlane = FisheyeNearClipCm;
+	}
+	else if (bNearClipTouched)
+	{
+		Cam->bOverride_CustomNearClippingPlane = Backup.bNearClip;
+		Cam->CustomNearClippingPlane = Backup.NearClip;
+		bNearClipTouched = false;
 	}
 }
 
@@ -800,6 +906,7 @@ void UDynamicLensComponent::RestoreLook(UCineCameraComponent* Cam)
 			Backup.bLensDriven = false;
 		}
 	}
+	UpdateNearClip(Cam, false);
 	if (bOverscanTouched)
 	{
 		Cam->Overscan = Backup.Overscan;

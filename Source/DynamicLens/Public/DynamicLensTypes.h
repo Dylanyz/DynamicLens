@@ -174,6 +174,30 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Projection", meta = (EditCondition = "Type == EDynamicLensProfileType::Projection", ClampMin = "10.0", ClampMax = "110.0"))
 	float MaxFieldAngleDeg = 90.f;
 
+	/**
+	 * Use the continuous projection K instead of the Projection list. r = (f/k)tan(k*theta) for k > 0, f*theta at 0,
+	 * (f/|k|)sin(|k|*theta) for k < 0: 1 rectilinear, 0.5 stereographic, 0 equidistant, -0.5 equisolid, -1 orthographic.
+	 * Also lets the preset's Distortion > Amount blend from rectilinear (0) to this K (1) and past it.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Projection", meta = (EditCondition = "Type == EDynamicLensProfileType::Projection"))
+	bool bUseProjectionK = false;
+
+	/** How fisheye: 1 rectilinear ... 0 equidistant ... -1 orthographic. See Use Projection K. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Projection", meta = (EditCondition = "Type == EDynamicLensProfileType::Projection && bUseProjectionK", ClampMin = "-1.0", ClampMax = "1.0"))
+	float ProjectionK = 0.f;
+
+	/**
+	 * Fit the field to the image circle. Unreal renders at most ~80 deg off-axis from one camera, so a real 180 deg
+	 * projection stops short of its own circle and the picture ends at the data limit (small, elliptical). With this
+	 * on, the field is compressed just enough that everything inside the physical image circle has source pixels:
+	 * the circle is round and the size the lens makes, and the picture bends harder than the real lens would.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Projection", meta = (EditCondition = "Type == EDynamicLensProfileType::Projection"))
+	bool bFitFieldToCircle = false;
+
+	/** The projection as K, whichever way it was authored. */
+	float GetProjectionK() const;
+
 	/** Focal length of the lens if it is a prime (mm). 0 = zoom / any focal length. With "Lock Focal Length" on the component the camera is held here; Match Camera To Profile also sets it. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile", meta = (ClampMin = "0.0", ClampMax = "2000.0", UIMin = "0.0", UIMax = "300.0"))
 	float NominalFocalMm = 0.f;
@@ -764,7 +788,7 @@ struct DYNAMICLENS_API FDynamicLensOverscan
 	EDynamicLensOverscanMode Mode = EDynamicLensOverscanMode::Dynamic;
 
 	/** Dynamic: never overscan more than this factor (1.5 = 50% wider render). Beyond it the corners go black instead of costing render time. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overscan", meta = (EditCondition = "Mode == EDynamicLensOverscanMode::Dynamic", ClampMin = "1.0", ClampMax = "2.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overscan", meta = (EditCondition = "Mode == EDynamicLensOverscanMode::Dynamic", ClampMin = "1.0", ClampMax = "4.0"))
 	float MaxOverscan = 1.5f;
 
 	/** Dynamic: round the needed overscan up to this step (0.02 = 2%) and only shrink when it drops a full step, so focus breathing and small zooms don't resize the render every frame (each resize resets temporal anti-aliasing and pops). 0 = exact every frame. */
@@ -772,7 +796,7 @@ struct DYNAMICLENS_API FDynamicLensOverscan
 	float DynamicStep = 0.02f;
 
 	/** Fixed: the constant overscan factor (1.2 = 20% wider render; fisheyes want 2.0). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overscan", meta = (EditCondition = "Mode == EDynamicLensOverscanMode::Fixed", ClampMin = "1.0", ClampMax = "2.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overscan", meta = (EditCondition = "Mode == EDynamicLensOverscanMode::Fixed", ClampMin = "1.0", ClampMax = "4.0"))
 	float FixedOverscan = 1.2f;
 
 	/** Render the extra overscan pixels so the final frame keeps its full resolution (GPU cost grows with overscan squared). Off keeps the render cheaper but slightly softer at the edges. */
@@ -947,4 +971,7 @@ namespace DynamicLensMath
 	DYNAMICLENS_API float ProjectionG(EDynamicLensProjection Projection, float ThetaRad);
 	/** Inverse: theta for r/f. Returns false when r/f is outside the projection's range. */
 	DYNAMICLENS_API bool ProjectionTheta(EDynamicLensProjection Projection, float ROverF, float& OutThetaRad);
+	/** The same for the continuous family, k in [-1.5, 1]: g(theta) = tan(k*theta)/k, theta, or sin(|k|*theta)/|k|. */
+	DYNAMICLENS_API float ProjectionGK(float K, float ThetaRad);
+	DYNAMICLENS_API bool ProjectionThetaK(float K, float ROverF, float& OutThetaRad);
 }

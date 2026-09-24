@@ -88,6 +88,9 @@ def import_projection_profiles(preset_file=None, save=True):
         asset.set_editor_property("type", unreal.DynamicLensProfileType.PROJECTION)
         asset.set_editor_property("projection", getattr(unreal.DynamicLensProjection, spec.get("projection", "Equidistant").upper()))
         asset.set_editor_property("max_field_angle_deg", float(spec.get("max_field_angle_deg", 90.0)))
+        asset.set_editor_property("use_projection_k", bool(spec.get("use_projection_k", False)))
+        asset.set_editor_property("projection_k", float(spec.get("projection_k", 0.0)))
+        asset.set_editor_property("fit_field_to_circle", bool(spec.get("fit_field_to_circle", False)))
         _apply_specs(asset, spec)
         unreal.DynamicLensLibrary.refresh_profile(asset)
         if save:
