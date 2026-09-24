@@ -904,13 +904,21 @@ def _stmap_edge_shift(maps, n=48):
     return round(worst * 100.0, 2)
 
 
-def _parametric_edge_shift(rows, sensor):
+def _parametric_edge_shift(rows, sensor, ana=None):
     """How far the frame corner moves, as a percent of its radius, at the strongest focal.
 
     Deliberately the same quantity the ST-map profiles report through NeededOverscan, so the two
     are comparable in a browser. Radial terms only; tangential barely moves a corner.
     """
     worst = 0.0
+    if ana:
+        # 3DE4 anamorphic: at the frame corner (diagonal-normalised r = 1, phi = 45 deg: cos 2phi = 0, cos 4phi = -1)
+        # each axis scales by 1 + C02 + C04 - C44
+        for row in ana:
+            q = [float(x) for x in row.get_editor_property("params")]
+            if len(q) >= 14:
+                worst = max(worst, abs(q[1] + q[2] - q[5]), abs(q[6] + q[7] - q[10]))
+        return round(worst * 100.0, 2)
     for row in rows:
         for p in row.get_editor_property("by_focus"):
             shift = (float(p.get_editor_property("k1")) + float(p.get_editor_property("k2"))
@@ -939,7 +947,7 @@ def _profile_facts(prof):
         samples = len(maps)
     elif ptype == "Parametric":
         focals = sorted(float(r.get_editor_property("focal_mm")) for r in rows)
-        edge_shift_pct = _parametric_edge_shift(rows, sensor)
+        edge_shift_pct = _parametric_edge_shift(rows, sensor, prof.get_editor_property("anamorphic_rows"))
         samples = sum(len(r.get_editor_property("by_focus")) for r in rows)
     else:
         focals, edge_shift_pct, samples = [], None, 0

@@ -6,11 +6,11 @@
  },
  "_licence": "This file describes third-party measured data. See NOTICE and SOURCES.md: tiedtke's and Andy Davis's lens data is redistributed with permission under their own terms, NOT under this repo's Apache-2.0 licence.",
  "counts": {
-  "presets": 60,
-  "anamorphic": 19,
-  "spherical": 41,
+  "presets": 65,
+  "anamorphic": 20,
+  "spherical": 45,
   "breathing": 13,
-  "zoomable": 12
+  "zoomable": 13
  },
  "by_origin": {
   "AD": [
@@ -20,6 +20,7 @@
    "DL_AD_Canon_FD",
    "DL_AD_Canon_K35",
    "DL_AD_Canon_Sumire",
+   "DL_AD_Cooke_FFi_Zoom",
    "DL_AD_Cooke_S4i",
    "DL_AD_Cooke_S7i",
    "DL_AD_Leica_R",
@@ -47,11 +48,15 @@
   ],
   "L": [
    "DL_L_Favourite_10mm",
+   "DL_L_Favourite_10mm_Fit",
    "DL_L_Favourite_10mm_Rect",
    "DL_L_Favourite_6mm",
+   "DL_L_Favourite_6mm_Fit",
    "DL_L_Favourite_6mm_Frame",
    "DL_L_PoorThings_4mm_Porthole",
+   "DL_L_PoorThings_4mm_Porthole_Fit",
    "DL_L_PoorThings_8mm",
+   "DL_L_PoorThings_8mm_Fit",
    "DL_L_PoorThings_8mm_Frame",
    "DL_L_PoorThings_MasterZoom_16-110",
    "DL_L_PoorThings_Optimo_24-290",
@@ -417,6 +422,64 @@
     "measurements": 3,
     "needed_overscan": 1.0,
     "edge_shift_pct": 3.79
+   }
+  },
+  {
+   "preset": "DL_AD_Cooke_FFi_Zoom",
+   "asset": "/DynamicLens/Presets/DL_AD_Cooke_FFi_Zoom",
+   "folder": "/DynamicLens/Presets",
+   "prefix": "AD",
+   "origin": {
+    "author": "Andy Davis",
+    "org": "Imagery for Media",
+    "url": "https://imag4media.com/vfx-rnd/",
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+   },
+   "display_name": "Cooke Anamorphic/i Full Frame Plus 1.8x (continuous zoom 32-135 mm)",
+   "description": "Cooke FFi 1.8x anamorphic as a continuous zoom 32-135 mm (Andy Davis coefficients). Smooth between primes; the tiedtke ST maps are exact at the primes.",
+   "distortion_amount": 1.0,
+   "breathing": 1.0,
+   "lock_focal_length": false,
+   "zoomable": true,
+   "image_circle_enabled": true,
+   "vignette_enabled": true,
+   "profile": {
+    "asset": "/DynamicLens/Profiles/DLP_AD_Cooke_FFi_Anamorphic",
+    "type": "Parametric",
+    "label": "Cooke Anamorphic/i Full Frame Plus 1.8x (continuous zoom 32-135 mm)",
+    "coverage": "6 focal lengths 32\u2013135 mm, 1 focus steps, zoomable | sensor 66.06 x 25.54 mm (1.8x anamorphic) | image circle 70.8 mm",
+    "source": "Andy Davis (Imagery for Media), VFX RnD Cinelens Lens Files: 3DE4 Anamorphic Standard Degree 4 solves for the Cooke FFi 1.8x at 32, 40, 50, 75, 100 and 135 mm, one focus sample each (so no breathing). Interpolated linearly across focal length, which makes it zoom continuously between the primes; tiedtke's DL_T_Cooke_FFi ST maps are the exact alternative at the measured focals. Pixel aspect is set to 1.8: the Lens Files store 1.0, but the coefficients only reproduce the ST maps at 1.8 (.claude/refs/andy-davis-vs-tiedtke.md). The 50 mm solve bends 2-3x harder than 40 and 75 in the data itself, so the zoom lurches through 50 mm; that is the lens data, not smoothed. 85 mm macro (all zero) and 180 mm (empty) are left out. Gate 36.7 x 25.54 mm squeezed (66.06 x 25.54 desqueezed, 2.59:1) from the Lens File. No image circle (the component measures it on the desqueezed width, which is wrong for anamorphics; left off like the tiedtke anamorphics). T-stop, blades, front diameter and pupil visibility: assumed.",
+    "squeeze": 1.7999999523162842,
+    "anamorphic": true,
+    "sensor_mm": [
+     66.06,
+     25.54
+    ],
+    "image_circle_mm": 0.0,
+    "max_aperture": 2.299999952316284,
+    "iris_blades": 11,
+    "blade_curvature": 0.0,
+    "front_diameter_mm": 110.0,
+    "nominal_focal_mm": 0.0,
+    "projection": null,
+    "max_field_angle_deg": null,
+    "focals_mm": [
+     32.0,
+     40.0,
+     50.0,
+     75.0,
+     100.0,
+     135.0
+    ],
+    "focal_min_mm": 32.0,
+    "focal_max_mm": 135.0,
+    "focus_cm": [
+     20000.0
+    ],
+    "breathes": false,
+    "measurements": 6,
+    "needed_overscan": null,
+    "edge_shift_pct": 206.05
    }
   },
   {
@@ -1953,6 +2016,55 @@
    }
   },
   {
+   "preset": "DL_L_Favourite_10mm_Fit",
+   "asset": "/DynamicLens/Presets/DL_L_Favourite_10mm_Fit",
+   "folder": "/DynamicLens/Presets",
+   "prefix": "L",
+   "origin": {
+    "author": "Dylan G (Mad Rice)",
+    "org": "DynamicLens",
+    "url": "https://github.com/Dylanyz/DynamicLens",
+    "licence": "Apache-2.0 (reconstruction of a film's look, not measured third-party data)"
+   },
+   "display_name": "Full-frame stereographic 10mm (The Favourite '10mm' reconstruction) - fitted to circle",
+   "description": "The Favourite ultra-wide: full-frame stereographic 10mm reconstruction. Whole frame covered, bowed lines, heavy corner falloff. (fitted to circle)",
+   "distortion_amount": 1.0,
+   "breathing": 1.0,
+   "lock_focal_length": true,
+   "zoomable": false,
+   "image_circle_enabled": true,
+   "vignette_enabled": true,
+   "profile": {
+    "asset": "/DynamicLens/Profiles/DLP_L_Stereographic_10mm_FullFrame_Fit",
+    "type": "Projection",
+    "label": "Full-frame stereographic 10mm (The Favourite '10mm' reconstruction) - fitted to circle",
+    "coverage": "prime 10 mm | Stereographic up to 90\u00b0 off-axis | sensor 24.89 x 13.45 mm | image circle 40.0 mm",
+    "source": "Reconstruction. Robbie Ryan shot most of The Favourite on 'an extremely wide 10mm' (Nikkor + Panavision PVintage sets, 35 mm 3-perf); the exact lens is not named. The frames show ~130\u00b0 across the diagonal with strongly bowed lines, which a stereographic projection r = 2f tan(theta/2) reproduces (corner of a 24.9 x 18.7 frame = 137\u00b0 diagonal). Everything else assumed. Format: The Favourite was shot on a Panavision Millennium XL2, 35 mm 4-perf, released 1.85:1 (Kodak / Cinematography World interviews), so the native gate is the 1.85 extraction of Super 35: 24.89 x 13.45 mm. FIT VARIANT (2026-09-24): the field is compressed so everything inside the physical image circle has source pixels, because Unreal renders at most ~80-85 deg off-axis from one camera. The circle is round and the size this lens makes; the picture bends harder than the real lens. Rendered at overscan 3 (centre resolution 67%). Experimental - compare against the original preset.",
+    "squeeze": 1.0,
+    "anamorphic": false,
+    "sensor_mm": [
+     24.89,
+     13.45
+    ],
+    "image_circle_mm": 40.0,
+    "max_aperture": 2.799999952316284,
+    "iris_blades": 9,
+    "blade_curvature": 0.0,
+    "front_diameter_mm": 110.0,
+    "nominal_focal_mm": 10.0,
+    "projection": "STEREOGRAPHIC: 1>",
+    "max_field_angle_deg": 90.0,
+    "focals_mm": [],
+    "focal_min_mm": null,
+    "focal_max_mm": null,
+    "focus_cm": [],
+    "breathes": false,
+    "measurements": 0,
+    "needed_overscan": null,
+    "edge_shift_pct": null
+   }
+  },
+  {
    "preset": "DL_L_Favourite_10mm_Rect",
    "asset": "/DynamicLens/Presets/DL_L_Favourite_10mm_Rect",
    "folder": "/DynamicLens/Presets",
@@ -2097,6 +2209,55 @@
    }
   },
   {
+   "preset": "DL_L_Favourite_6mm_Fit",
+   "asset": "/DynamicLens/Presets/DL_L_Favourite_6mm_Fit",
+   "folder": "/DynamicLens/Presets",
+   "prefix": "L",
+   "origin": {
+    "author": "Dylan G (Mad Rice)",
+    "org": "DynamicLens",
+    "url": "https://github.com/Dylanyz/DynamicLens",
+    "licence": "Apache-2.0 (reconstruction of a film's look, not measured third-party data)"
+   },
+   "display_name": "Nikon Fisheye-Nikkor 6mm f/2.8 (220\u00b0 circular) - fitted to circle",
+   "description": "The Favourite fisheye: Nikkor 6mm 220\u00b0 equidistant on 35 mm. Circular image, black corners, heavy natural falloff. Edge from the film's frames: no hard rim, corners roll off over ~45% of the radius, top corners darker than bottom. (fitted to circle)",
+   "distortion_amount": 1.0,
+   "breathing": 1.0,
+   "lock_focal_length": true,
+   "zoomable": false,
+   "image_circle_enabled": true,
+   "vignette_enabled": true,
+   "profile": {
+    "asset": "/DynamicLens/Profiles/DLP_L_Nikkor_6mm_Fisheye_Fit",
+    "type": "Projection",
+    "label": "Nikon Fisheye-Nikkor 6mm f/2.8 (220\u00b0 circular) - fitted to circle",
+    "coverage": "prime 6 mm | Equidistant (most fisheyes) up to 110\u00b0 off-axis | sensor 24.89 x 13.45 mm | image circle 23.0 mm",
+    "source": "Nikon data sheet: 220\u00b0 angle of view, 23 mm image circle on 35 mm, 236 mm front diameter, f/2.8. Equidistant projection (Nikon fisheye family). Reported as the 6mm fisheye of The Favourite (Robbie Ryan, 35 mm 3-perf, Nikkor + Panavision PVintage). Unreal can render ~80\u00b0 off-axis, so the outer ring of the circle is black. Blades and pupil visibility: assumed. Format: The Favourite was shot on a Panavision Millennium XL2, 35 mm 4-perf, released 1.85:1 (Kodak / Cinematography World interviews), so the native gate is the 1.85 extraction of Super 35: 24.89 x 13.45 mm. FIT VARIANT (2026-09-24): the field is compressed so everything inside the physical image circle has source pixels, because Unreal renders at most ~80-85 deg off-axis from one camera. The circle is round and the size this lens makes; the picture bends harder than the real lens. Rendered at overscan 3 (centre resolution 67%). Experimental - compare against the original preset.",
+    "squeeze": 1.0,
+    "anamorphic": false,
+    "sensor_mm": [
+     24.89,
+     13.45
+    ],
+    "image_circle_mm": 23.0,
+    "max_aperture": 2.799999952316284,
+    "iris_blades": 9,
+    "blade_curvature": 0.0,
+    "front_diameter_mm": 236.0,
+    "nominal_focal_mm": 6.0,
+    "projection": "EQUIDISTANT: 0>",
+    "max_field_angle_deg": 110.0,
+    "focals_mm": [],
+    "focal_min_mm": null,
+    "focal_max_mm": null,
+    "focus_cm": [],
+    "breathes": false,
+    "measurements": 0,
+    "needed_overscan": null,
+    "edge_shift_pct": null
+   }
+  },
+  {
    "preset": "DL_L_Favourite_6mm_Frame",
    "asset": "/DynamicLens/Presets/DL_L_Favourite_6mm_Frame",
    "folder": "/DynamicLens/Presets",
@@ -2195,6 +2356,55 @@
    }
   },
   {
+   "preset": "DL_L_PoorThings_4mm_Porthole_Fit",
+   "asset": "/DynamicLens/Presets/DL_L_PoorThings_4mm_Porthole_Fit",
+   "folder": "/DynamicLens/Presets",
+   "prefix": "L",
+   "origin": {
+    "author": "Dylan G (Mad Rice)",
+    "org": "DynamicLens",
+    "url": "https://github.com/Dylanyz/DynamicLens",
+    "licence": "Apache-2.0 (reconstruction of a film's look, not measured third-party data)"
+   },
+   "display_name": "OpTex 4mm T2 fisheye for Super 16 (Poor Things porthole) - fitted to circle",
+   "description": "Poor Things porthole: OpTex 4mm Super 16 fisheye on a 35 mm frame. Small circular image, everything else black. Edge measured from a 1.66:1 still: rolloff band 0.85-1.13 of the circle radius, blue rim at 1.05-1.08, circle 5% left / 3% high of frame centre. (fitted to circle)",
+   "distortion_amount": 1.0,
+   "breathing": 1.0,
+   "lock_focal_length": true,
+   "zoomable": false,
+   "image_circle_enabled": true,
+   "vignette_enabled": true,
+   "profile": {
+    "asset": "/DynamicLens/Profiles/DLP_L_Optex_4mm_S16_Fisheye_Fit",
+    "type": "Projection",
+    "label": "OpTex 4mm T2 fisheye for Super 16 (Poor Things porthole) - fitted to circle",
+    "coverage": "prime 4 mm | Equidistant (most fisheyes) up to 90\u00b0 off-axis | sensor 24.89 x 15.00 mm | image circle 14.5 mm",
+    "source": "Robbie Ryan (Poor Things): a PL-mount OpTex 4mm fisheye made for 16mm/S16 (opens to T2) mounted on a 35mm ARRICAM, giving the vignetted 'porthole' frame. Image circle 14.5 mm = Super 16 coverage, so on a 24.9 x 18.7 mm frame most of the picture is black. Projection assumed equidistant. Front diameter, blades and pupil visibility: assumed. Native sensor set to the 35 mm frame it was used on (not the S16 gate it was designed for), so Match Camera To Profile gives the porthole. Format: Poor Things was shot on ARRICAM LT/ST, 35 mm 4-perf, 1.66:1 (Cinematography World), so the native gate is the 1.66 extraction of Super 35: 24.89 x 15.0 mm. FIT VARIANT (2026-09-24): the field is compressed so everything inside the physical image circle has source pixels, because Unreal renders at most ~80-85 deg off-axis from one camera. The circle is round and the size this lens makes; the picture bends harder than the real lens. Rendered at overscan 3 (centre resolution 67%). Experimental - compare against the original preset.",
+    "squeeze": 1.0,
+    "anamorphic": false,
+    "sensor_mm": [
+     24.89,
+     15.0
+    ],
+    "image_circle_mm": 14.5,
+    "max_aperture": 2.0,
+    "iris_blades": 9,
+    "blade_curvature": 0.0,
+    "front_diameter_mm": 90.0,
+    "nominal_focal_mm": 4.0,
+    "projection": "EQUIDISTANT: 0>",
+    "max_field_angle_deg": 90.0,
+    "focals_mm": [],
+    "focal_min_mm": null,
+    "focal_max_mm": null,
+    "focus_cm": [],
+    "breathes": false,
+    "measurements": 0,
+    "needed_overscan": null,
+    "edge_shift_pct": null
+   }
+  },
+  {
    "preset": "DL_L_PoorThings_8mm",
    "asset": "/DynamicLens/Presets/DL_L_PoorThings_8mm",
    "folder": "/DynamicLens/Presets",
@@ -2219,6 +2429,55 @@
     "label": "Nikon Fisheye-Nikkor 8mm f/2.8 (180\u00b0 circular)",
     "coverage": "prime 8 mm | Equidistant (most fisheyes) up to 90\u00b0 off-axis | sensor 24.89 x 15.00 mm | image circle 23.0 mm",
     "source": "Nikon data sheet: 180\u00b0 circular fisheye, 23 mm image circle, f/2.8, 123 mm front. Equidistant projection. An 8mm fisheye is reported for Poor Things' lab scenes. Blades and pupil visibility: assumed. Format: Poor Things was shot on ARRICAM LT/ST, 35 mm 4-perf, 1.66:1 (Cinematography World), so the native gate is the 1.66 extraction of Super 35: 24.89 x 15.0 mm.",
+    "squeeze": 1.0,
+    "anamorphic": false,
+    "sensor_mm": [
+     24.89,
+     15.0
+    ],
+    "image_circle_mm": 23.0,
+    "max_aperture": 2.799999952316284,
+    "iris_blades": 9,
+    "blade_curvature": 0.0,
+    "front_diameter_mm": 123.0,
+    "nominal_focal_mm": 8.0,
+    "projection": "EQUIDISTANT: 0>",
+    "max_field_angle_deg": 90.0,
+    "focals_mm": [],
+    "focal_min_mm": null,
+    "focal_max_mm": null,
+    "focus_cm": [],
+    "breathes": false,
+    "measurements": 0,
+    "needed_overscan": null,
+    "edge_shift_pct": null
+   }
+  },
+  {
+   "preset": "DL_L_PoorThings_8mm_Fit",
+   "asset": "/DynamicLens/Presets/DL_L_PoorThings_8mm_Fit",
+   "folder": "/DynamicLens/Presets",
+   "prefix": "L",
+   "origin": {
+    "author": "Dylan G (Mad Rice)",
+    "org": "DynamicLens",
+    "url": "https://github.com/Dylanyz/DynamicLens",
+    "licence": "Apache-2.0 (reconstruction of a film's look, not measured third-party data)"
+   },
+   "display_name": "Nikon Fisheye-Nikkor 8mm f/2.8 (180\u00b0 circular) - fitted to circle",
+   "description": "Poor Things lab: Nikkor 8mm 180\u00b0 circular fisheye on 35 mm. Edge: same optical rolloff family as the 4 mm (assumed slightly tighter). (fitted to circle)",
+   "distortion_amount": 1.0,
+   "breathing": 1.0,
+   "lock_focal_length": true,
+   "zoomable": false,
+   "image_circle_enabled": true,
+   "vignette_enabled": true,
+   "profile": {
+    "asset": "/DynamicLens/Profiles/DLP_L_Nikkor_8mm_Fisheye_Fit",
+    "type": "Projection",
+    "label": "Nikon Fisheye-Nikkor 8mm f/2.8 (180\u00b0 circular) - fitted to circle",
+    "coverage": "prime 8 mm | Equidistant (most fisheyes) up to 90\u00b0 off-axis | sensor 24.89 x 15.00 mm | image circle 23.0 mm",
+    "source": "Nikon data sheet: 180\u00b0 circular fisheye, 23 mm image circle, f/2.8, 123 mm front. Equidistant projection. An 8mm fisheye is reported for Poor Things' lab scenes. Blades and pupil visibility: assumed. Format: Poor Things was shot on ARRICAM LT/ST, 35 mm 4-perf, 1.66:1 (Cinematography World), so the native gate is the 1.66 extraction of Super 35: 24.89 x 15.0 mm. FIT VARIANT (2026-09-24): the field is compressed so everything inside the physical image circle has source pixels, because Unreal renders at most ~80-85 deg off-axis from one camera. The circle is round and the size this lens makes; the picture bends harder than the real lens. Rendered at overscan 3 (centre resolution 67%). Experimental - compare against the original preset.",
     "squeeze": 1.0,
     "anamorphic": false,
     "sensor_mm": [

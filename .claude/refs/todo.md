@@ -37,15 +37,3 @@ Cineovision (0.75), Todd-AO, E Series, Elite MK, D Series and Hawk show a rounde
 is just the render running out at Max Overscan 1.5; 2.0 removes it (`.claude/refs/image-circle-guide.md`).
 It changes the look of shipped presets, so **ask Dylan first**, then set it where the tiedtke presets
 are generated and re-import.
-
-## Mislabelled focal lengths in the third-party packs
-
-Cooke FFi "27 mm" is the 32 mm; Panavision C 30 mm is a copy of the 20 mm; Panavision E 60 mm is a
-copy of the 50 mm (`.claude/refs/andy-davis-vs-tiedtke.md`). Say so in the affected profiles' `Source`
-and in `SOURCES.md`; do not rename the authors' files.
-
-## Re-run `dl.export_catalogue()`
-
-`Tools/data/lens_catalogue.json` is missing the four `_Fit` presets and `DL_AD_Cooke_FFi_Zoom`. Needs
-the anamorphic branch in `_parametric_edge_shift` first (see the roadmap entry).
-

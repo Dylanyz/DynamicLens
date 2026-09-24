@@ -131,6 +131,22 @@ Practical consequence: re-importing Andy's anamorphic maps would add nothing at 
 his 16 anamorphic sets is already shipping as a `DL_T_*`. His *spherical* sets are the real gap,
 since every `DL_T_*` is anamorphic.
 
+**Three focal labels in the pack do not match the data** (found 2026-09-24, and inherited by both
+distributions, so they are not transcription errors on our side):
+
+| Label | What the pixels are |
+|---|---|
+| Cooke FFi "27 mm" | the 32 mm: it round-trips exactly against Andy's 32 mm undistort map, and his zip has no 27 mm |
+| Panavision C Series 30 mm | a copy of the 20 mm |
+| Panavision E Series 60 mm | a copy of the 50 mm |
+
+The files keep their authors' names; the plugin says so in the docs rather than renaming them.
+
+The one lens with a genuinely different form of data is the **Cooke FFi 1.8x in Andy's Cinelens Lens
+Files**: 3DE4 Anamorphic Degree 4 coefficients for 32-135 mm, the same solve as the maps. It ships as
+`DL_AD_Cooke_FFi_Zoom`, a continuous zoom beside the exact `DL_T_Cooke_FFi`
+(`.claude/refs/andy-davis-vs-tiedtke.md`).
+
 ---
 
 ## H. H. Nasse — *Depth of Field and Bokeh*
