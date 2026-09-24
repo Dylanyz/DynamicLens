@@ -10,6 +10,51 @@ is the record.
 
 ---
 
+## Where this stands — handoff, 2026-09-24
+
+The lens-character work below came out of one long investigation (2026-09-19). A fresh agent picking
+it up needs these five things before touching anything.
+
+**1. Three entries are waiting on a decision from Dylan, not on research.** Do not start them.
+
+| Entry | The question he has to answer |
+|---|---|
+| The `DL_L_*` fisheye rework | Cube source (real 180 deg+, costs SSR / motion blur / Lumen-on-HWRT) or stay one-faced and fit the projection to the circle? He was weighing it and had not decided. |
+| Raise the overscan ceiling to 4 | Go-ahead, plus: accept a 2x softer centre for free, or keep it sharp for 4x the pixels? |
+| Scratch assets | Still unanswered from 2026-09-19: delete `/Game/Cinematics/_render/zz_dltest_MRG` and the 11 test clips in the CitySample project's `Saved/MovieRenders/dltest/`? **Nothing has been deleted.** Ask before doing so; `Saved/` is off limits regardless (`CLAUDE.md` hard rule 2). |
+
+**2. Two entries are not gated on anything** — the near-clip and LOD fixes, and the Panavision C
+Series smear. The near-clip and LOD work is the recommended starting point: it is small, it helps
+whichever way the fisheye decision goes, and it may change how the fisheyes look enough to inform
+that decision.
+
+**3. Restore points exist, and the presets get changed in place.** Dylan asked for in-place changes
+rather than `_v2` variants, with commits first so it can be reverted: DynamicLens `aa13e04`,
+CitySample Diversion `dv.commit.48`.
+
+**4. Do not touch `DL_L_PoorThings_Petzval_58` or `_85`.** Dylan likes the swirl. They are
+parametric, not projection, so none of this work reaches them — keep it that way.
+
+**5. You cannot judge any of this from the level viewport.** Piloting a CineCameraActor does not
+apply the camera's post-process in the CitySample project — verified with a saturation override, so
+it is not DynamicLens-specific. A piloted `HighResShot` shows no distortion and no image circle at
+all. Use PIE (`editor_request_begin_play`, then `set_view_target_with_blend` to the camera) or Movie
+Render Graph. Two further traps: the editor window must not be minimised or `HighResShot` silently
+produces nothing, and world partition streams around the *player pawn*, so a camera parked far from
+the pawn renders an empty world with only the skydome. The component itself does tick in the editor
+with no viewport involved, so `last_overscan_factor`, `needed_overscan_factor` and
+`image_circle_radius` can be read straight off it while stepping presets — that is how the audit
+table in `.claude/refs/overscan-and-image-circle.md` was built, and it is the cheap way to re-check
+any preset.
+
+There is a `DLTest_Cam` CineCameraActor with a Dynamic Lens component saved into `L_ViceCity` for
+exactly this. It is committed in `dv.commit.48`.
+
+**Read first:** `.claude/refs/overscan-and-image-circle.md` for how the maths works today and what is
+measurably wrong with it, then `.claude/refs/wide-field-source.md` for what Unreal can and cannot do
+past 90 deg off-axis. `Tools/data/research/lanthimos-lenses.md` has the provenance of every `DL_L_*`
+number, measured versus assumed.
+
 ## Anamorphic parametric distortion (3DE4 Anamorphic Standard Degree 4)
 
 **Gated on:** the preset browser landing. Both touch `Source/DynamicLens`, and doing them at once
