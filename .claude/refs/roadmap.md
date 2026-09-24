@@ -10,53 +10,46 @@ is the record.
 
 ---
 
-## Where this stands — handoff, 2026-09-24
+## Where this stands — handoff, 2026-09-24 (evening)
 
-The lens-character work below came out of one long investigation (2026-09-19). A fresh agent picking
-it up needs these five things before touching anything.
+A long autonomous session on 2026-09-24 cleared most of the bug list and built the fisheye and
+anamorphic work. **Dylan cannot test anything for a couple of days** (travelling, no Parsec), so pick
+work that does not need his eyes, and queue everything visual for his return.
 
-**1. Three entries are waiting on a decision from Dylan, not on research.** Do not start them.
+**1. Built, installed, committed - waiting on Dylan's eyes, not on code:**
 
-| Entry | The question he has to answer |
+| What | Where to look |
 |---|---|
-| The `DL_L_*` fisheye rework | Cube source (real 180 deg+, costs SSR / motion blur / Lumen-on-HWRT) or stay one-faced and fit the projection to the circle? He was weighing it and had not decided. |
-| Raise the overscan ceiling to 4 | Go-ahead, plus: accept a 2x softer centre for free, or keep it sharp for 4x the pixels? |
-| Scratch assets | Still unanswered from 2026-09-19: delete `/Game/Cinematics/_render/zz_dltest_MRG` and the 11 test clips in the CitySample project's `Saved/MovieRenders/dltest/`? **Nothing has been deleted.** Ask before doing so; `Saved/` is off limits regardless (`CLAUDE.md` hard rule 2). |
+| Force Bokeh Quality (Petzval fix; editor was at High scalability) | `architecture.md`, verified in PIE |
+| `DL_L_*_Fit` fisheyes: continuous projection K, fit-to-circle, overscan ceiling 4, 1 mm fisheye near clip | the fisheye entries below; originals untouched except the near clip |
+| `DL_AD_Cooke_FFi_Zoom` (3DE4 anamorphic, continuous 32-135 mm) | the Cooke entry below |
+| Preset keyable in Sequencer (`SetPreset`) | `sequencer-integration.md`, verified by scrubbing |
+| Preset Browser, plus `DynamicLens.PresetBrowser` console command | next section; its UI has never been seen |
 
-**2. Two entries are not gated on anything** — the near-clip and LOD fixes, and the Panavision C
-Series smear. The near-clip and LOD work is the recommended starting point: it is small, it helps
-whichever way the fisheye decision goes, and it may change how the fisheyes look enough to inform
-that decision.
+**2. Decisions only Dylan can make:** the six `DL_T_*` overscan ceilings (`todo.md`); the scratch
+assets from 2026-09-19 (`/Game/Cinematics/_render/zz_dltest_MRG`, `Saved/MovieRenders/dltest/` -
+nothing deleted, `Saved/` off limits); the cube-source question for a real 180 deg fisheye
+(`wide-field-source.md`).
 
-**3. Restore points exist, and the presets get changed in place.** Dylan asked for in-place changes
-rather than `_v2` variants, with commits first so it can be reverted: DynamicLens `aa13e04`,
-CitySample Diversion `dv.commit.48`.
+**3. Good next work that needs no eyes:** hide presets in the Preset Browser (entry below - he asked
+for it); Sequencer phase 3 lens kit (`sequencer-integration.md`); the Circle Coverage control and
+anamorphic image-circle ellipse (entry at the end); LOD/Nanite compensation for fisheyes (the only
+half of "two quality bugs" still open). Each is C++: build, install, relaunch - **editor restarts are
+fine while Dylan is away** (he said so 2026-09-24), but ask again once he is back at the machine.
 
-**4. Do not touch `DL_L_PoorThings_Petzval_58` or `_85`.** Dylan likes the swirl. They are
-parametric, not projection, so none of this work reaches them — keep it that way.
+**4. Do not trust automated screenshots.** The PC sits on the Windows lock screen when Dylan is away.
+Automated PIE `HighResShot`s of ST-map/projection presets collapse into a centre smear (harness
+artefact - his real renders are fine), legacy Movie Render Queue shows no lens effect, and Movie
+Render Graph works but streams the showroom out. Verify with numbers read off the component
+(`needed_overscan_factor`, `last_overscan_factor`, `image_circle_radius`, `active_mask`, `notes`).
+Test assets: `/Game/DynamicLensTest/L_DLTest` (`DLTest_Cam`, a sphere grid for bokeh) in CitySample;
+**new scratch assets go in `/Game/Claude/`** (Dylan's request). Never touch `/Game/GTA6/Maps`.
 
-**5. You cannot judge any of this from the level viewport.** Piloting a CineCameraActor does not
-apply the camera's post-process in the CitySample project — verified with a saturation override, so
-it is not DynamicLens-specific. A piloted `HighResShot` shows no distortion and no image circle at
-all. Use PIE (`editor_request_begin_play`, then `set_view_target_with_blend` to the camera) or Movie
-Render Graph. Two further traps: the editor window must not be minimised or `HighResShot` silently
-produces nothing, and world partition streams around the *player pawn*, so a camera parked far from
-the pawn renders an empty world with only the skydome. The component itself does tick in the editor
-with no viewport involved, so `last_overscan_factor`, `needed_overscan_factor` and
-`image_circle_radius` can be read straight off it while stepping presets — that is how the audit
-table in `.claude/refs/overscan-and-image-circle.md` was built, and it is the cheap way to re-check
-any preset.
+**5. Do not touch `DL_L_PoorThings_Petzval_58` / `_85` or any `DL_C_*`.** New looks go in as new
+presets beside the old ones (Dylan, 2026-09-24: "create new lenses rather than overriding"); he
+deletes the ones he does not like.
 
-There is a `DLTest_Cam` CineCameraActor with a Dynamic Lens component saved into `L_ViceCity` for
-exactly this. It is committed in `dv.commit.48`.
-
-**Read first:** `.claude/refs/overscan-and-image-circle.md` for how the maths works today and what is
-measurably wrong with it, then `.claude/refs/wide-field-source.md` for what Unreal can and cannot do
-past 90 deg off-axis. `Tools/data/research/lanthimos-lenses.md` has the provenance of every `DL_L_*`
-number, measured versus assumed.
-
-**6. The Preset Browser is installed** (2026-09-24) and waiting only on Dylan's review - see the
-next section.
+**Read first:** `overscan-and-image-circle.md`, `image-circle-guide.md`, `andy-davis-vs-tiedtke.md`.
 
 ---
 
@@ -145,6 +138,10 @@ still assumes K1+K2+K3 in `_parametric_edge_shift` and needs an anamorphic branc
 ---
 
 ## The DL_L_* fisheye rework
+
+**Stay-one-faced half built 2026-09-24** as the `_Fit` presets (continuous K, Amount reaches the projection,
+fit-to-circle, ActiveMask readout, near clip, overscan ceiling 4). Still open: Circle Coverage, and the
+cube-source alternative below.
 
 **Gated on:** Dylan's decision, now that the research is in
 (`.claude/refs/wide-field-source.md`). UE can supply more than 81 deg off-axis, but only by rendering
