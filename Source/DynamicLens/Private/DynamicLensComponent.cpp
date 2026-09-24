@@ -8,6 +8,7 @@
 #include "CameraCalibrationSubsystem.h"
 #include "CineCameraComponent.h"
 #include "Engine/Engine.h"
+#include "HAL/IConsoleManager.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/PackageName.h"
 #include "UObject/Package.h"
@@ -60,6 +61,33 @@ namespace
 	const FName CircleParamFadeAmount(TEXT("FadeAmount"));
 	const FName CircleParamFadeCurve(TEXT("FadeCurve"));
 	const FName CircleParamSquareness(TEXT("Squareness"));
+
+	// Scalability below Cinematic lowers these, and with them every bokeh setting the preset drives (swirl, barrel, blades).
+	// Background compositing matters most: at 1 (High) bright highlights are not scattered as sprites, and the sprite
+	// path is where Petzval stretch is applied regardless of bokeh shape. Measured 2026-09-24 at High scalability.
+	// Global, so shared by every component: the first claim saves and raises them, the last release restores.
+	struct FBokehCVar { const TCHAR* Name; int32 Wanted; };
+	const FBokehCVar BokehCVars[] = {
+		{ TEXT("r.DOF.Scatter.BackgroundCompositing"), 2 },
+		{ TEXT("r.DOF.Gather.EnableBokehSettings"), 1 },
+		{ TEXT("r.DOF.Scatter.EnableBokehSettings"), 1 },
+		{ TEXT("r.DOF.Recombine.EnableBokehSettings"), 1 },
+	};
+	int32 BokehQualityClaims = 0;
+	int32 SavedBokehCVars[UE_ARRAY_COUNT(BokehCVars)] = {};
+
+	bool BokehSimulationOff()
+	{
+		for (const FBokehCVar& Entry : BokehCVars)
+		{
+			const IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(Entry.Name);
+			if (CVar && CVar->GetInt() < Entry.Wanted)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
 }
 
 UDynamicLensComponent::UDynamicLensComponent()
@@ -790,6 +818,12 @@ void UDynamicLensComponent::ApplyLook(UCineCameraComponent* Cam, const FDynamicL
 	const bool bDoBokeh = bApplyBokeh && Eval.bBokeh;
 	const bool bDoVignette = bApplyVignette && Eval.bVignette;
 
+	SetBokehQualityRequest(bDoBokeh && bForceBokehQuality);
+	if (bDoBokeh && !bForceBokehQuality && BokehSimulationOff() && (Eval.Petzval != 0.f || Eval.BarrelLengthMm > 0.f))
+	{
+		Notes += TEXT("Swirl and cat's eye are off at this scalability (r.DOF bokeh settings are lowered): use Cinematic post-process quality, or turn on Force Bokeh Quality. ");
+	}
+
 	// --- image circle mask
 	if (CircleRadiusNorm > 0.f)
 	{
@@ -960,6 +994,39 @@ void UDynamicLensComponent::ApplyLook(UCineCameraComponent* Cam, const FDynamicL
 	bHasLastEval = true;
 }
 
+void UDynamicLensComponent::SetBokehQualityRequest(bool bWant)
+{
+	if (bWant == bRequestingBokehQuality)
+	{
+		return;
+	}
+	bRequestingBokehQuality = bWant;
+	if (bWant ? BokehQualityClaims++ != 0 : --BokehQualityClaims != 0)
+	{
+		return;
+	}
+	for (int32 i = 0; i < UE_ARRAY_COUNT(BokehCVars); ++i)
+	{
+		IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(BokehCVars[i].Name);
+		if (!CVar)
+		{
+			continue;
+		}
+		if (bWant)
+		{
+			SavedBokehCVars[i] = CVar->GetInt();
+			if (SavedBokehCVars[i] < BokehCVars[i].Wanted)
+			{
+				CVar->Set(BokehCVars[i].Wanted, ECVF_SetByCode);
+			}
+		}
+		else if (SavedBokehCVars[i] < BokehCVars[i].Wanted)
+		{
+			CVar->Set(SavedBokehCVars[i], ECVF_SetByCode);
+		}
+	}
+}
+
 void UDynamicLensComponent::ClearEffect()
 {
 	UCineCameraComponent* Cam = AppliedCamera.IsValid() ? AppliedCamera.Get() : GetTargetCamera();
@@ -986,6 +1053,7 @@ void UDynamicLensComponent::ClearEffect()
 		RestoreLook(Cam);
 	}
 	RestoreAccumulationDOF();
+	SetBokehQualityRequest(false);
 	AppliedMID = nullptr;
 	CircleMID = nullptr;          // recreated on the next apply (the base material may have been rebuilt)
 	bCircleApplied = false;

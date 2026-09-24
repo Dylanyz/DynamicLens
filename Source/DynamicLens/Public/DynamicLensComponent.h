@@ -90,6 +90,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Layers")
 	bool bApplyBokeh = true;
 
+	/**
+	 * Below Cinematic post-process quality Unreal turns off depth-of-field bokeh simulation
+	 * and lowers highlight scattering (r.DOF.*.EnableBokehSettings, r.DOF.Scatter.BackgroundCompositing), which silently removes swirl, cat's eye and iris shape.
+	 * When on, these are raised while this camera applies bokeh and restored when it stops. Costs some DOF time.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Dynamic Lens|Layers", meta = (EditCondition = "bApplyBokeh"))
+	bool bForceBokehQuality = true;
+
 	/** Black out everything the lens can't show: beyond its image circle, and beyond the pixels the overscan provides. Real lenses do exactly this. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens|Layers")
 	bool bApplyImageCircle = true;
@@ -271,6 +279,9 @@ private:
 	void ApplyAccumulationDOF(const FDynamicLensEval& Eval);
 	void RestoreAccumulationDOF();
 	UActorComponent* FindAccumulationDOF() const;
+	/** Hold or release this component's claim on the DOF bokeh-simulation cvars (shared, ref-counted across components). */
+	void SetBokehQualityRequest(bool bWant);
+	bool bRequestingBokehQuality = false;
 
 	/** Settings resolved by the last Apply (preset + overrides). */
 	UPROPERTY(Transient) FDynamicLensSettings Resolved;

@@ -11,6 +11,7 @@ Added to a CineCameraActor. Everything below lives in the **Dynamic Lens** categ
 | **Profile Info** | Read-only. Lists the profile's measured focal lengths with the current one marked `[current]`. Useful for knowing whether you are inside measured data or extrapolating. |
 | **Amount Multiplier** | Scales the whole effect. 0 = off, 1 = as measured, >1 = exaggerated. |
 | **Apply Distortion / Vignette / Bokeh / Image Circle** | Layer toggles. Turning distortion off also clears the camera's distortion rendering, so the frame goes back to undistorted rather than freezing. |
+| **Force Bokeh Quality** (advanced, default on) | Below Cinematic scalability Unreal drops the DOF bokeh simulation, so swirl, cat's eye and blade shape vanish with no error. This raises the four DOF cvars that matter while the camera applies bokeh, and restores them afterwards. Turn it off to leave scalability alone; Notes then warns when the look is being lost. |
 | **Sensor Fit** | `Crop` keeps an ST map at the lens's physical scale and crops the camera's sensor out of it. `Scale` stretches the map to the sensor. Crop is correct; Scale is the fallback when the sensor is larger than the profile's. |
 
 ## Buttons

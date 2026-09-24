@@ -18,7 +18,7 @@ class FDynamicLensModule : public IModuleInterface
 public:
 	virtual void StartupModule() override
 	{
-		FCoreDelegates::OnPostEngineInit.AddLambda([]()
+		FCoreDelegates::GetOnPostEngineInit().AddLambda([]()
 		{
 			const int32 Wanted = CVarDynamicLensDisplacementMapResolution.GetValueOnGameThread();
 			UCameraCalibrationSettings* Settings = GetMutableDefault<UCameraCalibrationSettings>();

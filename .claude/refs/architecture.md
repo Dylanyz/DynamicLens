@@ -40,6 +40,15 @@ the workarounds away.
   post-process settings does nothing. Bokeh blades and anamorphic squeeze must be driven through
   `Cam->LensSettings`, and when squeeze is driven you must compensate `Filmback.SensorWidth` by the
   squeeze factor or the framing shifts. Back up and restore the originals.
+- **Scalability below Cinematic silently kills every bokeh setting we drive.** High
+  (`sg.PostProcessQuality 2`) sets `r.DOF.{Gather,Scatter,Recombine}.EnableBokehSettings=0` and
+  `r.DOF.Scatter.BackgroundCompositing=1`. The last one matters most: bright highlights stop being
+  scattered as sprites, and the sprite vertex shader is where Petzval stretch is applied regardless
+  of bokeh shape. The post-process values still read correctly, so nothing looks wrong from the
+  component's side. This was the 2026-09-24 "Petzval swirl stopped working" report: the editor had
+  been set to High. `bForceBokehQuality` (default on) raises those four cvars, ref-counted across
+  components, and restores them when the last camera releases them. Also note that Epic forces a
+  plain circle, with no gather-side bokeh simulation, whenever `f-stop <= LensSettings.MinFStop`.
 - **`UActorComponent::PreEditChange` unregisters the component** while a details-panel slider is
   being dragged, which kills the live preview. That is why `PostEditChangeProperty` applies
   immediately on `Interactive` change type, not just on the final value.
