@@ -225,6 +225,22 @@ void UDynamicLensComponent::PostEditChangeProperty(FPropertyChangedEvent& Proper
 }
 #endif
 
+void UDynamicLensComponent::SetPreset(UDynamicLensPreset* NewPreset)
+{
+	if (NewPreset == Preset) return;   // Sequencer re-sends the same value every evaluation
+	Preset = NewPreset;                // null is allowed: no lens, the tick clears the effect
+	// the transient Lens File, the ST-map index and the look backup all belong to the old lens. No Modify(), no Match
+	// Camera, no override refresh: playback must not dirty the level or rewrite the camera.
+	ClearEffect();
+	TransientLensFile = nullptr;
+	LensFileSTMapIndex = -1;
+	InfoProfile = nullptr;
+	if (UCineCameraComponent* Cam = GetTargetCamera(); Cam && bEnabled && HasLens())
+	{
+		Apply(Cam);
+	}
+}
+
 void UDynamicLensComponent::EnsureHandler()
 {
 	// the handler class follows the profile's model: Epic draws Brown-Conrady and 3DE4 anamorphic with different handlers

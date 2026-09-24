@@ -1,3 +1,6 @@
+> **Status 2026-09-24:** phase 1 is built and verified (keyed DL_AD_Master -> DL_AD_Supreme at frame 24 in
+> `/Game/Claude/DynamicLens/LS_PresetKey`, CitySample; scrubbing swaps the lens both ways). Phases 2-4 not started.
+
 # Sequencer integration — keying the lens, not just the camera
 
 Researched 2026-09-24 against the plugin source and the UE 5.8 engine source. Nothing here is

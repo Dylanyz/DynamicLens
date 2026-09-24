@@ -58,9 +58,19 @@ public:
 	UPROPERTY(Interp, EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens")
 	bool bEnabled = true;
 
-	/** The look. Presets are assets (Content Browser: right-click > Miscellaneous > Data Asset > Dynamic Lens Preset). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens")
+	/**
+	 * The look. Presets are assets (Content Browser: right-click > Miscellaneous > Data Asset > Dynamic Lens Preset).
+	 * Keyable in Sequencer: a key is a lens change, applied on that frame (the camera itself is left alone).
+	 */
+	UPROPERTY(Interp, EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetPreset, Category = "Dynamic Lens")
 	TObjectPtr<UDynamicLensPreset> Preset;
+
+	/**
+	 * Swap the lens without touching the camera or the override blocks. This is what Sequencer and Blueprint "Set Preset"
+	 * call; the editor buttons and the Preset Browser use ApplyPreset, which also honours Match Camera.
+	 */
+	UFUNCTION(BlueprintSetter)
+	void SetPreset(UDynamicLensPreset* NewPreset);
 
 	/** The preset's lens: what it covers, the filmback / squeeze / crop / focal length that Match Camera To Profile would set. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "Dynamic Lens", meta = (MultiLine = "true"))
