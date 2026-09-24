@@ -9,6 +9,7 @@
 #include "SDynamicLensPresetBrowser.h"
 
 #include "Modules/ModuleManager.h"
+#include "HAL/IConsoleManager.h"
 #include "PropertyEditorModule.h"
 #include "Framework/Docking/TabManager.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -30,6 +31,12 @@ namespace
 
 	/** Target handed over by OpenPresetBrowser, consumed when the tab spawns. */
 	TWeakObjectPtr<UDynamicLensComponent> GPendingTarget;
+
+	/** `DynamicLens.PresetBrowser` in the console (or from Python) opens the browser without a target. */
+	FAutoConsoleCommand GOpenBrowserCommand(
+		TEXT("DynamicLens.PresetBrowser"),
+		TEXT("Open the Dynamic Lens Preset Browser."),
+		FConsoleCommandDelegate::CreateLambda([]() { FDynamicLensEditorModule::OpenPresetBrowser(); }));
 }
 
 void FDynamicLensEditorModule::StartupModule()

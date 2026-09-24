@@ -87,6 +87,16 @@ the layout. Expect fixes; each one costs a build plus a restart, so gather them 
 rebuilding. Once it is signed off: document it (`todo.md`) and push it to a release (Dylan,
 2026-09-24: "push preset browser to release once it's ready").
 
+**Requested addition: hide presets** (Dylan, 2026-09-24). For lenses he doesn't love but won't delete:
+a Hide action on each row (next to the favourite star), hidden presets drop out of every view, a
+**Hidden** group/section lists them with Unhide, and a **Show hidden** filter toggle brings them back
+inline. Store them like `Favourites`: a set of package names in the browser's per-user config section
+(`DynamicLens.PresetBrowser`, `SaveConfig`), never on the preset asset, so hiding is personal and
+survives `dl.import_presets()`. **Bonus, if cheap:** also hide them from the component's own Preset
+dropdown. That is an asset picker, so it needs a detail customization with an `OnShouldFilterAsset`
+that reads the same config set - `DynamicLensComponentDetails` already exists to hang it on. Fold
+into the review round below so it costs no extra restart.
+
 **Two traps, both hit already:**
 
 - `DynamicLens.uplugin` declares `DynamicLensEditor`, and this repo *is* the live plugin, so
@@ -302,8 +312,8 @@ image-circle MID (off, still broken), Epic's derived-data jobs (nothing in `LogC
 at Verbose). Both the parametric and the ST path feed the same `M_DistortionPostProcess` MID, so the
 difference is in what Epic's ST-map Lens File writes into the handler's displacement maps.
 
-**Why it may be the harness.** The editor window was never focused and every look was a
-`HighResShot`. Frequent screenshots kept a `DL_T_*` healthy for 30 s+.
+**Why it is the harness.** The machine was sitting on the Windows lock screen the whole time (seen
+in a desktop capture at 19:29), the editor was never focused, and every look was a `HighResShot`. Frequent screenshots kept a `DL_T_*` healthy for 30 s+.
 
 **Harness notes for whoever picks this up** (all in `/Game/DynamicLensTest`, CitySample):
 - `L_DLTest` has `DLTest_Cam` and a sphere grid for bokeh. Load it in its own call; duplicating and
