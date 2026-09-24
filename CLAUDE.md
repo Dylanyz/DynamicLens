@@ -33,7 +33,10 @@ here edits the live plugin, with no sync step. Only C++ needs a build.
 - Whether a restart can be avoided, and the restructure that would help → `.claude/refs/live-coding.md`
 - Installing a DLL under a live editor, and why we don't → `.claude/refs/hot-swap.md`
 - Work that is researched and waiting on something → `.claude/refs/roadmap.md`. Check it when a
-  big piece of work lands; an entry may have just become proposable.
+  big piece of work lands; an entry may have just become proposable. **It opens with a handoff
+  block; read that first if you are picking this repo up cold.**
+- Short jobs that are already decided and blocked on nobody → `.claude/refs/todo.md`. Unlike the
+  roadmap, these are meant to be picked up and done, not proposed.
 - Keeping these docs true → `.claude/refs/maintenance.md`
 - Where the data and the *ideas* came from, and how each was used → `SOURCES.md` (public)
 
@@ -116,6 +119,7 @@ Run through `unreal-py` (`editor_run_python`) or a remote-exec helper. `import d
 | `dl.build_image_circle_material(force=True)` | rebuild the image-circle material after an HLSL change |
 | `dl.import_all()` | all of the above, in order |
 | `dl.export_catalogue()` | rewrite `Tools/data/lens_catalogue.json` - every preset, its provenance and its optics |
+| `dl.resave_presets()` | re-save all 60 presets so their Asset Registry tags are rewritten. **Required after any C++ change to `GetAssetRegistryTags`**, or the Preset Browser filters go stale. `import_presets()` only covers the 19 in `presets.json`. |
 | `dl.reset_asset(path)` | restore one asset to its shipped values |
 | `dl.add_to_all_cameras(preset=...)` | bulk-add the component |
 
@@ -128,6 +132,7 @@ Run through `unreal-py` (`editor_run_python`) or a remote-exec helper. `import d
 | How the plugin works | `.claude/refs/` |
 | A behaviour rule for agents | `.claude/rules/` |
 | Work worth doing but blocked on something else | `.claude/refs/roadmap.md`, with what it is gated on |
+| A small job that is decided and blocked on nobody | `.claude/refs/todo.md`. Delete the entry when it is done. |
 | Anything the public should read | `README.md` |
 | A question like "what lenses are there / where did this one come from" | `Tools/data/lens_catalogue.json`, regenerated with `dl.export_catalogue()`. Never hand-edit it. |
 | A new data source, paper, or borrowed idea | `SOURCES.md`, plus `NOTICE` if it is data |

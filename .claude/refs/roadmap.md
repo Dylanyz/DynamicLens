@@ -55,11 +55,90 @@ measurably wrong with it, then `.claude/refs/wide-field-source.md` for what Unre
 past 90 deg off-axis. `Tools/data/research/lanthimos-lenses.md` has the provenance of every `DL_L_*`
 number, measured versus assumed.
 
+**6. Separately, the Preset Browser is mid-flight** and has a build sitting uninstalled — see the
+next section. It is the only entry here with pending state on disk, so clear it before starting
+anything else that touches `Source/DynamicLens`.
+
+---
+
+## Preset Browser — built and committed, one install behind
+
+**Gated on:** one editor restart, then Dylan looking at it. The code is done and in HEAD; nothing
+about it is waiting on a decision.
+
+**What it is.** A dockable *Lens Presets* window (Window > Cinematics) plus a **Browse** button in
+the Dynamic Lens component's Preset row. Filters by maker, spherical/anamorphic, data type,
+breathing, image circle and prime; six sort modes; four groupings; search; favourites; recents; a
+per-row curvature bar; and a detail pane carrying each lens's full `Source` attribution verbatim.
+Clicking a lens applies it to every selected camera in one undo transaction. Built because the flat
+alphabetical dropdown stopped scaling at 60 presets, and because the `DL_*` prefixes encode
+provenance rather than optics, so spherical and anamorphic can never sort together by name.
+
+**State, 2026-09-24:**
+
+| | |
+|---|---|
+| Code | in HEAD, added by `aa13e04`. Both modules compile clean. |
+| Installed DLL | 2026-09-18 13:22 — **predates the curvature-metric fix** |
+| Waiting package | 2026-09-18 13:55 in `%TEMP%\dlb`, matches HEAD's C++ |
+| Preset tags | all 60 carry `DL.*`, but `DL.Distortion` still holds the **old** overscan numbers (1.0-2.0) |
+| The UI | **has never been looked at.** Written blind; nobody has seen it render. |
+
+**Next actions, in order:**
+
+1. Ask Dylan to close the editor, then install. His interactive shell blocks unsigned scripts, so it
+   needs the bypass form (the tool-side call does not):
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File Tools\build_dynamiclens.ps1 -InstallOnly
+   ```
+2. After he relaunches, **`dl.resave_presets()` is required.** It rewrites `DL.Distortion` with the
+   curvature metric. Expect roughly 0.05 for a clean modern prime, 0.13 for a characterful
+   anamorphic, 0.30 for the Angenieux Optimo zoom and ~0.6 for the fisheyes. If the values still
+   read 1.0-2.0 afterwards, the install did not take.
+3. Open the browser and get Dylan's eyes on the layout. Expect fixes; each one costs a build plus a
+   restart, so gather them all before rebuilding.
+
+**Two traps, both hit already:**
+
+- `DynamicLens.uplugin` declares `DynamicLensEditor`, and this repo *is* the live plugin, so
+  relaunching without installing raises a "Missing Modules: DynamicLensEditor" dialog at startup.
+- Tags are written only when an asset is **saved**. `dl.import_presets()` touches just the 19 presets
+  in `presets.json`; `dl.resave_presets()` covers all 60 without re-importing anything.
+
+**Design decisions worth not re-litigating:**
+
+- **The browser reads Asset Registry tags and never loads a preset to display one.** Presets hard-
+  reference their profile and ST-map profiles hard-reference their textures, so loading the
+  catalogue to read labels would pull ~107 MB of ST maps into memory. `DL.*` tag names live in
+  `DynamicLensTags` in `DynamicLensTypes.h` so the two modules cannot drift.
+- **Applying always goes through `UDynamicLensComponent::ApplyPreset`**, the same path the A1/A2
+  buttons use, so the Match Camera checkboxes mean the same thing however a preset was picked.
+- **The Browse button is inline in the Preset row, not a full-width row beneath it.** A custom row
+  added to a category always lands after every property in that category, which would have put it
+  below Amount Multiplier, nowhere near the preset.
+- **`DL.Distortion` is curvature, not overscan** — the worst departure from a straight mapping, as a
+  fraction of half the frame. Overscan was the obvious first choice and is wrong: it measures how far
+  a map's samples fall outside the frame, which is an artefact of how each author scaled their maps.
+  All 19 Andy Davis spherical sets reported exactly 1.0 under it. Two traps when measuring
+  curvature off an ST map, each of which yields a plausible-looking number that means nothing:
+  `ReadSTMapSamples` walks rows top-down while the maps are BottomLeft origin (unflipped, every lens
+  reads ~1.9, nearly a whole frame, and they all look alike), and the maps clamp to [0,1] where the
+  source leaves frame, so those pinned samples must be dropped or they swamp the peak. Parametric
+  profiles need `MakeMonotonic` or a large K3 runs away past the corner (Zeiss Supreme read 0.89
+  against 0.05 with it).
+
+**Unverified, because the UI has never run:** layout and spacing, arrow-key stepping, favourites and
+recents persistence, grouping, every filter, and whether the anamorphic filter reads `DL.Squeeze`
+correctly on the tiedtke sets.
+
+---
+
 ## Anamorphic parametric distortion (3DE4 Anamorphic Standard Degree 4)
 
-**Gated on:** the preset browser landing. Both touch `Source/DynamicLens`, and doing them at once
-means two agents fighting over the same C++ and two rebuild/restart cycles. Once the browser is
-merged and building, propose this.
+**Gated on:** the preset browser being installed and verified (the section above). Both touch
+`Source/DynamicLens`, and doing them at once means two agents fighting over the same C++ and two
+rebuild/restart cycles. The browser's code has landed; what is left is one install and a look at the
+UI. Once that is cleared, propose this.
 
 **What it unlocks.** Six Cooke FFi ANA 1.8x lenses (32, 40, 50, 75, 100, 135 mm) from Andy Davis's
 Cinelens release, already extracted to `Tools/data/raw/andy_davis_cinelens.json`. They would be the
