@@ -278,6 +278,7 @@ private:
 	void Apply(UCineCameraComponent* Cam);
 	void EnsureHandler();
 	bool DriveParametric(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float W, float H, float& OutNeededOverscan, FLensDistortionState& OutState);
+	bool DriveAnamorphic(UCineCameraComponent* Cam, float Focal, float W, float H, float& OutNeededOverscan, FLensDistortionState& OutState);
 	bool DriveSTMap(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float Focus, float W, float H, float WFull, float HFull, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRadius);
 	bool DriveProjection(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float W, float H, float AppliedOverscan, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRx, float& OutCircleRy);
 	void ApplyRendering(UCineCameraComponent* Cam, const FLensDistortionState& State, float AppliedOverscan);

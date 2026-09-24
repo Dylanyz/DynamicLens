@@ -26,6 +26,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "Models/SphericalLensModel.h"
 #include "SphericalLensDistortionModelHandler.h"
+#include "AnamorphicLensDistortionModelHandler.h"
 
 namespace
 {
@@ -226,9 +227,31 @@ void UDynamicLensComponent::PostEditChangeProperty(FPropertyChangedEvent& Proper
 
 void UDynamicLensComponent::EnsureHandler()
 {
+	// the handler class follows the profile's model: Epic draws Brown-Conrady and 3DE4 anamorphic with different handlers
+	const bool bAnamorphic = Resolved.Distortion.Profile && Resolved.Distortion.Profile->IsAnamorphicModel();
+	UClass* Want = bAnamorphic ? UAnamorphicLensDistortionModelHandler::StaticClass() : USphericalLensDistortionModelHandler::StaticClass();
+	if (Handler && Handler->GetClass() != Want)
+	{
+		if (UCineCameraComponent* Cam = AppliedCamera.Get())
+		{
+			if (AppliedMID) Cam->RemoveBlendable(AppliedMID);
+			if (bSVEActive)
+			{
+				if (UCameraCalibrationSubsystem* Sub = GEngine ? GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>() : nullptr)
+				{
+					if (ACameraActor* CamActor = Cast<ACameraActor>(GetOwner())) Sub->ClearLensDistortionSVEState(CamActor);
+				}
+				bSVEActive = false;
+			}
+		}
+		AppliedMID = nullptr;
+		Handler = nullptr;
+		TransientLensFile = nullptr;
+		LensFileSTMapIndex = -1;
+	}
 	if (!Handler)
 	{
-		Handler = NewObject<USphericalLensDistortionModelHandler>(this, NAME_None, RF_Transient);
+		Handler = NewObject<ULensDistortionModelHandlerBase>(this, Want, NAME_None, RF_Transient);
 	}
 }
 
@@ -422,6 +445,19 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 			Notes += TEXT("ST map could not be evaluated. ");
 		}
 	}
+	else if (Profile && Profile->IsAnamorphicModel())
+	{
+		if (DriveAnamorphic(Cam, Focal, W, H, Needed, State))
+		{
+			Applied = (Resolved.Overscan.Mode == EDynamicLensOverscanMode::Fixed) ? Resolved.Overscan.FixedOverscan : DynamicApplied(Needed);
+			const float Cover = Ceiling / FMath::Max(Needed, 1.f);   // as for ST maps: the source rectangle the ceiling reaches
+			MinData(Cover, Cover * H / W, Cover, Cover * H / W);
+		}
+		else
+		{
+			Notes += TEXT("Anamorphic profile has no usable rows. ");
+		}
+	}
 	else
 	{
 		DriveParametric(Cam, Eval, Focal, W, H, Needed, State);
@@ -514,6 +550,25 @@ bool UDynamicLensComponent::DriveParametric(UCineCameraComponent* Cam, const FDy
 			OutNeededOverscan = FMath::Max(OutNeededOverscan, DynamicLensMath::ComputeOverscan(E2.Params, Focal / W, Focal / H));
 		}
 	}
+	return true;
+}
+
+bool UDynamicLensComponent::DriveAnamorphic(UCineCameraComponent* Cam, float Focal, float W, float H, float& OutNeededOverscan, FLensDistortionState& OutState)
+{
+	const UDynamicLensProfile* Profile = Resolved.Distortion.Profile;
+	TArray<float> P;
+	if (!Profile || !Profile->EvaluateAnamorphic(Focal, Resolved.Distortion.Amount * AmountMultiplier, P)) return false;
+	// Epic's model works on the squeezed filmback times the pixel aspect; W here is the desqueezed width, so hand it the
+	// squeezed width and let PixelAspect (1.8 for a 1.8x lens) widen it back
+	const float PA = FMath::Max(P[0], 0.01f);
+	OutState.DistortionInfo.Parameters = P;
+	OutState.FocalLengthInfo.FxFy = FVector2D(Focal / W, Focal / H);
+	OutState.ImageCenter.PrincipalPoint = FVector2D(0.5, 0.5);
+	Handler->SetDistortionState(OutState);
+	FCameraFilmbackSettings FB;
+	FB.SensorWidth = W / PA; FB.SensorHeight = H; FB.SensorAspectRatio = FB.SensorWidth / H;
+	Handler->SetCameraFilmback(FB);
+	OutNeededOverscan = FMath::Clamp(Handler->ComputeOverscanFactor(), 1.f, 4.f);
 	return true;
 }
 
@@ -624,6 +679,9 @@ bool UDynamicLensComponent::DriveProjection(UCineCameraComponent* Cam, const FDy
 	const bool bFit = Profile->bFitFieldToCircle;
 	const float CircleMm = bFit ? 0.5f * Profile->EffectiveImageCircleMm() * FMath::Max(Resolved.ImageCircle.Scale, 0.1f) : 0.f;
 	auto G = [&](float Theta) { return bKPath ? DynamicLensMath::ProjectionGK(K, Theta) : DynamicLensMath::ProjectionG(Proj, Theta); };
+	// the lens shows nothing past its own field limit: a stated circle bigger than f*g(ThetaMax) would leave a ring of
+	// unwarped picture inside the rim, so the fitted circle is capped there (the Optex 4 mm's 14.5 mm vs 12.6 mm)
+	const float FitCircleMm = bFit ? FMath::Min(CircleMm, Focal * G(ThetaMax)) : 0.f;
 	auto ThetaOf = [&](float ROverF, float& Out) { return bKPath ? DynamicLensMath::ProjectionThetaK(K, ROverF, Out) : DynamicLensMath::ProjectionTheta(Proj, ROverF, Out); };
 
 	const bool bDirty = !ProjectionMap || !FMath::IsNearlyEqual(ProjectionKeyFocal, Focal, 1e-3f) || !ProjectionKeySensor.Equals(FVector2D(W, H), 1e-3)
@@ -648,7 +706,7 @@ bool UDynamicLensComponent::DriveProjection(UCineCameraComponent* Cam, const FDy
 		// Fit: theta(r) = S * theta_lens(r), with the largest S <= 1 for which every in-frame point inside the circle has
 		// source. The binding points are where each ray from the centre leaves the circle-and-frame region.
 		float FieldScale = 1.f;
-		if (bFit && CircleMm > KINDA_SMALL_NUMBER)
+		if (bFit && FitCircleMm > KINDA_SMALL_NUMBER)
 		{
 			auto Feasible = [&](float S)
 			{
@@ -656,7 +714,7 @@ bool UDynamicLensComponent::DriveProjection(UCineCameraComponent* Cam, const FDy
 				{
 					const float Phi = FMath::DegreesToRadians((float)A);
 					const float Cs = FMath::Cos(Phi), Sn = FMath::Sin(Phi);
-					float REdge = CircleMm;
+					float REdge = FitCircleMm;
 					if (Cs > 1e-4f) REdge = FMath::Min(REdge, 0.5f * W / Cs);
 					if (Sn > 1e-4f) REdge = FMath::Min(REdge, 0.5f * H / Sn);
 					float Theta;
@@ -710,10 +768,10 @@ bool UDynamicLensComponent::DriveProjection(UCineCameraComponent* Cam, const FDy
 		Mip.BulkData.Unlock();
 		ProjectionMap->UpdateResource();
 
-		if (bFit && CircleMm > KINDA_SMALL_NUMBER)
+		if (bFit && FitCircleMm > KINDA_SMALL_NUMBER)
 		{
 			// fitted: the circle is the lens's own, round, at its physical size
-			ProjectionCircleRadius = ProjectionCircleRy = CircleMm / (0.5f * W);
+			ProjectionCircleRadius = ProjectionCircleRy = FitCircleMm / (0.5f * W);
 		}
 		else
 		{

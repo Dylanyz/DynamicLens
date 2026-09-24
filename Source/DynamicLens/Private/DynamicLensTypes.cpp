@@ -304,6 +304,36 @@ int32 UDynamicLensProfile::FindNearestSTMap(float FocalMm) const
 	return Best;
 }
 
+bool UDynamicLensProfile::EvaluateAnamorphic(float FocalMm, float Amount, TArray<float>& OutParams) const
+{
+	constexpr int32 N = 14;
+	TArray<const FDynamicLensAnamorphicRow*> Valid;
+	for (const FDynamicLensAnamorphicRow& R : AnamorphicRows) { if (R.Params.Num() >= N) Valid.Add(&R); }
+	if (Valid.Num() == 0) return false;
+	Valid.Sort([](const FDynamicLensAnamorphicRow& A, const FDynamicLensAnamorphicRow& B) { return A.FocalMm < B.FocalMm; });
+	const FDynamicLensAnamorphicRow* A = Valid[0];
+	const FDynamicLensAnamorphicRow* B = Valid[0];
+	float T = 0.f;
+	if (FocalMm >= Valid.Last()->FocalMm) { A = B = Valid.Last(); }
+	else if (FocalMm > Valid[0]->FocalMm)
+	{
+		for (int32 I = 1; I < Valid.Num(); ++I)
+		{
+			if (FocalMm <= Valid[I]->FocalMm)
+			{
+				A = Valid[I - 1]; B = Valid[I];
+				T = (FocalMm - A->FocalMm) / FMath::Max(B->FocalMm - A->FocalMm, 1e-3f);
+				break;
+			}
+		}
+	}
+	OutParams.SetNumUninitialized(N);
+	for (int32 I = 0; I < N; ++I) OutParams[I] = FMath::Lerp(A->Params[I], B->Params[I], T);
+	for (int32 I = 1; I <= 10; ++I) OutParams[I] *= Amount;            // CX.. / CY..: the distortion itself
+	if (OutParams[0] <= 0.01f) OutParams[0] = FMath::Max(Squeeze, 1.f);  // pixel aspect: fall back to the lens squeeze
+	return true;
+}
+
 float UDynamicLensProfile::EffectiveImageCircleMm() const
 {
 	if (ImageCircleMm > KINDA_SMALL_NUMBER) return ImageCircleMm;

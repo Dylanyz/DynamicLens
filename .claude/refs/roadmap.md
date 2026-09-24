@@ -122,43 +122,15 @@ correctly on the tiedtke sets.
 
 ---
 
-## Anamorphic parametric distortion (3DE4 Anamorphic Standard Degree 4)
+## Cooke FFi anamorphic zoom - built 2026-09-24, needs Dylan's eyes
 
-**Gated on:** the preset browser being installed and verified (the section above). Both touch
-`Source/DynamicLens`, and doing them at once means two agents fighting over the same C++ and two
-rebuild/restart cycles. The browser's code has landed; what is left is one install and a look at the
-UI. Once that is cleared, propose this.
-
-**What it unlocks.** Six Cooke FFi ANA 1.8x lenses (32, 40, 50, 75, 100, 135 mm) from Andy Davis's
-Cinelens release, already extracted to `Tools/data/raw/andy_davis_cinelens.json`. They would be the
-first anamorphic the plugin can **zoom continuously** instead of snapping between measured primes.
-
-**Be honest about the size of the prize.** These same lenses already ship as `DL_T_Cooke_FFi`
-tiedtke ST maps, which are exact at their measured focals. The gain is free focal length between
-them, nothing else. They are all single-focus, so they do **not** breathe, and the 85 mm macro's
-coefficients are all zero. Six lenses, one new capability. Do not oversell it, and do not let it
-grow into "import the whole Cinelens release" - the rest of that release has no distortion data at
-all (see `SOURCES.md`).
-
-**What the work is:**
-
-1. A params struct mirroring UE's `FAnamorphicDistortionParameters` - 14 floats: `PixelAspect`,
-   `CX02 CX04 CX22 CX24 CX44`, `CY02 CY04 CY22 CY24 CY44`, `SqueezeX`, `SqueezeY`, `LensRotation`.
-   The order in `Tools/data/raw/andy_davis_cinelens.json` is exactly that.
-2. A model selector on `UDynamicLensProfile`. `FDynamicLensParams` is Brown-Conrady only and the
-   parametric path hardcodes `USphericalLensModel::StaticClass()` in two places in
-   `DynamicLensComponent.cpp`. Both need to follow the profile's model.
-3. An importer path in `dynamiclens_tools.py`, and a `presets.json` section for the editorial
-   layer (label, note, physical specs), following how `andy_stmap_sets` is laid out.
-4. `dl.export_catalogue()` needs `_parametric_edge_shift` to handle the anamorphic model - its
-   K1+K2+K3 assumption is meaningless for these coefficients.
-
-**Watch out for:** the 50 mm's solve is an outlier against its neighbours (CX22 0.88 and CY24 3.64,
-where 40 mm and 75 mm are around 0.1-0.3). Interpolating focal length straight through it will
-lurch at 50 mm. Check it against the tiedtke ST map for the same lens before shipping, and if it is
-genuinely bad, say so in the profile's `Source` rather than quietly smoothing it.
-
-**Needs a build and therefore a restart.** Ask Dylan; see `.claude/rules/editor-restarts.md`.
+`DL_AD_Cooke_FFi_Zoom` (profile `DLP_AD_Cooke_FFi_Anamorphic`, `presets.json` section
+`anamorphic_profiles`, importer `dl.import_anamorphic_profiles()`). Profiles with `AnamorphicRows`
+switch the component to Epic's `UAnamorphicLensDistortionModelHandler`; the 14 parameters are
+interpolated across focal length, pixel aspect forced to 1.8 per `.claude/refs/andy-davis-vs-tiedtke.md`.
+**Not visually verified** (the automated PIE harness is unreliable, see below): check the direction of
+the distortion against `DL_T_Cooke_FFi` at 50 and 135 mm, and the 50 mm lurch. `dl.export_catalogue()`
+still assumes K1+K2+K3 in `_parametric_edge_shift` and needs an anamorphic branch.
 
 ---
 
@@ -314,35 +286,54 @@ measured off clamped texels. Same class of bug as the earlier Cooke FFi edge sme
 3. Fix goes in `BuildExtendedSTMap` (clamp detection or guard band). C++, so build, then install on
    Dylan's next restart per `.claude/rules/updating-the-plugin.md`. Confirm on the Cooke FFi too.
 
-## ST-map distortion collapses after ~20 s in an unfocused PIE session
+## ST-map and projection distortion collapse to a centre smear in automated PIE
 
-**Gated on:** confirming it happens in interactive use. Seen only under automation (2026-09-24).
+**Harness-only (Dylan, 2026-09-24): his Panavision C Series renders are fine.** Keep this for anyone
+automating visual checks: by the end of the session every preset collapsed, parametric included.
 
-**Symptom.** Any `DL_T_*` preset in PIE: after roughly 10-40 s the whole frame becomes a
-radial zoom-smear of the centre, and stays that way for the rest of the session. `Apply Distortion`
-off shows the scene fine. A parametric preset in the same broken session renders fine; switching
-back to the ST map breaks again. Re-applying the preset or forcing a new extended map (tiny filmback
-change) does not fix it. Frame rate is steady (~100 fps), no GC link (a forced `obj gc` is fine),
-nothing in `LogCameraCalibrationCore` at Verbose, dynamic resolution was off.
+**Symptom.** In PIE, a `DL_T_*` preset collapses the frame into a radial smear of the centre after
+10-40 s; a `DL_L_*` projection preset does it from the first frame. `Apply Distortion` off shows the
+scene fine; a parametric preset in the same session renders fine; switching back breaks again.
+Re-applying the preset or forcing a new extended map does not fix it. **Bisected: the code as of
+`842ee8b` (before 2026-09-24) does exactly the same**, so it is not from the bokeh or fisheye work.
 
-**Why it may be harness-only.** The editor window was never focused, and every look was a
-`HighResShot`. Frequent screenshots (every ~2.5 s) kept it healthy for 30 s+; a 10 s gap broke it.
-Dylan works with a focused, realtime viewport, so first check whether it happens to him at all.
+**Ruled out:** GC (forced `obj gc`), dynamic resolution (off), frame rate (steady ~100 fps), the
+image-circle MID (off, still broken), Epic's derived-data jobs (nothing in `LogCameraCalibrationCore`
+at Verbose). Both the parametric and the ST path feed the same `M_DistortionPostProcess` MID, so the
+difference is in what Epic's ST-map Lens File writes into the handler's displacement maps.
 
-**Repro.** `/Game/DynamicLensTest/L_DLTest`, `DLTest_Cam`, `DL_T_Panavision_C_Series`, 20 mm,
-23 x 18.66 mm, squeeze 2, PIE, wait 40 s, `HighResShot`. Then try the same in Movie Render Graph -
-that is the case that would matter.
+**Why it may be the harness.** The editor window was never focused and every look was a
+`HighResShot`. Frequent screenshots kept a `DL_T_*` healthy for 30 s+.
 
-## Switching Render Mode to TSR during PIE crashes the renderer
+**Harness notes for whoever picks this up** (all in `/Game/DynamicLensTest`, CitySample):
+- `L_DLTest` has `DLTest_Cam` and a sphere grid for bokeh. Load it in its own call; duplicating and
+  loading a map in one call trips an Unreal GC assert.
+- The PIE pawn falls and world partition unloads the showroom: pin it behind the camera.
+- Legacy Movie Render Queue renders `DLTest_Cam` with **no** lens effect in either render mode
+  (verified in-render: the component, blendables and view target are all correct). Movie Render
+  Graph (`MRG_DLTest`, a copy of `zz_dltest_MRG` writing to a scratch folder) does apply it, but the
+  showroom streams out there too. Save the level before any render: renders read the saved map.
+- `read_render_target_raw` returns nothing for the handler's RG16F maps; a copy-to-RGBA32F via a
+  material also read zeros. Reading the displacement maps back still needs a working method.
 
-**Gated on:** nothing. Found 2026-09-24 while chasing the entry above: with an ST-map preset in PIE,
-setting `RenderMode = TemporalSuperResolution` from script asserted
-`InTexture.IsValid()` in `ScreenPass.inl:171`. Probably the SVE state is handed a displacement map
-that is not allocated yet on that frame. Guard in `ApplyRendering` (skip the SVE hand-off until the
-handler's displacement RTs have a resource), then re-test.
+## TSR render mode + ST-map or projection preset crashed the renderer in PIE
+
+**Guarded 2026-09-24, verify.** Asserted `InTexture.IsValid()` in `ScreenPass.inl:171`, both when
+switching Render Mode mid-PIE and simply starting PIE with a camera saved in TSR mode. Pre-existing
+(the `842ee8b` build crashes on PIE start). `ApplyRendering` now skips the SVE hand-off until both
+handler displacement maps have an RHI texture; a TSR-mode Movie Render Graph render ran without
+crashing afterwards. Re-test the PIE-start case interactively.
 
 ## Match Camera To Profile did not take when called from script in PIE
 
 Seen 2026-09-24: `match_camera_to_profile()` on the PIE copy right after setting the preset left the
 filmback at 23.76 x 18.66, squeeze 1. May be ordering (called in the same frame as the preset
 change) rather than a bug. Check before relying on it in any automation.
+
+## Circle Coverage control, and anamorphic image circles
+
+From `.claude/refs/image-circle-guide.md` (2026-09-24). **Circle Coverage** = circle diameter over the
+delivered frame's diagonal, on the sensor before desqueeze, crop applied; a Physical/Coverage mode that
+turns fit on and, past the lens's field limit, enlarges the fisheye image rather than the circle.
+Anamorphic lens circles need an ellipse at 1/squeeze - today the circle is measured on the desqueezed
+width, so a real one would be drawn 2x too narrow (why `DLP_AD_Cooke_FFi_Anamorphic` has none).

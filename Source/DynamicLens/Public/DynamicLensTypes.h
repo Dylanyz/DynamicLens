@@ -59,6 +59,24 @@ struct DYNAMICLENS_API FDynamicLensProfileRow
 	TArray<FDynamicLensParams> ByFocus;
 };
 
+/**
+ * One focal length of a 3DE4 "Anamorphic Standard, Degree 4" solve (Epic's UAnamorphicLensModel), in Epic's order:
+ * PixelAspect, CX02 CX04 CX22 CX24 CX44, CY02 CY04 CY22 CY24 CY44, SqueezeX, SqueezeY, LensRotation.
+ */
+USTRUCT(BlueprintType)
+struct DYNAMICLENS_API FDynamicLensAnamorphicRow
+{
+	GENERATED_BODY()
+
+	/** Focal length this row was measured at, in mm. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile", meta = (ClampMin = "1.0", ClampMax = "2000.0"))
+	float FocalMm = 50.f;
+
+	/** The 14 model parameters (see the struct comment for the order). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile")
+	TArray<float> Params;
+};
+
 /** One ST map (lens grid solved to a UV map) at a fixed focal length. */
 USTRUCT(BlueprintType)
 struct DYNAMICLENS_API FDynamicLensSTMapEntry
@@ -159,6 +177,18 @@ public:
 	/** One row per measured focal length, ascending by FocalMm. Each row holds FocusCm.Num() entries. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Parametric Data", meta = (EditCondition = "Type == EDynamicLensProfileType::Parametric"))
 	TArray<FDynamicLensProfileRow> Rows;
+
+	/**
+	 * Anamorphic lenses: one 3DE4 Anamorphic Degree 4 solve per focal length, interpolated across focal length so the lens
+	 * zooms continuously. Non-empty switches this profile to Epic's anamorphic model; Rows then only list the focal lengths.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Parametric Data", meta = (EditCondition = "Type == EDynamicLensProfileType::Parametric"))
+	TArray<FDynamicLensAnamorphicRow> AnamorphicRows;
+
+	bool IsAnamorphicModel() const { return Type == EDynamicLensProfileType::Parametric && AnamorphicRows.Num() > 0; }
+
+	/** The 14 anamorphic parameters at this focal length (clamped to the measured range), distortion terms scaled by Amount. */
+	bool EvaluateAnamorphic(float FocalMm, float Amount, TArray<float>& OutParams) const;
 
 	// --- ST map data ------------------------------------------------------------------------------
 	/** Measured maps, one per focal length. The component uses the entry whose focal length is nearest the camera's. */

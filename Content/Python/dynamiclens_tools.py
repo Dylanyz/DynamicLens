@@ -100,6 +100,43 @@ def import_projection_profiles(preset_file=None, save=True):
     return created
 
 
+def import_anamorphic_profiles(preset_file=None, save=True):
+    """presets.json anamorphic_profiles -> parametric UDynamicLensProfile assets on Epic's 3DE4 anamorphic model.
+
+    Each row is one focal length's 14-float solve read from Tools/data/raw/<raw>; the component interpolates across focal
+    length. The Brown-Conrady grid is filled with zeros only so the profile lists its focal lengths (one focus sample).
+    """
+    preset_file = preset_file or os.path.join(DATA_DIR, "presets.json")
+    profs = json.load(open(preset_file, encoding="utf-8")).get("anamorphic_profiles", {})
+    created = []
+    for name, spec in profs.items():
+        raw = json.load(open(os.path.join(DATA_DIR, "raw", spec["raw"]), encoding="utf-8"))
+        focals = sorted(float(f) for f in spec["rows"])
+        rows = []
+        for f in focals:
+            key = spec["rows"][[k for k in spec["rows"] if float(k) == f][0]]
+            params = [float(x) for x in raw[key]["distortion"][0]["params"]]
+            if "pixel_aspect" in spec:
+                params[0] = float(spec["pixel_aspect"])
+            r = unreal.DynamicLensAnamorphicRow()
+            r.set_editor_property("focal_mm", f)
+            r.set_editor_property("params", params)
+            rows.append(r)
+        asset = _create_data_asset("DLP_" + name, PROFILE_PKG, unreal.DynamicLensProfile)
+        ok = unreal.DynamicLensLibrary.fill_profile(asset, spec.get("label", name), spec.get("source", ""),
+                                                    [20000.0], focals, [0.0] * (5 * len(focals)))
+        if not ok:
+            raise RuntimeError(f"fill_profile failed for {name}")
+        asset.set_editor_property("anamorphic_rows", rows)
+        _apply_specs(asset, spec)
+        unreal.DynamicLensLibrary.refresh_profile(asset)
+        if save:
+            unreal.EditorAssetLibrary.save_loaded_asset(asset)
+        created.append(f"{PROFILE_PKG}/DLP_{name}")
+        _log(f"anamorphic profile DLP_{name}: {asset.get_editor_property('coverage')}")
+    return created
+
+
 def _set_struct(obj, prop, values):
     s = obj.get_editor_property(prop)
     for k, v in values.items():
@@ -717,6 +754,7 @@ def import_all(tiedtke=True):
     build_image_circle_material()
     import_profiles()
     import_projection_profiles()
+    import_anamorphic_profiles()
     import_derived_profiles()
     import_presets()
     if tiedtke:

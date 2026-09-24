@@ -983,6 +983,30 @@
     "fixed": 3.0
    },
    "lock_focal": true
+  },
+  "AD_Cooke_FFi_Zoom": {
+   "label": "Cooke FFi 1.8x anamorphic as a continuous zoom 32-135 mm (Andy Davis coefficients). Smooth between primes; the tiedtke ST maps are exact at the primes.",
+   "profile": "AD_Cooke_FFi_Anamorphic",
+   "amount": 1.0,
+   "breathing": 1.0,
+   "out_of_range": "Clamp",
+   "image_circle": true,
+   "vignette": {
+    "mode": "Physical",
+    "natural_falloff": 0.5,
+    "mechanical_strength": 1.0
+   },
+   "bokeh": {
+    "mode": "Physical",
+    "cats_eye_strength": 1.0,
+    "petzval": 0.0,
+    "petzval_falloff": 1.0,
+    "swirl_fades_by_fstop": 5.6
+   },
+   "overscan": {
+    "mode": "Dynamic",
+    "max": 1.5
+   }
   }
  },
  "notes": {
@@ -1277,6 +1301,32 @@
     "pupil_visible_at_image_circle": 0.5,
     "note": "Supreme optics with Radiance coatings. Distortion measurably differs from our AD_ZEISS_Supreme grid (mean 3.4 px at 50 mm), so it is its own profile, not a re-badge."
    }
+  }
+ },
+ "anamorphic_profiles": {
+  "AD_Cooke_FFi_Anamorphic": {
+   "label": "Cooke Anamorphic/i Full Frame Plus 1.8x (continuous zoom 32-135 mm)",
+   "raw": "andy_davis_cinelens.json",
+   "rows": {
+    "32": "COOKE_FFi_ANA_1_8x_032mm",
+    "40": "COOKE_FFi_ANA_1_8x_040mm",
+    "50": "COOKE_FFi_ANA_1_8x_050mm",
+    "75": "COOKE_FFi_ANA_1_8x_075mm",
+    "100": "COOKE_FFi_ANA_1_8x_100mm",
+    "135": "COOKE_FFi_ANA_1_8x_135mm"
+   },
+   "pixel_aspect": 1.8,
+   "native_sensor_mm": [
+    66.06,
+    25.54
+   ],
+   "squeeze": 1.8,
+   "image_circle_mm": 0.0,
+   "max_aperture": 2.3,
+   "iris_blades": 11,
+   "front_diameter_mm": 110,
+   "pupil_visible_at_image_circle": 0.7,
+   "source": "Andy Davis (Imagery for Media), VFX RnD Cinelens Lens Files: 3DE4 Anamorphic Standard Degree 4 solves for the Cooke FFi 1.8x at 32, 40, 50, 75, 100 and 135 mm, one focus sample each (so no breathing). Interpolated linearly across focal length, which makes it zoom continuously between the primes; tiedtke's DL_T_Cooke_FFi ST maps are the exact alternative at the measured focals. Pixel aspect is set to 1.8: the Lens Files store 1.0, but the coefficients only reproduce the ST maps at 1.8 (.claude/refs/andy-davis-vs-tiedtke.md). The 50 mm solve bends 2-3x harder than 40 and 75 in the data itself, so the zoom lurches through 50 mm; that is the lens data, not smoothed. 85 mm macro (all zero) and 180 mm (empty) are left out. Gate 36.7 x 25.54 mm squeezed (66.06 x 25.54 desqueezed, 2.59:1) from the Lens File. No image circle (the component measures it on the desqueezed width, which is wrong for anamorphics; left off like the tiedtke anamorphics). T-stop, blades, front diameter and pupil visibility: assumed."
   }
  }
 }
