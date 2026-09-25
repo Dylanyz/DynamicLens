@@ -408,3 +408,31 @@ What was built and verified is at the top of the Coverage section in `image-circ
 seen rendered. Look at: the 8 mm and 4 mm at Coverage 0.5 / 1.0 (the magnified fisheye past the lens
 field is new picture), and an anamorphic at Coverage 0.8. `DLP_AD_Cooke_FFi_Anamorphic` could now be
 given a real image circle.
+
+---
+
+## Ideas - not researched yet (Dylan, 2026-09-25)
+
+Recorded so they are not lost. Neither has been researched, so neither is proposable yet. Research
+first, then promote to a full entry with its gate.
+
+### A Dynamic Lens panel, with the Preset Browser inside it
+
+Grow the Lens Presets window into a full **Dynamic Lens panel**, in the spirit of the Black Eye camera
+panel (the `blackeye-camera` skill has its docs). Presets become one part of it, not a separate
+dockable tab. Every other control the plugin has lives there too, laid out for an artist rather than
+as a details panel: knobs and sliders, +/- buttons for focal length, and live readouts (focal, focus,
+f-stop, overscan, image circle, notes). A Slate panel is free of details-panel layout limits, which
+is the point. **Not now.** Research first: what the Black Eye panel does well, which controls belong
+up front, and how a panel binds to the selected camera(s). The browser's click-to-apply-to-selected
+logic carries over.
+
+### Simulated lens flares matched to the lens
+
+Physically simulated flares per lens, like https://lenses.cineflares.com/, where each flare is
+simulated for a specific lens's optics. The goal is flares that match the preset in use. Dylan is
+starting the research himself. Open questions for that research: what the flare simulation needs per
+lens (element count, coatings, iris, a prescription?), whether that data exists for the lenses we
+ship, and how it would render in UE 5.8 (Epic's convolution bloom and lens flare post-process vs a
+custom pass). Credit any source in `SOURCES.md`, and anything used as data in `NOTICE`.
+
