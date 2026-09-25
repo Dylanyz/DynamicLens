@@ -30,11 +30,11 @@ work that does not need his eyes, and queue everything visual for his return.
 **2. Decisions only Dylan can make:** the six `DL_T_*` overscan ceilings (`todo.md`); the scratch
 assets from 2026-09-19 (`/Game/Cinematics/_render/zz_dltest_MRG`, `Saved/MovieRenders/dltest/` -
 nothing deleted, `Saved/` off limits); the cube-source question for a real 180 deg fisheye
-(`wide-field-source.md`).
+(`wide-field-source.md`); whether the static-mesh LOD fix is worth a render-path hack (the LOD entry
+below - re-diagnosed, much smaller than first written).
 
 **3. Good next work that needs no eyes:** the Circle Coverage control and
-anamorphic image-circle ellipse (entry at the end); LOD/Nanite compensation for fisheyes (the only
-half of "two quality bugs" still open). Each is C++: build, install, relaunch - **editor restarts are
+anamorphic image-circle ellipse (entry at the end). C++: build, install, relaunch - **editor restarts are
 fine while Dylan is away** (he said so 2026-09-24), but ask again once he is back at the machine.
 
 **4. Do not trust automated screenshots.** The PC sits on the Windows lock screen when Dylan is away.
@@ -252,12 +252,22 @@ default 10 cm near plane everything nearer than 0.64 m *along the ray* is clippe
 `CineCameraComponent.h:87`) to about a millimetre on `DL_L_*` cameras. Reversed-Z with infinite far
 handles it. This gets worse if the overscan ceiling goes up, so do it first.
 
-**LOD and Nanite coarsen by 6x on the porthole.** Both derive one scalar from *on-axis* pixel density
-(`SceneManagement.cpp:939`, `NaniteShared.cpp:197-202`), proportional to `1/tan(halfFOV)`. The 4 mm at
-O=2 renders 161.7 deg wide, so every mesh picks LOD as if 6.2x further away and Nanite clusters are
-6.2x coarser - uniformly, including at the rim where the source already has 5-11x surplus pixels.
-The 8 mm at 144.4 deg is 3.1x. Compensate per camera with `r.StaticMeshLODDistanceScale` and Nanite's
-LOD scale factor. Needs a value that tracks the actual FOV rather than a magic number.
+**LOD - re-diagnosed 2026-09-24 (late), now gated on Dylan.** The "6x coarser" was measured against a
+90 deg render; against the same camera without overscan, **Nanite is not coarsened** (O <= 2, scaled
+resolution) and **discrete static-mesh LOD is coarsened by exactly O** - 2x at O = 2, on every preset.
+Numbers and code references in `overscan-and-image-circle.md`. In a Nanite-heavy level like CitySample
+this barely shows.
+
+*The fix, and why it is not built:* divide `FSceneView::LODDistanceFactor` by the applied resolution
+fraction for views of a Dynamic Lens camera. `r.StaticMeshLODDistanceScale` would do it but is global
+(every viewport, particles, ray tracing), so it needs a per-view hook - a small scene view extension.
+`SetupView` is the natural place, but in the level editor it runs *before* the viewport sets
+`View->ViewActor` (`EditorViewportClient.cpp:1650` vs `LevelEditorViewport.cpp:2563`), so the
+extension cannot tell which camera a view belongs to. The workable spot is `BeginRenderViewFamily`,
+which needs a `const_cast` on the family's views before the renderer copies them. It works on paper
+for the editor, PIE and Movie Render Graph (all three set `ViewActor`), but it is a hack in the render
+path for a small gain, and the result can only be checked visually (LOD colouration view mode).
+**Ask Dylan whether it is worth it** before building.
 
 ## Panavision C Series 20 mm edge smear (tiedtke ST-map clamp detection)
 

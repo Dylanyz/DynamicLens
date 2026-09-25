@@ -138,14 +138,23 @@ pixels and it comes back to 1.000.
 
 Both are present at the current overscan of 2.0 and neither has anything to do with distortion maths.
 
-**LOD and Nanite coarsen badly.** Both derive one scalar from the *on-axis* pixel density -
-`ComputeBoundsScreenSize` uses `0.5f * ProjMatrix.M[0][0]` (`SceneManagement.cpp:939`) and Nanite's
-`FPackedView::UpdateLODScales` uses `0.5f * ViewToClip.M[1][1] * ViewSizeAndInvSize.Y`
-(`NaniteShared.cpp:197-202`), both proportional to `1/tan(halfFOV)`. On the 4 mm porthole at O=2 the
-render is 161.7 deg wide, so **every mesh in frame picks LOD as if it were 6.2x further away**, and
-Nanite clusters are 6.2x coarser - applied uniformly, including at the rim where the source already
-has surplus pixels. The 8 mm at 144.4 deg is 3.1x. Partly fixable per camera with
-`r.StaticMeshLODDistanceScale` and Nanite's LOD scale factor.
+**LOD: smaller than first thought, and Nanite is fine.** *Corrected 2026-09-24 (late).* The first
+write-up said every mesh picks LOD "6.2x further away" on the 4 mm. That compared the 161.7 deg render
+against a 90 deg one (`1/tan(halfFOV)` = 6.2), which is the wrong baseline: what matters is the same
+camera *without* overscan, whose centre density the fisheye output already matches (the 1.000 above).
+Against that baseline:
+
+- **Nanite: not coarsened** while overscan <= 2 with `bScaleResolutionWithOverscan`.
+  `FPackedView::UpdateLODScales` uses `0.5f * ViewToClip.M[1][1] * ViewSizeAndInvSize.Y`
+  (`NaniteShared.cpp:195-202`): pixels per unit tan. Overscan divides `M[1][1]` by O and scaled
+  resolution multiplies the view size by O, so they cancel. Past O = 2, Epic's resolution-fraction
+  clamp stops the cancelling and clusters coarsen by `O/2`, the same factor as the centre softness.
+  `LODDistanceFactor` does not reach the cluster LOD at all, only culling (`NaniteShared.cpp:249,269`).
+- **Discrete static-mesh LOD: coarsened by exactly O** (2x at O = 2), on every preset, not just
+  fisheyes. `ComputeBoundsScreenSize` (`SceneManagement.cpp:939`) measures a *fraction of the screen*,
+  not pixels, and the overscanned screen is O times wider. Fixable per view by dividing
+  `FSceneView::LODDistanceFactor` by the resolution fraction actually applied (`min(O, 2)`, or 1
+  without scaled resolution). See the roadmap entry for why that is not a one-liner.
 
 **The near plane eats the rim.** Clipping is on view-space `Z = d*cos(theta)`, not on ray distance, so
 at the default 10 cm near plane everything nearer than **0.64 m along the ray** is clipped at 81 deg
