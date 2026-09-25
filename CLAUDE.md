@@ -108,6 +108,9 @@ Then relaunch and re-run whatever the change depends on, commonly
 ## Editor Python
 
 Run through `unreal-py` (`editor_run_python`) or a remote-exec helper. `import dynamiclens_tools as dl` first.
+The host project's own rules apply when driving its editor: read its `.claude/rules/ue-python-patterns.md`
+and `ue-visual-verification.md` (e.g. CitySample's) - this repo does not load them. With no MCP, remote exec
+works via the `/dyl-ue-setup` skill's `scripts/rexec.py`. Scratch assets go in the project's `/Game/Claude/`.
 
 | Call | Does |
 |---|---|
