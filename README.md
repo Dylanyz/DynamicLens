@@ -100,7 +100,11 @@ Five blocks, all with tooltips and hard clamps:
   K1 x s^2, K2 x s^4, P x s), **Extrapolate**, or **Clamp (raw)** which applies the coefficients unscaled (physically
   wrong, far stronger at wide focal lengths; `DL_C_Vintage_Raw` keeps that look) - and wide boost (a creative layer:
   extra barrel below a focal length - off in measured presets).
-* **Image Circle**: on/off, softness (rolloff band as a fraction of the radius) and the **Edge** block: falloff power,
+* **Image Circle**: on/off, **Scale** relative to the **Lens** (1 = its real circle) or the **Frame** (1 = circle touches
+  the corners). On a fisheye, Scale sizes the whole picture with the circle, from a porthole (~0.6) to a filled frame
+  (1.1-1.3); the fisheye presets open at 1.1. **Field** (fisheyes): *Fit to Circle* keeps the circle round and the right
+  size, compressing the field only when the render runs out; *True Angles* keeps the lens's exact bend and the picture
+  ends early in an oval. Softness (rolloff band as a fraction of the radius) and the **Edge** block: falloff power,
   opacity; Fade: a vignette-like darkening underneath the rim (reach = how far inside the circle it starts, amount = how
   dark at the edge, curve = its shape), independent of the rim rolloff; Geometry: centre offset, ellipticity, radius waviness (wobble / lobes / seed) and, separately, falloff-width
   waviness (the band gets wider and narrower around the circle: falloff wobble / lobes / seed); Optics: per-channel
@@ -117,8 +121,8 @@ Five blocks, all with tooltips and hard clamps:
   overwrites the depth-of-field blade count and squeeze from those settings every frame; a Custom squeeze changes the
   camera squeeze and compensates the filmback width so the framing does not move.
 * **Overscan**: Dynamic (what the frame needs at this focal length over the whole focus range, so a focus pull never
-  resizes the render; rounded up to `Dynamic Step` (2%) with hysteresis for zooms; capped by max) or Fixed (constant for the shot - renders with zoom pulls, and
-  fisheyes, which ship with Fixed 2.0). Beyond the available overscan the frame goes black at the edges: the limit of
+  resizes the render; rounded up to `Dynamic Step` (2%) with hysteresis for zooms; capped by max) or Fixed (constant for the shot - renders with zoom pulls). Fisheyes use Dynamic up to 4 and render only what the
+  circle and frame need, so a filled frame costs less. Beyond the available overscan the frame goes black at the edges: the limit of
   what the render can show is the distorted image of the overscanned source rectangle, so the mask is a superellipse
   through its axis extents and its distorted corner (2 = ellipse for fisheyes, near-rectangular for ST maps), computed
   every frame at the overscan ceiling. It sits outside the corners while there are pixels and
@@ -196,7 +200,9 @@ displacement map resolution from Epic's 256 to 2048 at startup when a project st
 `DynamicLens.DisplacementMapResolution`; 256 shows as soft, stepped edges).
 
 ## Known limits
-* Fisheyes beyond ~80° off-axis can't be rendered by a rectilinear source; the image circle is black there. A 16:9
+* Fisheyes beyond ~80° off-axis can't be rendered by a rectilinear source: Fit to Circle compresses the field to fit,
+  True Angles ends the picture there. Filling the frame softens the centre in the editor viewport (Epic caps the
+  render at 2x the frame; the component's notes give the number); Movie Render Graph is not capped. A 16:9
   source runs out vertically first — use a 4:3 / open-gate filmback (Match Camera To Profile) for the biggest circle.
 * Editor viewport needs Realtime on (Ctrl+R) for the component to tick; renders always tick.
 * Black Eye cameras: their actors are Cine Camera actors and the dynamic FOV is written to the cine camera's focal length,

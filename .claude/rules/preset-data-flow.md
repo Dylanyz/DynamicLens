@@ -26,6 +26,9 @@ keeping goes into the JSON first, then gets imported. Never the other way round.
 | `prefixes` | the naming scheme |
 | `notes` | measurement provenance, e.g. how the porthole was measured |
 
+**Writing `presets.json` from a script:** `json.dumps(d, indent=1, ensure_ascii=False)`, UTF-8, trailing newline.
+Anything else rewrites every line of the diff.
+
 ## Do not "fix" the custom looks
 
 `DL_C_Vintage` is a favourite of Dylan's. `DL_C_Vintage_Raw` exists specifically to preserve the

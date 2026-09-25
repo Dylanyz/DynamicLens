@@ -102,4 +102,5 @@ before running it, and get the tweak into `presets.json` first.
 | Post-process chain goes blank after a material rebuild | orphaned parentless MID | `ClearEffect()`, or reselect the camera |
 | Neon speckle in a band around the rim, only in Movie Render Graph renders | image-circle HLSL sampled the scene with viewport UV instead of buffer UV | fixed 2026-09-18; any new scene sample in that HLSL needs `ViewportUVToSceneTextureUV` + `ClampSceneTextureUV` |
 | Movie Render Graph render is ~Overscan x tighter than the viewport | Post Process Material render mode: MRG applies camera overscan twice on the `bCropOverscan == false` path | set the component's **Render Mode** to Temporal Super Resolution; see the overscan section in `.claude/refs/architecture.md` |
+| Build "fails" with exit 255 and no error | output piped through `Select-Object -First N`, which stops the script mid-package | redirect to a log (`*> $env:TEMP\dlb_build.log`) and `Select-String` it afterwards |
 | `git pull --rebase` fails on a `.uasset`, "Invalid argument" | the editor holds the asset open | `git checkout HEAD -- .`, then merge rather than rebase |

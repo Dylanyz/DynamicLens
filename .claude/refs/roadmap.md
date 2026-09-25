@@ -10,6 +10,25 @@ is the record.
 
 ---
 
+## Where this stands — handoff, 2026-09-25 (evening)
+
+**Fisheye session done, all committed and installed** (installed DLL matches HEAD). Read this before
+the older block below, parts of which it supersedes.
+
+- **Fixed:** every `DL_L_*` fisheye had applied *no* distortion since v0.3 (empty distortion map).
+  Also a ~2-frame raw-overscan flash after every fisheye rebuild.
+- **New:** one preset per lens (4, 6, 8, 10 mm). Image Circle > **Scale** (Lens / Frame) scales circle
+  and picture together. **Field** = Fit to Circle / True Angles. Dynamic fisheye overscan. 1024 bake map.
+  Honest centre-sharpness notes. The `_Fit` and `_Frame` presets were merged and deleted.
+- **Decided by Dylan:** cube capture is **rejected** ("it breaks too much"). Keep all looks, but as
+  controls rather than presets. Fisheyes open mostly filling the frame. Viewport sharpness is
+  deferred (entry below). Vertical squeeze is skipped until a shot asks for it (entry below).
+- **Verification method:** `visual-verification.md`. Dylan reviewed the contact sheets and the live
+  viewport.
+- **Still open from before:** the TSR Render Mode tooltip line, and the six `DL_T_*` overscan ceilings (`todo.md`).
+
+---
+
 ## Where this stands — handoff, 2026-09-24 (late night)
 
 **Paused on purpose.** Everything that needed no eyes is done and pushed (last commits `ae7e8ed`
@@ -112,7 +131,7 @@ hack -> skip; Panavision C Series smear -> no action unless it recurs, then try 
 | What | Where to look |
 |---|---|
 | Force Bokeh Quality (Petzval fix; editor was at High scalability) | `architecture.md`, verified in PIE |
-| `DL_L_*_Fit` fisheyes: continuous projection K, fit-to-circle, overscan ceiling 4, 1 mm fisheye near clip | the fisheye entries below; originals untouched except the near clip |
+| ~~`DL_L_*_Fit` fisheyes~~ superseded 2026-09-25: merged into one preset per lens with Scale + Field, reviewed by Dylan | handoff block above |
 | `DL_AD_Cooke_FFi_Zoom` (3DE4 anamorphic, continuous 32-135 mm) | the Cooke entry below |
 | Preset keyable in Sequencer (`SetPreset`) | `sequencer-integration.md`, verified by scrubbing |
 | Image Circle > Size = Coverage, anamorphic lens-circle ellipse, Match Camera fix | the last two entries |
@@ -121,8 +140,7 @@ hack -> skip; Panavision C Series smear -> no action unless it recurs, then try 
 
 **2. Decisions only Dylan can make:** the six `DL_T_*` overscan ceilings (`todo.md`); the scratch
 assets from 2026-09-19 (`/Game/Cinematics/_render/zz_dltest_MRG`, `Saved/MovieRenders/dltest/` -
-nothing deleted, `Saved/` off limits); the cube-source question for a real 180 deg fisheye
-(`wide-field-source.md`); whether the static-mesh LOD fix is worth a render-path hack (the LOD entry
+nothing deleted, `Saved/` off limits); ~~the cube-source question~~ (rejected 2026-09-25); whether the static-mesh LOD fix is worth a render-path hack (the LOD entry
 below - re-diagnosed, much smaller than first written); what to do about TSR mode crashing PIE (an
 Unreal 5.8 bug with `bCropOverscan`, reproduced on a stock CineCamera - entry below).
 
@@ -286,68 +304,6 @@ still assumes K1+K2+K3 in `_parametric_edge_shift` and needs an anamorphic branc
 
 ---
 
-## The DL_L_* fisheye rework
-
-**Stay-one-faced is done (2026-09-25).** One preset per lens; per-camera Image Circle > Scale (circle and
-picture together) and Field (Fit to Circle / True Angles); Dynamic fisheye overscan; 1024 bake map. The
-`_Fit`/`_Frame` presets were merged and deleted. **Cube source: rejected by Dylan 2026-09-25** ("it breaks
-too much"). Remaining: viewport sharpness (its own entry). The text below is the history.
-
-**Gated on:** Dylan's decision, now that the research is in
-(`.claude/refs/wide-field-source.md`). UE can supply more than 81 deg off-axis, but only by rendering
-six faces: `USceneCaptureComponentCube` is the one mechanism that works in the level viewport, PIE
-*and* Movie Render Graph. It costs a second `FSceneRenderer`, and it loses screen-space reflections,
-DFAO history and motion blur, with Lumen needing hardware ray tracing to survive the face seams.
-
-So there are two different shapes this work can take, and they want different code:
-
-- **Cube source.** The lenses become their real projections - a 220 deg Nikkor actually 220 deg - and
-  the image circle falls out of the physics with no compromise. Bigger job, and the fisheye presets
-  would render differently from every other preset in the plugin.
-- **Stay one-faced.** Everything below still applies, and the projection gets fitted to the circle
-  because 81 deg is all there is. Cheap, self-contained, no rendering features lost.
-
-Dylan was weighing these as of 2026-09-19 and had not decided. Do not start either without an answer.
-
-**Why.** Measured 2026-09-19: every projection preset shows 65-81 deg of field and 1.25-1.48x
-angular compression regardless of focal length, so a 4 mm 180 deg fisheye and a 10 mm look the same.
-The full diagnosis, with numbers, is in `.claude/refs/overscan-and-image-circle.md`.
-
-**The choice.** Unreal can source only ~81 deg off-axis from one rectilinear render at the 2.0
-overscan ceiling. Either (a) put those 81 deg where the real lens would put them, which leaves the
-picture stopping well short of the image circle - today's behaviour, porthole 23% small and
-elliptical - or (b) fit the projection so 81 deg fills the circle at its real physical size, which
-makes the circle correct and round at the cost of bending harder than the real lens does. Recommended
-(b): the thing being matched is a film frame, not a test chart. Moot if the research finds a real
->90 deg source.
-
-**The work, once unblocked:**
-
-1. **A one-parameter projection family** on `UDynamicLensProfile`, replacing the four-way
-   `EDynamicLensProjection` enum with a continuous `k`: `r = (f/k)tan(k*theta)` for k>0,
-   `r = f*theta` at k=0, `r = (f/|k|)sin(|k|*theta)` for k<0. k=1 rectilinear, 0.5 stereographic,
-   0 equidistant, -0.5 equisolid, -1 orthographic. Keep the enum as a preset-authoring convenience
-   that writes k. This is what makes a tunable "how fisheye" possible at all.
-2. **Make `Distortion > Amount` reach `DriveProjection`.** It currently only multiplies
-   Brown-Conrady coefficients (`FDynamicLensSettings::Evaluate`), so on every `DL_L_*` ultra-wide
-   the Amount slider, the multiplier and the override block all do nothing. Blend k from 1
-   (rectilinear) toward the profile's k, and allow past it for exaggeration.
-3. **Image Circle > Coverage**, circle diameter over frame diagonal: 0.3 a tight porthole, 1.0
-   exactly kissing the corners, above ~1.2 invisible. Replaces `Scale`, which currently appears to
-   do nothing on these presets because it only moves the loser of the two masks.
-4. **Report which mask is active** in the details panel. Today you cannot tell whether you are
-   looking at the lens's image circle or the data limit, which is why this took a session to find.
-5. **`DL_L_Favourite_10mm_Rect`**: fixed overscan 1.5, needs 1.62, so its frame edges are sourced
-   from outside the render and smear. Independent of everything above - just raise it.
-
-**Do not touch `DL_L_PoorThings_Petzval_58` or `_85`.** Dylan likes the swirl. They are parametric,
-not projection, so nothing here reaches them - keep it that way.
-
-**Change the presets in place, not as _v2 variants** (Dylan, 2026-09-19). Restore points for the
-revert: DynamicLens `aa13e04`, CitySample Diversion `dv.commit.48`.
-
----
-
 ## Viewport sharpness on fisheyes (per-view resolution past Epic's 2x)
 
 **Gated on:** Dylan, who deferred it on 2026-09-25 ("delay the render sharpness thing"). Nothing technical.
@@ -364,45 +320,27 @@ Dylan was unsold on the UI shape; propose again before building.
 
 ---
 
-## Raise the overscan ceiling from 2 to 4
+## Vertical squeeze for fisheyes (optional look)
 
-**Gated on:** Dylan's go-ahead. Nothing technical. This is the cheapest real improvement available to
-the fisheyes and it is independent of the cube-capture question - do it either way.
+**Gated on:** a shot that asks for it. Dylan agreed on 2026-09-25 to skip it until then.
 
-**What it buys.** `theta_cap = atan(O * W / 2f)`, so raising the ceiling to 4 takes the shipping
-fisheyes from **66.8-80.9 deg** to **77.9-85.4 deg** of field, and *grows* the image circle at the
-same time (the 4 mm porthole goes 0.454 -> 0.479 half-widths, closing part of its 23% deficit). No
-cube capture, no new rendering path. Full numbers in `.claude/refs/overscan-and-image-circle.md`.
+**What.** A round fisheye filling a wide frame crops the circle's top and bottom. At 8 mm, Scale 1.1
+the frame shows 42 deg up while the raw render has 74 deg. A vertical squeeze of the fisheye map would
+fit that band in, at the cost of making round things oval: an undesqueezed-anamorphic look. A
+*radial* squeeze was ruled out, because the frame corners already sit at ~82 deg against a ~83 deg
+render ceiling. About an hour's work: a Y factor on the fisheye plane in the `DriveProjection` bake
+and in `NeedFor`.
 
-**What it costs, and it is a choice.** Epic clamps `OverscanResolutionFraction` to `[1,2]`
-(`CameraStackTypes.cpp:542`), which is the *only* thing that turns extra overscan into lost centre
-resolution - the fisheye centre is otherwise sampled at exactly 1.000 at any overscan. So at O=4
-either accept a centre 2x softer for free, or keep it sharp for 4x the GPU pixels. Make that visible
-in the UI; do not let it be silent.
+---
 
-**Every ceiling that has to move together:**
+## Hold the finished map on the ST-map path too
 
-| Site | Clamp |
-|---|---|
-| `DynamicLensComponent.cpp:401` | `Applied = FMath::Clamp(Applied, 1.f, 2.f)` |
-| `DynamicLensComponent.cpp:569` | `O = FMath::Clamp(AppliedOverscan, 1.f, 2.f)` in `DriveProjection` |
-| `DynamicLensComponent.cpp:663` | `CamOverscan = FMath::Clamp(AppliedOverscan - 1.f, 0.f, 1.f)`, written straight to `Cam->Overscan` |
-| `DynamicLensTypes.h:766, 775` | `MaxOverscan` / `FixedOverscan` `ClampMax = "2.0"` (metadata) |
-| `LensDistortionSceneViewExtension.cpp:667` | engine-side: `InverseOverscan` clamped `[0,2]` on the SVE path - a third 2 to clear |
-| `DynamicLensComponent.cpp:600` | `Theta < HALF_PI - 0.01f`, a hard 89.43 deg cap inside the ST-map bake |
+**Gated on:** nothing. It is small; do it with the next C++ batch.
 
-Line 663 matters most: it writes `Cam->Overscan` directly, bypassing `SetOverscan`, with its own
-`[0,1]` clamp. `FMinimalViewInfo::ApplyOverscan` has **no** upper bound, so that assignment can
-legitimately carry 3.0 for O=4.
-
-**Three ways to keep centre resolution**, none needing an engine change: set
-`bScaleResolutionWithOverscan = false` and raise primary screen percentage instead
-(`kMaxResolutionFraction = 4.0f`, `SceneView.h:2277`); or render oversized in Movie Render Graph and
-downscale, which is where these presets get finished anyway (ceiling: O=8 on a 1920 output needs
-15360 wide, just inside the 16384 D3D12 limit); or accept the softness.
-
-**Re-check the Movie Render Graph double-count** (`.claude/refs/architecture.md`) at the new ceiling.
-It was diagnosed at 2.0 and nothing has verified it behaves at 3 or 4.
+`DriveProjection` now holds the last finished lens file while a rebuilt one's derived data is in
+flight (`architecture.md`, gotchas). `DriveSTMap` still shows zero displacement for ~2 frames on a
+preset switch. At overscan <= 2 it is barely visible, but it is the same bug. Reuse
+`DynamicLensLensFileReady` and the Shown* state.
 
 ---
 

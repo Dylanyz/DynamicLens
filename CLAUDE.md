@@ -37,6 +37,7 @@ here edits the live plugin, with no sync step. Only C++ needs a build.
   block; read that first if you are picking this repo up cold.**
 - Short jobs that are already decided and blocked on nobody → `.claude/refs/todo.md`. Unlike the
   roadmap, these are meant to be picked up and done, not proposed.
+- Proving a look works (stills, per-frame checks, the traps) → `.claude/refs/visual-verification.md`
 - Keeping these docs true → `.claude/refs/maintenance.md`
 - Where the data and the *ideas* came from, and how each was used → `SOURCES.md` (public)
 
@@ -102,7 +103,7 @@ Tools\build_dynamiclens.ps1 -InstallOnly # you run it, after Dylan says the edit
 Then relaunch and re-run whatever the change depends on, commonly
 `dl.build_image_circle_material(force=True)` and `dl.import_presets()`.
 
-**Never close or restart the editor yourself.** See `.claude/rules/editor-restarts.md`.
+**Never close or restart the editor without Dylan's yes** - then do it yourself, never hand him the command. See `.claude/rules/editor-restarts.md`.
 
 ## Editor Python
 

@@ -4,6 +4,10 @@ Researched 2026-09-19, two parallel investigations: a read of the UE 5.8 engine 
 of what the fisheye/fulldome community actually ships. Written down because it is expensive to
 re-derive and it decides the shape of the `DL_L_*` fisheye rework.
 
+**Outcome (2026-09-25):** Dylan rejected the cube capture ("it breaks too much"). The fisheyes stay
+one-faced, with Scale and Field controls (`using-the-component.md`). This doc stays as the record of why
+there is no cheap way past ~83 deg.
+
 **The question.** DynamicLens bakes analytic fisheye by resampling one rectilinear scene render.
 A rectilinear render's radius goes as `f·tan θ`, so it cannot supply 90° at any finite overscan, and
 in practice the plugin tops out near 81°. Every `DL_L_*` preset is squeezed into that, which is why
