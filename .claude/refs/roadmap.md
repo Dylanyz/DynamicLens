@@ -10,11 +10,27 @@ is the record.
 
 ---
 
-## Where this stands — handoff, 2026-09-24 (evening)
+## Where this stands — handoff, 2026-09-24 (late night)
 
-A long autonomous session on 2026-09-24 cleared most of the bug list and built the fisheye and
-anamorphic work. **Dylan cannot test anything for a couple of days** (travelling, no Parsec), so pick
-work that does not need his eyes, and queue everything visual for his return.
+**Paused on purpose.** Everything that needed no eyes is done and pushed (last commits `ae7e8ed`
+hide presets, `178f4dc` Sequencer phases 2-3 + Lens Kits, `dd9870b` LOD re-diagnosis, `1b5f9c6`
+Circle Coverage + Match Camera fix, `7bfb9df` TSR PIE crash). The installed DLL matches HEAD. The
+editor was **closed at Dylan's request** (heat) and he expects to test in about two days, around
+2026-09-26. **Do not relaunch the editor or start new C++ work until he has tested** - the next step
+is his review, then fixes from it, batched into one build.
+
+**Dylan's test list, in this order** (given to him 2026-09-24):
+1. Preset Browser (Window > Cinematics): hide a lens, check the Hidden section, then check it is gone
+   from the component's Preset dropdown - the one piece automation could not reach.
+2. Circle Coverage: `DL_L_PoorThings_8mm`, tick the Image Circle override, Size = Coverage, try 0.5 and 1.0.
+3. Anamorphic circle: a `DL_T_*` preset at Coverage 0.8 should draw an oval.
+4. Lens kit: Kit = `DLK_L_PoorThings`, key the CineCamera focal at 8 then 58, scrub.
+5. Match Camera: spherical preset -> a `DL_T_*` with auto-match off, press Match Camera, squeeze should become 2.
+
+**The three open decisions - Dylan said "idk", so these defaults stand until he says otherwise:**
+TSR PIE crash -> leave it, use Post Process Material for PIE and TSR only for Movie Render Graph
+(still to do: say so in the Render Mode tooltip, one line, fold into the next build); static-mesh LOD
+hack -> skip; Panavision C Series smear -> no action unless it recurs, then try Match Camera once.
 
 **1. Built, installed, committed - waiting on Dylan's eyes, not on code:**
 
@@ -35,8 +51,8 @@ nothing deleted, `Saved/` off limits); the cube-source question for a real 180 d
 below - re-diagnosed, much smaller than first written); what to do about TSR mode crashing PIE (an
 Unreal 5.8 bug with `bCropOverscan`, reproduced on a stock CineCamera - entry below).
 
-**3. Good next work that needs no eyes:** little is left that is not gated on Dylan. C++: build, install, relaunch - **editor restarts are
-fine while Dylan is away** (he said so 2026-09-24), but ask again once he is back at the machine.
+**3. Good next work that needs no eyes:** none left; wait for Dylan's review. Editor restarts were
+allowed only while he was away (2026-09-24) - **ask again before any restart from now on.**
 
 **4. Do not trust automated screenshots.** The PC sits on the Windows lock screen when Dylan is away.
 Automated PIE `HighResShot`s of ST-map/projection presets collapse into a centre smear (harness
