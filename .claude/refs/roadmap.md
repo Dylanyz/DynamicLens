@@ -29,6 +29,15 @@ leave the list for Dylan. Report results in this block; fix nothing visual witho
 - 1 Preset Browser hide: **FAIL as clicked.** The eye button shows its tooltip and highlights, but
   four clicks never hid the lens, and nothing reached the ini. The star and search beside it work.
   The code path (`ToggleHidden` -> `SetHidden` -> `Save`) reads correctly. Dylan to try by hand.
+- 2 Circle Coverage: **PASS** (PIE, overscan overridden to 1.0). 0.5 = circle ~half the frame
+  diagonal, 1.0 = touches the corners; readback 0.500 / 1.000, mask "lens image circle".
+- 3 Anamorphic oval: **PASS.** `DL_T_Arri-Zeiss_MasterAnamorphic` at 0.8 draws a horizontal oval.
+- 4 Lens kit: **PASS.** `LS_KitTest` (`/Game/Claude/DynamicLens/`), focal keyed 8 then 58 at frame
+  48; scrubbing 10/60/20/70/47/48 via Sequencer switches 8 mm fisheye <-> Petzval 58 every time.
+- 5 Match Camera: **PASS** (function called from Python, same as the button). Leica R -> Master
+  Anamorphic with auto-match off keeps squeeze 1; Match Camera -> squeeze 2, 23 x 18.66 mm, 35 mm.
+- Gotcha: ticking an Override block seeds it from the preset, so from Python set `override_*`
+  **before** writing the struct, or the values are overwritten.
 
 **Dylan's test list, in this order** (given to him 2026-09-24):
 1. Preset Browser (Window > Cinematics): hide a lens, check the Hidden section, then check it is gone
