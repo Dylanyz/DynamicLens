@@ -196,6 +196,11 @@ def import_presets(preset_file=None, save=True, only=None):
         ic.set_editor_property("enabled", bool(p.get("image_circle", True)))
         ic.set_editor_property("softness", float(p.get("image_circle_softness", 0.05)))
         ic.set_editor_property("scale", float(p.get("image_circle_scale", 1.0)))
+        if "image_circle_coverage" in p:   # hold the circle at this diameter / frame diagonal instead of the lens's own size
+            ic.set_editor_property("size_mode", unreal.DynamicLensCircleSize.COVERAGE)
+            ic.set_editor_property("circle_coverage", float(p["image_circle_coverage"]))
+        else:
+            ic.set_editor_property("size_mode", unreal.DynamicLensCircleSize.PHYSICAL)
         edge = ic.get_editor_property("edge")
         for k, v in ee.items():
             edge.set_editor_property(k, v)

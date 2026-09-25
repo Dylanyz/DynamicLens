@@ -63,8 +63,17 @@ Amount, Breathing, Out Of Range mode, Wide Boost.
 made from a normal lens's data still bends convincingly.
 
 ### Image Circle
-**Enabled**, **Scale** (0.1–4, a plain multiplier on the circle size), **Softness**, and an **Edge**
-group:
+**Enabled**, **Size**, **Scale** or **Circle Coverage**, **Softness**, and an **Edge** group:
+
+- **Size = Physical** (default): the lens's own circle, times **Scale** (0.1–4). A smaller filmback
+  makes it bigger in frame, as on a real camera.
+- **Size = Coverage**: holds **Circle Coverage** = circle diameter / frame diagonal (sensor before
+  desqueeze, crop applied) whatever the filmback, focal or crop. 1 touches the corners, 0.5 is a
+  porthole that about meets the top and bottom. On fisheyes it turns field fitting on, and past the
+  lens's own field it enlarges the fisheye image (a `_Frame` filmback done inside the map). A profile
+  with no image circle uses its sensor diagonal. Debug shows the resulting **Circle Coverage** and,
+  on fisheyes, **Fit Field Scale** (1 = the true lens, lower = bent harder than it).
+- On an anamorphic camera the lens circle is drawn as an ellipse, round on the squeezed sensor.
 
 - **Falloff Power**, **Opacity** — how hard and how black the rim is. Opacity below 1 leaves a faint
   image, like light leaking round a gate.

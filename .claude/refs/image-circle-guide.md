@@ -195,7 +195,18 @@ At O=4 that's the real equidistant lens, with nothing compressed. No `_Frame_Fit
 Turning Image Circle off never removes the **data limit**, and it shouldn't. Beyond the data limit
 there's only smeared garbage.
 
-## Proposal: an Image Circle > Coverage control
+## Image Circle > Size = Coverage (built 2026-09-24, late)
+
+Built as proposed below, with the recommendations taken: the geometric definition (Softness does not
+move the circle), Coverage mode implies fit on fisheyes, and past the lens's field the fisheye image is
+magnified by `m = C / C_field`. The anamorphic ellipse is in too: the lens circle's radius is
+`IC x Scale x squeeze / W` wide and `1/squeeze` tall. Verified from Python (no render): on
+`DL_AD_Master` R = C x corner exactly; on the 8 mm C = 0.6 / 0.865 / 1.0 gives R 0.701 / 1.010 / 1.168
+with S 1.0 / 0.80 / 0.83; on the 4 mm C = 0.5 gives R 0.584, S 0.83 (non-fit was data-limited at
+0.454); on `DL_T_Hawk_V-Lite_Vintage` at 2x, C = 0.8 reads back 0.80 and C = 1 touches the corners.
+Every preset renders exactly as before in Physical mode (all 65 compared).
+
+## Proposal: an Image Circle > Coverage control (the design, kept for reference)
 
 **Definition.** `Coverage = image-circle diameter / diagonal of the delivered frame`, measured on
 the **physical sensor before desqueeze**, with any Cropped Aspect Ratio applied. 1.0 touches the

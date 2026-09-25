@@ -491,9 +491,15 @@ FDynamicLensEval FDynamicLensSettings::Evaluate(float FocalMm, float FocusCm, fl
 	E.bImageCircle = ImageCircle.bEnabled;
 	E.ImageCircleSoftness = ImageCircle.Softness;
 	E.Edge = ImageCircle.Edge;
-	if (ImageCircle.bEnabled && bProfile && Profile->ImageCircleMm > KINDA_SMALL_NUMBER)
+	// Coverage mode draws a circle even for a profile that states none (its sensor diagonal stands in). An anamorphic's circle
+	// is round on the squeezed sensor, so in the desqueezed picture it is squeeze times wider than tall.
+	const bool bCoverage = ImageCircle.SizeMode == EDynamicLensCircleSize::Coverage;
+	const float CircleMm = bProfile ? (bCoverage ? Profile->EffectiveImageCircleMm() : Profile->ImageCircleMm) : 0.f;
+	if (ImageCircle.bEnabled && CircleMm > KINDA_SMALL_NUMBER)
 	{
-		E.ImageCircleRadiusNorm = Profile->ImageCircleMm * FMath::Max(ImageCircle.Scale, 0.1f) / SW;
+		const float Sq = FMath::Max(CameraSqueeze, 1.f);
+		E.ImageCircleRadiusNorm = CircleMm * FMath::Max(ImageCircle.Scale, bCoverage ? 0.01f : 0.1f) * Sq / SW;
+		E.ImageCircleEllipticity = 1.f / Sq;
 	}
 
 	// --- vignette

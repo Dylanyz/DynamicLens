@@ -328,6 +328,12 @@ void UDynamicLensComponent::MatchCameraToProfile()
 #if WITH_EDITOR
 	Cam->Modify();
 #endif
+	// Put the camera back to how it was BEFORE writing to it. Clearing afterwards (as this once did) restores the bokeh
+	// layer's backed-up squeeze and sensor width, silently undoing the match whenever the squeeze changed while the effect
+	// was running: the Match Camera button after a preset switch, or any script. The next Apply re-captures the new state.
+	ClearEffect();
+	TransientLensFile = nullptr;
+	LensFileSTMapIndex = -1;
 	const float Squeeze = FMath::Max(P->Squeeze, 1.f);
 	if (MatchCamera.bFilmback)
 	{
@@ -363,9 +369,6 @@ void UDynamicLensComponent::MatchCameraToProfile()
 		CopyAllFromPreset();
 	}
 	PullCameraQuick(Cam);
-	ClearEffect();
-	TransientLensFile = nullptr;
-	LensFileSTMapIndex = -1;
 }
 
 // ------------------------------------------------------------------------------------------------ apply
@@ -416,6 +419,15 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	}
 	W = FMath::Max(W, 0.01f); H = FMath::Max(H, 0.01f);
 
+	// Circle Coverage is circle diameter over the delivered frame's diagonal on the physical (squeezed) sensor. It is turned
+	// into the Scale that gives it here, so everything downstream (Evaluate, the fisheye fit) only ever sees a Scale.
+	const float CamSqueeze = FMath::Max(Cam->LensSettings.SqueezeFactor, 1.f);
+	const float SensorDiag = FMath::Sqrt(FMath::Square(W / CamSqueeze) + H * H);
+	if (Resolved.ImageCircle.SizeMode == EDynamicLensCircleSize::Coverage && Resolved.Distortion.Profile)
+	{
+		const float IC = FMath::Max(Resolved.Distortion.Profile->EffectiveImageCircleMm(), 0.1f);
+		Resolved.ImageCircle.Scale = FMath::Clamp(Resolved.ImageCircle.CircleCoverage * SensorDiag / IC, 0.01f, 100.f);
+	}
 	FDynamicLensEval Eval = Resolved.Evaluate(Focal, Focus, FStop, W, H, AmountMultiplier, Cam->LensSettings.DiaphragmBladeCount, Cam->LensSettings.SqueezeFactor);
 	Eval.VignetteIntensity = FMath::Clamp(Eval.VignetteIntensity * VignetteMultiplier, 0.f, 1.f);
 	Eval.Petzval *= SwirlMultiplier;
@@ -547,8 +559,11 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	// pick the mask: the lens's physical image circle, or the data ellipse, whichever reaches the corner first
 	const float CornerNorm = FMath::Sqrt(1.f + FMath::Square(H / W));
 	const float Cx = 1.f / CornerNorm, Cy = (H / W) / CornerNorm;
-	float CircleEll = 1.f, CircleSq = 2.f;
-	float MaskCornerR = (CircleRadius > 0.f) ? CircleRadius : 1e6f;
+	float CircleEll = Eval.ImageCircleEllipticity, CircleSq = 2.f;   // the lens circle: round, or 1/squeeze on an anamorphic
+	float MaskCornerR = (CircleRadius > 0.f)
+		? 1.f / FMath::Sqrt(FMath::Square(Cx / CircleRadius) + FMath::Square(Cy / (CircleRadius * CircleEll)))
+		: 1e6f;
+	bool bDataMask = false;
 	if (DataRx > 0.f && DataRy > 0.f)
 	{
 		// superellipse through the axis extents and the distorted corner: hugs the real valid region
@@ -557,10 +572,11 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 		if (DataCornerR < MaskCornerR)
 		{
 			CircleRadius = DataRx; CircleEll = DataRy / DataRx; CircleSq = N; MaskCornerR = DataCornerR;
+			bDataMask = true;
 		}
 	}
 	ActiveMask = (MaskCornerR >= CornerNorm || (CircleRadius <= 0.f)) ? TEXT("none (frame fully inside)")
-		: (CircleEll == 1.f && CircleSq == 2.f) ? TEXT("lens image circle") : TEXT("data limit (edge of what the render can show)");
+		: bDataMask ? TEXT("data limit (edge of what the render can show)") : TEXT("lens image circle");
 	if (CircleRadius > 0.f && MaskCornerR < CornerNorm)
 	{
 		const float S = MaskCornerR / CornerNorm;
@@ -594,6 +610,9 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	CornerPupilVisible = Eval.CornerPupilVisible;
 	BarrelRadiusLengthMm = FVector2D(Eval.BarrelRadiusMm, Eval.BarrelLengthMm);
 	ImageCircleRadius = bApplyImageCircle ? CircleRadius : 0.f;
+	// the lens circle's coverage, back on the sensor: the half-width radius times W over squeeze is the squeezed-sensor diameter
+	CircleCoverage = (Eval.ImageCircleRadiusNorm > 0.f) ? Eval.ImageCircleRadiusNorm * W / CamSqueeze / SensorDiag : 0.f;
+	FitFieldScale = (Type == EDynamicLensProfileType::Projection) ? ProjectionFieldScale : 1.f;
 	ProfileCoverage = Profile ? Profile->Coverage : TEXT("no profile");
 }
 
@@ -735,20 +754,26 @@ bool UDynamicLensComponent::DriveProjection(UCineCameraComponent* Cam, const FDy
 
 	// The continuous family and the fit are opt-in per profile, so every preset authored before them renders exactly as
 	// it did: the old path below is taken bit for bit when neither is set.
-	const bool bKPath = Profile->bUseProjectionK || Profile->bFitFieldToCircle;
+	// Circle Coverage only means what it says when the lens circle wins, which is what the fit guarantees: so it implies fit
+	const bool bCoverageMode = Resolved.ImageCircle.SizeMode == EDynamicLensCircleSize::Coverage;
+	const bool bKPath = Profile->bUseProjectionK || Profile->bFitFieldToCircle || bCoverageMode;
 	float K = Profile->GetProjectionK();
 	if (Profile->bUseProjectionK)
 	{
 		const float Amount = Resolved.Distortion.Amount * AmountMultiplier;   // 0 = rectilinear, 1 = the profile, >1 = more fisheye
 		K = FMath::Clamp(1.f + (K - 1.f) * Amount, -1.5f, 1.f);
 	}
-	const bool bFit = Profile->bFitFieldToCircle;
-	const float CircleMm = bFit ? 0.5f * Profile->EffectiveImageCircleMm() * FMath::Max(Resolved.ImageCircle.Scale, 0.1f) : 0.f;
+	const bool bFit = Profile->bFitFieldToCircle || bCoverageMode;
+	const float CircleMm = bFit ? 0.5f * Profile->EffectiveImageCircleMm() * FMath::Max(Resolved.ImageCircle.Scale, bCoverageMode ? 0.01f : 0.1f) : 0.f;
 	auto G = [&](float Theta) { return bKPath ? DynamicLensMath::ProjectionGK(K, Theta) : DynamicLensMath::ProjectionG(Proj, Theta); };
 	// the lens shows nothing past its own field limit: a stated circle bigger than f*g(ThetaMax) would leave a ring of
-	// unwarped picture inside the rim, so the fitted circle is capped there (the Optex 4 mm's 14.5 mm vs 12.6 mm)
-	const float FitCircleMm = bFit ? FMath::Min(CircleMm, Focal * G(ThetaMax)) : 0.f;
-	auto ThetaOf = [&](float ROverF, float& Out) { return bKPath ? DynamicLensMath::ProjectionThetaK(K, ROverF, Out) : DynamicLensMath::ProjectionTheta(Proj, ROverF, Out); };
+	// unwarped picture inside the rim, so the fitted circle is capped there (the Optex 4 mm's 14.5 mm vs 12.6 mm).
+	// Coverage mode asks for a circle regardless, so past that limit it enlarges the fisheye image instead: r = m*f*g(theta),
+	// the _Frame presets' smaller filmback done inside the map, with the camera untouched.
+	const float LensFieldMm = Focal * G(ThetaMax);
+	const float Mag = (bCoverageMode && LensFieldMm > KINDA_SMALL_NUMBER) ? FMath::Max(CircleMm / LensFieldMm, 1.f) : 1.f;
+	const float FitCircleMm = bFit ? FMath::Min(CircleMm, Mag * LensFieldMm) : 0.f;
+	auto ThetaOf = [&](float ROverF, float& Out) { return bKPath ? DynamicLensMath::ProjectionThetaK(K, ROverF / Mag, Out) : DynamicLensMath::ProjectionTheta(Proj, ROverF / Mag, Out); };
 
 	const bool bDirty = !ProjectionMap || !FMath::IsNearlyEqual(ProjectionKeyFocal, Focal, 1e-3f) || !ProjectionKeySensor.Equals(FVector2D(W, H), 1e-3)
 		|| !FMath::IsNearlyEqual(ProjectionKeyOverscan, O, 1e-3f) || ProjectionKeyType != (int32)Proj || !FMath::IsNearlyEqual(ProjectionKeyMaxAngle, ThetaMax, 1e-4f) || !FMath::IsNearlyEqual(ProjectionKeyScale, Resolved.ImageCircle.Scale, 1e-4f)

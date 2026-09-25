@@ -227,6 +227,10 @@ public:
 	UPROPERTY(VisibleAnywhere, Transient, Category = "Dynamic Lens|Debug") float ImageCircleRadius = 0.f;
 	/** Which edge is being drawn: the lens's own image circle, or the limit of what the render can show (the data limit), or none. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "Dynamic Lens|Debug") FString ActiveMask;
+	/** The lens circle's diameter over the frame diagonal (sensor before desqueeze, crop applied). 1 = touches the corners, 0 = no lens circle. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = "Dynamic Lens|Debug") float CircleCoverage = 0.f;
+	/** Fisheyes fitted to their circle: the fraction of the lens's real angle shown at each radius. 1 = the true lens; lower bends harder than it does. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = "Dynamic Lens|Debug") float FitFieldScale = 1.f;
 	/** Notes from the last evaluation (e.g. sensor fit fallback). */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "Dynamic Lens|Debug") FString Notes;
 

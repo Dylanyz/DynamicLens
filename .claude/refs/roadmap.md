@@ -24,6 +24,7 @@ work that does not need his eyes, and queue everything visual for his return.
 | `DL_L_*_Fit` fisheyes: continuous projection K, fit-to-circle, overscan ceiling 4, 1 mm fisheye near clip | the fisheye entries below; originals untouched except the near clip |
 | `DL_AD_Cooke_FFi_Zoom` (3DE4 anamorphic, continuous 32-135 mm) | the Cooke entry below |
 | Preset keyable in Sequencer (`SetPreset`) | `sequencer-integration.md`, verified by scrubbing |
+| Image Circle > Size = Coverage, anamorphic lens-circle ellipse, Match Camera fix | the last two entries |
 | Sequencer phase 2 (locked-focal note, tooltips) and phase 3 Lens Kits (`DLK_L_PoorThings`, `DLK_L_Favourite`) | `sequencer-integration.md` status block; verified from Python, not scrubbed in Sequencer |
 | Preset Browser, plus `DynamicLens.PresetBrowser` console command, plus hide presets | next section; its UI has now been seen by automation, not by Dylan |
 
@@ -33,8 +34,7 @@ nothing deleted, `Saved/` off limits); the cube-source question for a real 180 d
 (`wide-field-source.md`); whether the static-mesh LOD fix is worth a render-path hack (the LOD entry
 below - re-diagnosed, much smaller than first written).
 
-**3. Good next work that needs no eyes:** the Circle Coverage control and
-anamorphic image-circle ellipse (entry at the end). C++: build, install, relaunch - **editor restarts are
+**3. Good next work that needs no eyes:** little is left that is not gated on Dylan. C++: build, install, relaunch - **editor restarts are
 fine while Dylan is away** (he said so 2026-09-24), but ask again once he is back at the machine.
 
 **4. Do not trust automated screenshots.** The PC sits on the Windows lock screen when Dylan is away.
@@ -343,16 +343,21 @@ switching Render Mode mid-PIE and simply starting PIE with a camera saved in TSR
 handler displacement maps have an RHI texture; a TSR-mode Movie Render Graph render ran without
 crashing afterwards. Re-test the PIE-start case interactively.
 
-## Match Camera To Profile did not take when called from script in PIE
+## Match Camera To Profile was silently undone - fixed 2026-09-24 (late)
 
-Seen 2026-09-24: `match_camera_to_profile()` on the PIE copy right after setting the preset left the
-filmback at 23.76 x 18.66, squeeze 1. May be ordering (called in the same frame as the preset
-change) rather than a bug. Check before relying on it in any automation.
+It wrote the filmback and squeeze, then called `ClearEffect()`, whose `RestoreLook` put back the bokeh
+layer's backed-up squeeze and sensor width. So whenever the squeeze changed while the effect was
+running - the **Match Camera** button pressed after a preset switch, or any script - the match was
+reverted. Preset changes through the dropdown, the browser and A1/A2 clear first, so they were fine.
+Now it clears before writing. Measured: `DL_AD_Cooke_FFi_Zoom` reached from a spherical preset went from
+squeeze 1 / needed overscan 1.41 to squeeze 1.8 / 1.05. **Possibly the Panavision C Series smear**
+(entry above): a Black Eye camera where Match Camera was pressed by hand would have kept the old
+filmback and squeeze. Ask Dylan how that camera was set up before chasing `BuildExtendedSTMap`.
 
-## Circle Coverage control, and anamorphic image circles
+## Circle Coverage, and anamorphic image circles - built 2026-09-24 (late), needs Dylan's eyes
 
-From `.claude/refs/image-circle-guide.md` (2026-09-24). **Circle Coverage** = circle diameter over the
-delivered frame's diagonal, on the sensor before desqueeze, crop applied; a Physical/Coverage mode that
-turns fit on and, past the lens's field limit, enlarges the fisheye image rather than the circle.
-Anamorphic lens circles need an ellipse at 1/squeeze - today the circle is measured on the desqueezed
-width, so a real one would be drawn 2x too narrow (why `DLP_AD_Cooke_FFi_Anamorphic` has none).
+Image Circle > **Size = Coverage** with **Circle Coverage**, and the 1/squeeze lens-circle ellipse.
+What was built and verified is at the top of the Coverage section in `image-circle-guide.md`. Not
+seen rendered. Look at: the 8 mm and 4 mm at Coverage 0.5 / 1.0 (the magnified fisheye past the lens
+field is new picture), and an anamorphic at Coverage 0.8. `DLP_AD_Cooke_FFi_Anamorphic` could now be
+given a real image circle.
