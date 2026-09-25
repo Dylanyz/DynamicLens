@@ -36,17 +36,28 @@ leave the list for Dylan. Report results in this block; fix nothing visual witho
   48; scrubbing 10/60/20/70/47/48 via Sequencer switches 8 mm fisheye <-> Petzval 58 every time.
 - 5 Match Camera: **PASS** (function called from Python, same as the button). Leica R -> Master
   Anamorphic with auto-match off keeps squeeze 1; Match Camera -> squeeze 2, 23 x 18.66 mm, 35 mm.
-- 6 Accumulation DOF vs swirl / cat's eye: **claim HOLDS.** `DL_L_PoorThings_Petzval_58`, f/2, focus
-  3 m, dot grid at 15 m, editor viewport piloting the camera (Lit; camera post-process *does* apply
-  there). Without the component, edge highlights are tangential ovals; with it and Accumulate on,
-  every highlight is round, centre to corner.
-- 7 Iris texture: **reaches the component.** On adding it, Dynamic Lens wrote a 256 px 12-blade iris
-  texture, `bEnableBokehTexture` true, spherical aberration 8. Blade shape at softness 0 not yet seen
-  (the component's `BokehEdgeSoftness` defaults to 0.15 and the plugin does not touch it).
+- 6 Accumulation DOF vs swirl / cat's eye: **claim does NOT hold for cat's eye.** `DL_L_PoorThings_Petzval_58`,
+  f/2, focus 3 m, dot grid at 15 m, editor viewport piloting the camera (Lit; camera post-process
+  *does* apply there). Converged 256-sample A/B: lens Bokeh off -> every highlight small and round;
+  Bokeh on (barrel radius/length set) -> highlights toward the edges squashed toward the centre,
+  city lights at the frame edge clearly lens-shaped. Accumulation DOF honours the barrel settings.
+  Swirl is not separable from cat's eye by eye here (both elongate tangentially). (An earlier
+  "all round" frame was taken before accumulation had started - ignore it.)
+- **The preset's spherical aberration 8 is far too strong under Accumulation DOF:** with Drive on it
+  doubles the blur and breaks every highlight into a spray of sparse ghost discs. Drive off, or
+  spherical 0 with Drive on, gives a clean frame. Tune `SphericalAberration` in `presets.json`
+  (units are Seidel W040 in cm, 0-100) - Dylan's call, it is a Petzval preset.
+- 7 Iris texture: **reaches the component but the blade shape does not show.** Dynamic Lens writes a
+  256 px iris texture and `bEnableBokehTexture` true. With 5 straight blades (component override),
+  `BokehEdgeSoftness` 0 and f/1.4, the centre highlight is still round (thresholded crops). Suspect
+  the transient `UTexture2D` is not used by the pass, or the weighting; needs a known-good texture A/B.
 - 8 Controls that could stand in: **none for swirl or cat's eye** (read from
   `AccumulationDOFComponent.h`). Only `ComaAberration` is position-dependent (tails growing toward the
   edges); the rest are `SphericalAberration`, axial CA (+ bands), spectral lateral CA (drives off
   `SceneFringeIntensity`), bokeh texture/tint/edge softness. So the plugin cannot fake the look: warn.
+- 9 Exposure: **not dimmer and no vignette stacking** in the viewport preview with CitySample's
+  auto-exposure: mean 140.2 (post-process DOF) vs 139.9 (accumulated, same f/2), corner/centre 0.47
+  in both. Auto-exposure could mask dimming; repeat with manual exposure before trusting it.
 - **Crash:** pressing Play (PIE) while the viewport's Accumulate preview is on kills the editor
   inside `AccumulationDOF`/`AccumulationDOFEditor` (access violation). Epic experimental plugin; turn
   Accumulate off before PIE.
