@@ -32,7 +32,8 @@ work that does not need his eyes, and queue everything visual for his return.
 assets from 2026-09-19 (`/Game/Cinematics/_render/zz_dltest_MRG`, `Saved/MovieRenders/dltest/` -
 nothing deleted, `Saved/` off limits); the cube-source question for a real 180 deg fisheye
 (`wide-field-source.md`); whether the static-mesh LOD fix is worth a render-path hack (the LOD entry
-below - re-diagnosed, much smaller than first written).
+below - re-diagnosed, much smaller than first written); what to do about TSR mode crashing PIE (an
+Unreal 5.8 bug with `bCropOverscan`, reproduced on a stock CineCamera - entry below).
 
 **3. Good next work that needs no eyes:** little is left that is not gated on Dylan. C++: build, install, relaunch - **editor restarts are
 fine while Dylan is away** (he said so 2026-09-24), but ask again once he is back at the machine.
@@ -335,13 +336,32 @@ in a desktop capture at 19:29), the editor was never focused, and every look was
 - `read_render_target_raw` returns nothing for the handler's RG16F maps; a copy-to-RGBA32F via a
   material also read zeros. Reading the displacement maps back still needs a working method.
 
-## TSR render mode + ST-map or projection preset crashed the renderer in PIE
+## TSR render mode crashes PIE - an Unreal 5.8 bug, not ours; needs Dylan's call
 
-**Guarded 2026-09-24, verify.** Asserted `InTexture.IsValid()` in `ScreenPass.inl:171`, both when
-switching Render Mode mid-PIE and simply starting PIE with a camera saved in TSR mode. Pre-existing
-(the `842ee8b` build crashes on PIE start). `ApplyRendering` now skips the SVE hand-off until both
-handler displacement maps have an RHI texture; a TSR-mode Movie Render Graph render ran without
-crashing afterwards. Re-test the PIE-start case interactively.
+**Re-tested 2026-09-24 (late): the guard does not hold, and the plugin is not the cause.** In a
+throwaway map, PIE viewing through a camera in TSR mode asserts `InTexture.IsValid()`
+(`ScreenPass.inl:171`, all frames in `UnrealEditor-Renderer.dll`) within a frame or two. Bisected:
+
+| Setup, PIE view target | Result |
+|---|---|
+| TSR, `DL_AD_Master` (parametric), overscan 1.02 | crash |
+| TSR, `DL_AD_ARRI_Signature` (ST map), overscan 1.00 | fine |
+| TSR, same ARRI preset forced to Fixed overscan 1.1 | crash |
+| TSR, three ST / projection presets, `r.MotionBlurQuality 0` | crash (so not motion blur) |
+| **stock CineCamera, no Dynamic Lens, `Overscan` 0.1 + `bCropOverscan`** | **crash** |
+| stock CineCamera, `Overscan` 0.1, `bCropOverscan` off | fine |
+
+So `bCropOverscan` with any overscan crashes a plain PIE game viewport in 5.8. TSR mode has to set it
+(Epic's TSR lens distortion renders the overscanned frame and crops it), so any TSR-mode camera with
+overscan above 1 crashes PIE. Movie Render Graph takes a different path and rendered TSR mode fine
+on 2026-09-24. The data type never mattered; the earlier "ST-map or projection" framing came from
+those presets being the ones that overscan.
+
+**Options, Dylan's call:** (1) leave it: use Post Process Material for PIE and TSR for Movie Render
+Graph renders, and say so in the Render Mode tooltip; (2) have the component skip `bCropOverscan` in
+a PIE/game viewport - but MRG also renders from a PIE world, and its TSR path is the reason TSR mode
+exists, so this needs a reliable "is this an MRG render" test first; (3) report it to Epic with the
+stock-CineCamera repro above. Nothing lost in the tests - every crash was on an unsaved throwaway map.
 
 ## Match Camera To Profile was silently undone - fixed 2026-09-24 (late)
 
