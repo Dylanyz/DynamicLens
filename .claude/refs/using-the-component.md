@@ -7,12 +7,14 @@ Added to a CineCameraActor. Everything below lives in the **Dynamic Lens** categ
 | Control | What it does |
 |---|---|
 | **Enabled** | Master switch. Off restores the camera untouched. |
-| **Preset** | The lens. See `presets-and-profiles.md` for the catalogue. |
+| **Preset** | The lens. See `presets-and-profiles.md` for the catalogue. Presets hidden in the Preset Browser are left out of this dropdown. |
+| **Kit** | A case of lenses (`DLK_*`, `/DynamicLens/Kits`). Set, it picks **Preset** from the camera's focal length every frame, nearest in log-focal, so in Sequencer you key only the CineCamera's focal (Constant interpolation) and the lens follows. Overrides a Preset track and the preset buttons; Notes names the lens it picked. Keyable, to change cases between scenes. Empty = Preset as usual. |
+| **Kit Snaps Focal** | With a kit, hold the camera at the picked lens's focal. Off lets the camera sit between, though a prime preset still locks its own focal. |
 | **Profile Info** | Read-only. Lists the profile's measured focal lengths with the current one marked `[current]`. Useful for knowing whether you are inside measured data or extrapolating. |
 | **Amount Multiplier** | Scales the whole effect. 0 = off, 1 = as measured, >1 = exaggerated. |
 | **Apply Distortion / Vignette / Bokeh / Image Circle** | Layer toggles. Turning distortion off also clears the camera's distortion rendering, so the frame goes back to undistorted rather than freezing. |
 | **Force Bokeh Quality** (advanced, default on) | Below Cinematic scalability Unreal drops the DOF bokeh simulation, so swirl, cat's eye and blade shape vanish with no error. This raises the four DOF cvars that matter while the camera applies bokeh, and restores them afterwards. Turn it off to leave scalability alone; Notes then warns when the look is being lost. |
-| **Preset in Sequencer** | Keyable: add the Dynamic Lens component to a sequence and key **Preset**; each key is a lens change on that frame (stepped). It swaps the lens only - Match Camera is not run and nothing is dirtied. Key focal length, focus and aperture on the CineCamera itself; the component's Camera row cannot create keys. `.claude/refs/sequencer-integration.md` |
+| **Preset in Sequencer** | Keyable: add the Dynamic Lens component to a sequence and key **Preset**; each key is a lens change on that frame (stepped). It swaps the lens only - Match Camera is not run and nothing is dirtied. Key focal length, focus and aperture on the CineCamera itself; the component's Camera row cannot create keys. On a locked (prime or ST-map series) preset a focal curve jumps between primes; Notes says so when it happens. `.claude/refs/sequencer-integration.md` |
 | **Sensor Fit** | `Crop` keeps an ST map at the lens's physical scale and crops the camera's sensor out of it. `Scale` stretches the map to the sensor. Crop is correct; Scale is the fallback when the sensor is larger than the profile's. |
 
 ## Buttons
@@ -21,7 +23,7 @@ Details panels sort `CallInEditor` buttons alphabetically, hence the prefixes.
 
 | Button | Does |
 |---|---|
-| **A1 Previous Preset** / **A2 Next Preset** | Step through preset assets alphabetically. |
+| **A1 Previous Preset** / **A2 Next Preset** | Step through preset assets alphabetically, skipping any hidden in the Preset Browser. |
 | **A3 Previous Focal** / **A4 Next Focal** | Step to the profile's next measured focal length. Snaps to real data instead of guessing. |
 | **Match Camera To Profile** | Applies the profile's filmback, squeeze, crop and focal length to the camera. |
 | **Copy All From Preset** | Refreshes every Override block with the preset's current values, leaving the toggles off. |

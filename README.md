@@ -72,7 +72,8 @@ Assets land in the plugin's own content (`/DynamicLens/Profiles`, `/DynamicLens/
   To Profile would set, plus the measured focal lengths with the current one in brackets), `Match Camera` (auto on preset
   change, which of filmback / squeeze / crop / focal length the match writes, and whether the override groups are
   refreshed with the preset's values), `Amount Multiplier` - keyable in
-  Sequencer. Buttons: `Previous Preset` / `Next Preset` (alphabetical through every preset asset), `Previous Focal` /
+  Sequencer. `Kit` (optional, keyable): a case of lenses that picks the preset from the camera's focal length, so a
+  sequence keys only focal length and the lens follows; `Kit Snaps Focal` holds the camera at the picked lens. Buttons: `Previous Preset` / `Next Preset` (alphabetical through every preset asset), `Previous Focal` /
   `Next Focal` (step through the profile's measured focal lengths), `Match Camera To Profile`, `Copy All From Preset`,
   `Save As New Preset`.
 * Camera: the Cine Camera settings you touch most (focal length, aperture, focus method / distance / actor / offset,
@@ -231,10 +232,10 @@ loads.
 ```
 Source/DynamicLens/          component, types (profiles/presets/maths), library
 Content/Python/              dynamiclens_tools.py (importers, material builder, helpers)
-Content/Profiles|Presets|Materials  generated assets (travel with the plugin)
+Content/Profiles|Presets|Kits|Materials  generated assets (travel with the plugin)
 Tools/data/raw               dump of Andy Davis's 31 Lens Files
 Tools/data/profiles          fitted grids (Tools/build_profiles.py)
-Tools/data/presets.json      profile specs, fisheye profiles, presets (with sources)
+Tools/data/presets.json      profile specs, fisheye profiles, presets, lens kits (with sources)
 ```
 
 ## License

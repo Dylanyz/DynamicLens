@@ -8,6 +8,7 @@
     dl.import_profiles()          # Tools/data/profiles/*.json  -> /DynamicLens/Profiles/DLP_<name>
     dl.import_presets()           # Tools/data/presets.json     -> /DynamicLens/Presets/DL_<name>
     dl.import_andy_stmaps()       # Andy Davis spherical ST maps -> /DynamicLens/Profiles/AndyDavis
+    dl.import_kits()              # Tools/data/presets.json kits -> /DynamicLens/Kits/DLK_<name>
     dl.add_to_all_cameras("DL_Master")   # add a Dynamic Lens component to every CineCameraActor in the level
     dl.remove_from_all_cameras()
     dl.status()                   # what every Dynamic Lens component in the level is doing right now
@@ -19,6 +20,7 @@ PLUGIN_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file
 DATA_DIR = os.path.join(PLUGIN_DIR, "Tools", "data")
 PROFILE_PKG = "/DynamicLens/Profiles"
 PRESET_PKG = "/DynamicLens/Presets"
+KIT_PKG = "/DynamicLens/Kits"
 
 
 def _log(msg):
@@ -239,6 +241,45 @@ def import_presets(preset_file=None, save=True, only=None):
             unreal.EditorAssetLibrary.save_loaded_asset(asset)
         created.append(f"{PRESET_PKG}/DL_{name}")
         _log(f"preset DL_{name} ({p.get('label','')})")
+    return created
+
+
+def _find_preset(name):
+    """A preset by its presets.json name (no DL_ prefix), wherever it lives under /DynamicLens/Presets."""
+    for path in unreal.EditorAssetLibrary.list_assets(PRESET_PKG, recursive=True):
+        if path.split("/")[-1].split(".")[0] == "DL_" + name:
+            return unreal.load_asset(path)
+    return None
+
+
+def import_kits(preset_file=None, save=True, only=None):
+    """Tools/data/presets.json "kits" -> UDynamicLensKit assets (DLK_<name>) listing existing presets by focal length."""
+    preset_file = preset_file or os.path.join(DATA_DIR, "presets.json")
+    kits = json.load(open(preset_file, encoding="utf-8")).get("kits", {})
+    created = []
+    for name, k in kits.items():
+        if only and name not in only:
+            continue
+        lenses = []
+        for lens in k["lenses"]:
+            preset = _find_preset(lens["preset"])
+            if preset is None:
+                raise RuntimeError(f"kit {name}: preset DL_{lens['preset']} missing; run import_presets() first")
+            entry = unreal.DynamicLensKitLens()
+            entry.set_editor_property("focal_mm", float(lens["focal"]))
+            entry.set_editor_property("preset", preset)
+            entry.set_editor_property("label", lens.get("label", ""))
+            lenses.append(entry)
+        asset = _create_data_asset("DLK_" + name, KIT_PKG, unreal.DynamicLensKit)
+        desc = k.get("label", name)
+        if k.get("source"):
+            desc += "\n\nSource: " + k["source"]
+        asset.set_editor_property("description", desc)
+        asset.set_editor_property("lenses", sorted(lenses, key=lambda e: e.get_editor_property("focal_mm")))
+        if save:
+            unreal.EditorAssetLibrary.save_loaded_asset(asset)
+        created.append(f"{KIT_PKG}/DLK_{name}")
+        _log(f"kit DLK_{name}: " + ", ".join(f"{l['focal']:g} mm" for l in k["lenses"]))
     return created
 
 
@@ -759,6 +800,7 @@ def import_all(tiedtke=True):
     import_presets()
     if tiedtke:
         import_tiedtke()
+    import_kits()
     resave_presets()
 
 

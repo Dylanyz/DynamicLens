@@ -53,6 +53,17 @@ the real gap, since every `DL_T_*` is anamorphic.
 The `_Frame` variants use a smaller filmback so the image circle reads larger in frame. That is the
 intended way to make a porthole bigger, alongside `Image Circle > Scale`.
 
+## Lens kits
+
+A kit (`UDynamicLensKit`, `DLK_<name>` in `/DynamicLens/Kits`) is a list of focal length + existing
+preset pairs. On a component's **Kit** it picks the preset from the camera's focal, nearest in
+log-focal space. It adds no lens data of its own: every entry is a preset that already exists.
+
+Kits come from the `kits` section of `Tools/data/presets.json` via `dl.import_kits()` (also part of
+`dl.import_all()`), same rule as presets: never edit one only in the editor. Shipped:
+`DLK_L_PoorThings` (4, 8, 10, 58, 85 mm) and `DLK_L_Favourite` (6, 10 mm), both built from the
+original `DL_L_*` presets, not the `_Fit` variants.
+
 ## Adding a lens
 
 1. Add the entry to `Tools/data/presets.json` in the right section, with a Source field.

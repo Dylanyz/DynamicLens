@@ -3,7 +3,8 @@
   "profile_specs": "physical / native-format fields applied to the parametric profiles built from Tools/data/profiles. native_sensor_mm = sensor the grids were shot on; image_circle_mm = data-sheet coverage (hard black beyond it); pupil_visible_at_image_circle = fraction of the entrance pupil still unclipped at the image-circle edge wide open (sets the effective barrel length; 0.5 = one stop of corner falloff, typical for S35 primes)",
   "projection_profiles": "ideal fisheye lenses from their projection maths and data sheets (no measured grid needed)",
   "presets": "looks: profile + amount/breathing/out_of_range/wide_boost + image_circle + vignette (Physical: cos^4 + barrel clipping; Manual: curves) + bokeh (Physical: blades/barrel from specs; Manual). Petzval swirl is always manual (0 for modern primes).",
-  "note": "imported by Content/Python/dynamiclens_tools.import_all(); every non-data-sheet number is flagged 'assumed' in its source string"
+  "note": "imported by Content/Python/dynamiclens_tools.import_all(); every non-data-sheet number is flagged 'assumed' in its source string",
+  "kits": "cases of lenses picked by focal length (UDynamicLensKit, /DynamicLens/Kits/DLK_<name>, dl.import_kits()). Each lens is a focal in mm plus an existing preset name; the component picks the nearest in log-focal space and, with Kit Snaps Focal, holds the camera there. Key only the camera's focal length in Sequencer."
  },
  "profile_specs": {
   "AD_ARRI_Master": {
@@ -1327,6 +1328,55 @@
    "front_diameter_mm": 110,
    "pupil_visible_at_image_circle": 0.7,
    "source": "Andy Davis (Imagery for Media), VFX RnD Cinelens Lens Files: 3DE4 Anamorphic Standard Degree 4 solves for the Cooke FFi 1.8x at 32, 40, 50, 75, 100 and 135 mm, one focus sample each (so no breathing). Interpolated linearly across focal length, which makes it zoom continuously between the primes; tiedtke's DL_T_Cooke_FFi ST maps are the exact alternative at the measured focals. Pixel aspect is set to 1.8: the Lens Files store 1.0, but the coefficients only reproduce the ST maps at 1.8 (.claude/refs/andy-davis-vs-tiedtke.md). The 50 mm solve bends 2-3x harder than 40 and 75 in the data itself, so the zoom lurches through 50 mm; that is the lens data, not smoothed. 85 mm macro (all zero) and 180 mm (empty) are left out. Gate 36.7 x 25.54 mm squeezed (66.06 x 25.54 desqueezed, 2.59:1) from the Lens File. No image circle (the component measures it on the desqueezed width, which is wrong for anamorphics; left off like the tiedtke anamorphics). T-stop, blades, front diameter and pupil visibility: assumed."
+  }
+ },
+ "kits": {
+  "L_PoorThings": {
+   "label": "Poor Things case: the film's reported primes as one kit keyed by focal length. The Master Zoom and Optimo are zooms, so they stay separate presets.",
+   "source": "Lens list from Tools/data/research/lanthimos-lenses.md; each lens is an existing DL_L_* preset, unchanged. Grouping into one case is a convenience, not a data sheet.",
+   "lenses": [
+    {
+     "focal": 4,
+     "preset": "L_PoorThings_4mm_Porthole",
+     "label": "OpTex 4 mm porthole"
+    },
+    {
+     "focal": 8,
+     "preset": "L_PoorThings_8mm",
+     "label": "Nikkor 8 mm fisheye"
+    },
+    {
+     "focal": 10,
+     "preset": "L_PoorThings_UltraPrime_10mm",
+     "label": "Ultra Prime 10 mm"
+    },
+    {
+     "focal": 58,
+     "preset": "L_PoorThings_Petzval_58",
+     "label": "Petzval 58"
+    },
+    {
+     "focal": 85,
+     "preset": "L_PoorThings_Petzval_85",
+     "label": "Petzval 85"
+    }
+   ]
+  },
+  "L_Favourite": {
+   "label": "The Favourite case: the 6 mm fisheye and the 10 mm ultra-wide as one kit keyed by focal length.",
+   "source": "Each lens is an existing DL_L_* preset, unchanged. Grouping into one case is a convenience, not a data sheet.",
+   "lenses": [
+    {
+     "focal": 6,
+     "preset": "L_Favourite_6mm",
+     "label": "Nikkor 6 mm fisheye"
+    },
+    {
+     "focal": 10,
+     "preset": "L_Favourite_10mm",
+     "label": "10 mm ultra-wide"
+    }
+   ]
   }
  }
 }

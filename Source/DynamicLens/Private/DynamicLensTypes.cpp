@@ -804,6 +804,29 @@ void UDynamicLensPreset::GetAssetRegistryTags(FAssetRegistryTagsContext Context)
 	Context.AddTag(FTag(DynamicLensTags::Distortion, FString::SanitizeFloat(DynamicLensDistortionMagnitude(*P)), FTag::TT_Numerical));
 }
 
+// ------------------------------------------------------------------------------------------------ lens kit
+
+int32 UDynamicLensKit::PickIndex(float FocalMm) const
+{
+	const float LogFocal = FMath::Loge(FMath::Max(FocalMm, 0.1f));
+	int32 Best = -1;
+	float BestDist = TNumericLimits<float>::Max();
+	for (int32 I = 0; I < Lenses.Num(); ++I)
+	{
+		const FDynamicLensKitLens& L = Lenses[I];
+		if (!L.Preset || L.FocalMm <= 0.f) continue;
+		const float Dist = FMath::Abs(FMath::Loge(L.FocalMm) - LogFocal);
+		if (Dist < BestDist) { BestDist = Dist; Best = I; }   // strict: the first of two equal focals wins
+	}
+	return Best;
+}
+
+const FDynamicLensKitLens* UDynamicLensKit::Pick(float FocalMm) const
+{
+	const int32 I = PickIndex(FocalMm);
+	return Lenses.IsValidIndex(I) ? &Lenses[I] : nullptr;
+}
+
 // ------------------------------------------------------------------------------------------------ hidden presets
 
 TSet<FName> DynamicLensHiddenPresets::Load()

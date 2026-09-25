@@ -61,6 +61,7 @@ public:
 	/**
 	 * The look. Presets are assets (Content Browser: right-click > Miscellaneous > Data Asset > Dynamic Lens Preset).
 	 * Keyable in Sequencer: a key is a lens change, applied on that frame (the camera itself is left alone).
+	 * Key on whole frames. Ticked Override blocks still win over a keyed preset, as they do over a picked one.
 	 */
 	UPROPERTY(Interp, EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetPreset, Category = "Dynamic Lens")
 	TObjectPtr<UDynamicLensPreset> Preset;
@@ -72,6 +73,21 @@ public:
 	UFUNCTION(BlueprintSetter)
 	void SetPreset(UDynamicLensPreset* NewPreset);
 
+	/**
+	 * A case of lenses picked by focal length. Set, the kit chooses Preset from the camera's focal every frame, so in
+	 * Sequencer you key only the Cine Camera's focal length (Constant interpolation) and the lens follows. Empty = Preset
+	 * as usual. Keyable, to change cases between scenes. A kit overrides a Preset track and the preset buttons.
+	 */
+	UPROPERTY(Interp, EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetKit, Category = "Dynamic Lens")
+	TObjectPtr<UDynamicLensKit> Kit;
+
+	/** With a kit: hold the camera at the picked lens's focal length, as a case of primes does. Off lets the camera sit between them. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens", meta = (EditCondition = "Kit != nullptr"))
+	bool bKitSnapsFocal = true;
+
+	UFUNCTION(BlueprintSetter)
+	void SetKit(UDynamicLensKit* NewKit);
+
 	/** The preset's lens: what it covers, the filmback / squeeze / crop / focal length that Match Camera To Profile would set. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "Dynamic Lens", meta = (MultiLine = "true"))
 	FString ProfileInfo;
@@ -80,7 +96,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens", meta = (DisplayName = "Match Camera"))
 	FDynamicLensMatchOptions MatchCamera;
 
-	/** The camera settings you touch most (focal length, aperture, focus, crop, filmback, squeeze), mirrored from the Cine Camera component. */
+	/**
+	 * The camera settings you touch most (focal length, aperture, focus, crop, filmback, squeeze), mirrored from the Cine Camera component.
+	 * Not keyable here: to animate focal length, focus or aperture in Sequencer, key the Cine Camera component's own properties.
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens", meta = (DisplayName = "Camera"))
 	FDynamicLensCameraQuick Camera;
 
@@ -284,7 +303,9 @@ private:
 	void PushCameraQuick(UCineCameraComponent* Cam);
 	void ClearDistortionRendering(UCineCameraComponent* Cam);
 	TArray<float> MeasuredFocals() const;
-	bool HasLens() const { return Preset != nullptr || bOverrideDistortion; }
+	bool HasLens() const { return Preset != nullptr || bOverrideDistortion || Kit != nullptr; }
+	/** Kit step at the top of Apply. True when it swapped the preset, which already re-ran Apply. */
+	bool ApplyKit(UCineCameraComponent* Cam, FString& OutNote);
 	void Apply(UCineCameraComponent* Cam);
 	void EnsureHandler();
 	bool DriveParametric(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float W, float H, float& OutNeededOverscan, FLensDistortionState& OutState);

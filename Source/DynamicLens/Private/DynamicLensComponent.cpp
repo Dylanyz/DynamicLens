@@ -241,6 +241,38 @@ void UDynamicLensComponent::SetPreset(UDynamicLensPreset* NewPreset)
 	}
 }
 
+void UDynamicLensComponent::SetKit(UDynamicLensKit* NewKit)
+{
+	if (NewKit == Kit) return;   // Sequencer re-sends the same value every evaluation
+	Kit = NewKit;
+	if (UCineCameraComponent* Cam = GetTargetCamera(); Cam && bEnabled && HasLens())
+	{
+		Apply(Cam);
+	}
+}
+
+bool UDynamicLensComponent::ApplyKit(UCineCameraComponent* Cam, FString& OutNote)
+{
+	if (!Kit) return false;
+	const FDynamicLensKitLens* Lens = Kit->Pick(Cam->CurrentFocalLength);
+	if (!Lens)
+	{
+		OutNote = FString::Printf(TEXT("Lens kit %s has no lenses with a preset. "), *Kit->GetName());
+		return false;
+	}
+	if (bKitSnapsFocal && !FMath::IsNearlyEqual(Cam->CurrentFocalLength, Lens->FocalMm, 1e-3f))
+	{
+		Cam->SetCurrentFocalLength(Lens->FocalMm);
+	}
+	OutNote = FString::Printf(TEXT("Lens kit %s: %s for %.0f mm. "), *Kit->GetName(),
+		Lens->Label.IsEmpty() ? *Lens->Preset->GetName() : *Lens->Label, Cam->CurrentFocalLength);
+	if (Lens->Preset == Preset) return false;
+	// the same path a Preset key takes: no Modify, no Match Camera, so playback never dirties the level.
+	// SetPreset re-enters Apply, where the kit now picks the preset it already has and falls through.
+	SetPreset(Lens->Preset);
+	return true;
+}
+
 void UDynamicLensComponent::EnsureHandler()
 {
 	// the handler class follows the profile's model: Epic draws Brown-Conrady and 3DE4 anamorphic with different handlers
@@ -340,6 +372,14 @@ void UDynamicLensComponent::MatchCameraToProfile()
 
 void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 {
+	FString KitNote;
+	if (ApplyKit(Cam, KitNote)) return;
+	if (!Preset && !bOverrideDistortion)
+	{
+		ClearEffect();   // a kit with nothing usable in it, and no preset to fall back on
+		Notes = KitNote;
+		return;
+	}
 	Resolved = ResolveSettings();
 	PullCameraQuick(Cam);
 	if (ProfileInfo.IsEmpty() || InfoProfile != Resolved.Distortion.Profile || !FMath::IsNearlyEqual(InfoFocal, Cam->CurrentFocalLength, 0.01f))
@@ -348,11 +388,16 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 		InfoFocal = Cam->CurrentFocalLength;
 		UpdateProfileInfo();
 	}
+	// What the camera was asked for before a locked preset snaps it. If something keeps asking for a
+	// focal between primes - usually a Sequencer focal curve - the snap happens every frame and the
+	// curve shows a value that never renders, so it is reported in Notes below.
+	float SnappedFromFocal = 0.f;
 	if (Resolved.Distortion.bLockFocalLength && Resolved.Distortion.Profile)
 	{
 		const float Locked = Resolved.Distortion.Profile->GetLockedFocal(Cam->CurrentFocalLength);
 		if (Locked > KINDA_SMALL_NUMBER && !FMath::IsNearlyEqual(Cam->CurrentFocalLength, Locked, 1e-3f))
 		{
+			if (!FMath::IsNearlyEqual(Cam->CurrentFocalLength, Locked, 0.05f)) SnappedFromFocal = Cam->CurrentFocalLength;
 			Cam->SetCurrentFocalLength(Locked);
 		}
 	}
@@ -385,7 +430,12 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 		bStrippedForeign = true;
 	}
 	AppliedCamera = Cam;
-	Notes.Reset();
+	Notes = KitNote;
+	if (SnappedFromFocal > 0.f)
+	{
+		Notes += FString::Printf(TEXT("Focal locked to the %.0f mm prime (camera asked for %.1f mm). A focal curve on a locked series jumps between primes: key it with Constant interpolation. "),
+			Cam->CurrentFocalLength, SnappedFromFocal);
+	}
 	EnsureHandler();
 
 	const UDynamicLensProfile* Profile = Resolved.Distortion.Profile;

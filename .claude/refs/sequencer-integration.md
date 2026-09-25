@@ -1,5 +1,13 @@
 > **Status 2026-09-24:** phase 1 is built and verified (keyed DL_AD_Master -> DL_AD_Supreme at frame 24 in
-> `/Game/Claude/DynamicLens/LS_PresetKey`, CitySample; scrubbing swaps the lens both ways). Phases 2-4 not started.
+> `/Game/Claude/DynamicLens/LS_PresetKey`, CitySample; scrubbing swaps the lens both ways).
+> **Phases 2 and 3 built and installed later the same night.** Phase 2: the locked-focal Notes line and the
+> Preset / Camera-row tooltips; `bMatchSqueezeWhenKeyed` and the Overscan Mode tooltip fix were left out (the
+> first is Dylan's call, the second needs a render to confirm). Phase 3: `UDynamicLensKit`, `Kit` +
+> `bKitSnapsFocal` on the component, the `kits` JSON section and `dl.import_kits()`, as designed below, with
+> `DLK_L_PoorThings` and `DLK_L_Favourite` shipped. Verified from Python on a camera in a throwaway map: picks
+> switch at the log-focal midpoints (5.7 / 8.9 / 24 / 70 mm on Poor Things), focal snaps, Notes names the lens.
+> **Not verified:** a Sequencer focal track driving a kit while scrubbing, and a render across a kit switch.
+> Phase 4 not started.
 
 # Sequencer integration — keying the lens, not just the camera
 

@@ -24,6 +24,7 @@ work that does not need his eyes, and queue everything visual for his return.
 | `DL_L_*_Fit` fisheyes: continuous projection K, fit-to-circle, overscan ceiling 4, 1 mm fisheye near clip | the fisheye entries below; originals untouched except the near clip |
 | `DL_AD_Cooke_FFi_Zoom` (3DE4 anamorphic, continuous 32-135 mm) | the Cooke entry below |
 | Preset keyable in Sequencer (`SetPreset`) | `sequencer-integration.md`, verified by scrubbing |
+| Sequencer phase 2 (locked-focal note, tooltips) and phase 3 Lens Kits (`DLK_L_PoorThings`, `DLK_L_Favourite`) | `sequencer-integration.md` status block; verified from Python, not scrubbed in Sequencer |
 | Preset Browser, plus `DynamicLens.PresetBrowser` console command, plus hide presets | next section; its UI has now been seen by automation, not by Dylan |
 
 **2. Decisions only Dylan can make:** the six `DL_T_*` overscan ceilings (`todo.md`); the scratch
@@ -31,7 +32,7 @@ assets from 2026-09-19 (`/Game/Cinematics/_render/zz_dltest_MRG`, `Saved/MovieRe
 nothing deleted, `Saved/` off limits); the cube-source question for a real 180 deg fisheye
 (`wide-field-source.md`).
 
-**3. Good next work that needs no eyes:** Sequencer phase 3 lens kit (`sequencer-integration.md`); the Circle Coverage control and
+**3. Good next work that needs no eyes:** the Circle Coverage control and
 anamorphic image-circle ellipse (entry at the end); LOD/Nanite compensation for fisheyes (the only
 half of "two quality bugs" still open). Each is C++: build, install, relaunch - **editor restarts are
 fine while Dylan is away** (he said so 2026-09-24), but ask again once he is back at the machine.

@@ -927,6 +927,56 @@ public:
 	virtual void GetAssetRegistryTags(FAssetRegistryTagsContext Context) const override;
 };
 
+/** One lens in a kit: the focal length it answers to and the preset that is that lens. */
+USTRUCT(BlueprintType)
+struct DYNAMICLENS_API FDynamicLensKitLens
+{
+	GENERATED_BODY()
+
+	/** The focal length this lens is picked for, and, with Kit Snaps Focal, the one the camera is held at (mm). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kit", meta = (ClampMin = "1.0", UIMin = "4.0", UIMax = "300.0"))
+	float FocalMm = 35.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kit")
+	TObjectPtr<UDynamicLensPreset> Preset;
+
+	/** How the lens reads in the case, e.g. "Petzval 58". Shown in Notes when the kit picks it. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kit")
+	FString Label;
+};
+
+/**
+ * A case of lenses. Put one on a Dynamic Lens component and key only the camera's focal length:
+ * the kit picks the preset for that focal, which is how a DP says "go to the 58".
+ *
+ * Unlike a single series preset (one lens family, one ST map per prime), a kit can mix presets from
+ * anywhere - a fisheye, a Petzval and a zoom in one case. Kits are generated from the "kits" section
+ * of Tools/data/presets.json by dl.import_kits(); an editor-only kit is lost at the next import.
+ */
+UCLASS(BlueprintType)
+class DYNAMICLENS_API UDynamicLensKit : public UDataAsset
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kit", meta = (MultiLine = "true"))
+	FString Description;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kit", meta = (TitleProperty = "Label"))
+	TArray<FDynamicLensKitLens> Lenses;
+
+	/**
+	 * The lens for a focal length: nearest in log-focal space, so the 25/32 boundary sits at 28.3 mm
+	 * rather than 28.5 - the way focal steps are felt. Lenses without a preset are skipped. Null when
+	 * the kit has none.
+	 */
+	const FDynamicLensKitLens* Pick(float FocalMm) const;
+
+	/** Blueprint form of Pick: the index into Lenses, or -1. */
+	UFUNCTION(BlueprintPure, Category = "Dynamic Lens")
+	int32 PickIndex(float FocalMm) const;
+};
+
 /**
  * Asset Registry tag names written by UDynamicLensPreset::GetAssetRegistryTags and read by the
  * Preset Browser. One place, so a typo cannot silently empty a filter.

@@ -48,7 +48,7 @@ preset data flow, licensing and credits. Read them; they are the ones that bite.
 | Path | What |
 |---|---|
 | `Source/DynamicLens` | the C++ module: types and maths, the component, the ST-map library, startup fixups |
-| `Content/Presets`, `Content/Profiles`, `Content/Materials` | generated assets, `/DynamicLens/...` in the editor |
+| `Content/Presets`, `Content/Profiles`, `Content/Kits`, `Content/Materials` | generated assets, `/DynamicLens/...` in the editor |
 | `Content/Python/dynamiclens_tools.py` | editor tools, `import dynamiclens_tools as dl` |
 | `Tools/data/presets.json` | **source of truth** for every profile and preset |
 | `Tools/data/lens_catalogue.json` | **generated** index of every preset: who measured it, squeeze, focal range, whether it breathes or zooms, how hard it distorts. Read this before walking the asset registry. |
@@ -119,6 +119,7 @@ works via the `/dyl-ue-setup` skill's `scripts/rexec.py`. Scratch assets go in t
 | `dl.import_profiles()` / `import_projection_profiles()` / `import_derived_profiles()` | rebuild profile assets |
 | `dl.import_tiedtke()` | re-import the ST-map lenses from the tiedtke pack |
 | `dl.import_andy_stmaps(root=...)` | import Andy Davis's spherical ST maps (prep with `Tools/prep_andy_stmaps.py`) |
+| `dl.import_kits()` | rewrite the `DLK_*` lens kits from the `kits` section of `presets.json` |
 | `dl.build_image_circle_material(force=True)` | rebuild the image-circle material after an HLSL change |
 | `dl.import_all()` | all of the above, in order |
 | `dl.export_catalogue()` | rewrite `Tools/data/lens_catalogue.json` - every preset, its provenance and its optics |
