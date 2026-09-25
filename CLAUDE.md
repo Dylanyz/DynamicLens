@@ -75,10 +75,9 @@ Nothing to install in a project beyond enabling the plugin; it is already in the
    **Save As New Preset** promotes them to a new asset. Every control:
    `.claude/refs/using-the-component.md`.
 
-To make the image circle bigger relative to frame, shrink the filmback. That is what the `_Frame`
-preset variants do. **Image Circle > Scale** also exists but currently does nothing on the `DL_L_*`
-fisheyes, because what you see there is the data limit rather than the lens's own circle —
-`.claude/refs/overscan-and-image-circle.md`.
+Fisheyes are one preset per lens. **Image Circle > Scale** sizes the circle and, on a fisheye, the
+whole picture with it (porthole ↔ filled frame); **Field** picks Fit to Circle or True Angles. The old
+`_Fit` and `_Frame` variants are those two controls — `.claude/refs/using-the-component.md`.
 
 ## Iterating
 

@@ -288,9 +288,10 @@ still assumes K1+K2+K3 in `_parametric_edge_shift` and needs an anamorphic branc
 
 ## The DL_L_* fisheye rework
 
-**Stay-one-faced half built 2026-09-24** as the `_Fit` presets (continuous K, Amount reaches the projection,
-fit-to-circle, ActiveMask readout, near clip, overscan ceiling 4). Still open: Circle Coverage, and the
-cube-source alternative below.
+**Stay-one-faced is done (2026-09-25).** One preset per lens; per-camera Image Circle > Scale (circle and
+picture together) and Field (Fit to Circle / True Angles); Dynamic fisheye overscan; 1024 bake map. The
+`_Fit`/`_Frame` presets were merged and deleted. **Cube source: rejected by Dylan 2026-09-25** ("it breaks
+too much"). Remaining: viewport sharpness (its own entry). The text below is the history.
 
 **Gated on:** Dylan's decision, now that the research is in
 (`.claude/refs/wide-field-source.md`). UE can supply more than 81 deg off-axis, but only by rendering
@@ -344,6 +345,22 @@ not projection, so nothing here reaches them - keep it that way.
 
 **Change the presets in place, not as _v2 variants** (Dylan, 2026-09-19). Restore points for the
 revert: DynamicLens `aa13e04`, CitySample Diversion `dv.commit.48`.
+
+---
+
+## Viewport sharpness on fisheyes (per-view resolution past Epic's 2x)
+
+**Gated on:** Dylan, who deferred it on 2026-09-25 ("delay the render sharpness thing"). Nothing technical.
+
+**Why.** Fisheyes past overscan 2 are soft in the centre in the viewport and PIE only: Epic clamps the
+resolution fraction to 2, and Fit and Scale magnify the centre further (worst measured ~49%). Movie Render
+Graph is already uncapped on the Post Process Material path, so finals are not affected. Numbers in
+`overscan-and-image-circle.md` ("Resolution cost of fisheyes").
+
+**The work.** A scene view extension overriding `SceneViewInitOptions.OverscanResolutionFraction` per view for
+Dynamic Lens cameras (`SetupView` for PIE, `BeginRenderViewFamily` for the level editor). Exposed as a
+per-camera setting (discussed: Viewport Sharpness Fast / Full, maybe a project default). Cost `(O/2)^2`.
+Dylan was unsold on the UI shape; propose again before building.
 
 ---
 

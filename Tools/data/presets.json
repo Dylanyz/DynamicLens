@@ -57,7 +57,9 @@
    "pupil_visible_at_image_circle": 0.7,
    "source": "Nikon data sheet: 220° angle of view, 23 mm image circle on 35 mm, 236 mm front diameter, f/2.8. Equidistant projection (Nikon fisheye family). Reported as the 6mm fisheye of The Favourite (Robbie Ryan, 35 mm 3-perf, Nikkor + Panavision PVintage). Unreal can render ~80° off-axis, so the outer ring of the circle is black. Blades and pupil visibility: assumed. Format: The Favourite was shot on a Panavision Millennium XL2, 35 mm 4-perf, released 1.85:1 (Kodak / Cinematography World interviews), so the native gate is the 1.85 extraction of Super 35: 24.89 x 13.45 mm.",
    "blade_curvature": 0.0,
-   "nominal_focal_mm": 6
+   "nominal_focal_mm": 6,
+   "use_projection_k": true,
+   "projection_k": 0.0
   },
   "L_Nikkor_8mm_Fisheye": {
    "label": "Nikon Fisheye-Nikkor 8mm f/2.8 (180° circular)",
@@ -75,7 +77,9 @@
    "pupil_visible_at_image_circle": 0.7,
    "source": "Nikon data sheet: 180° circular fisheye, 23 mm image circle, f/2.8, 123 mm front. Equidistant projection. An 8mm fisheye is reported for Poor Things' lab scenes. Blades and pupil visibility: assumed. Format: Poor Things was shot on ARRICAM LT/ST, 35 mm 4-perf, 1.66:1 (Cinematography World), so the native gate is the 1.66 extraction of Super 35: 24.89 x 15.0 mm.",
    "blade_curvature": 0.0,
-   "nominal_focal_mm": 8
+   "nominal_focal_mm": 8,
+   "use_projection_k": true,
+   "projection_k": 0.0
   },
   "L_Nikkor_OP_10mm_Fisheye": {
    "label": "Nikon OP Fisheye-Nikkor 10mm f/5.6 (180° orthographic, 20 mm circle)",
@@ -111,7 +115,9 @@
    "pupil_visible_at_image_circle": 0.6,
    "source": "Robbie Ryan (Poor Things): a PL-mount OpTex 4mm fisheye made for 16mm/S16 (opens to T2) mounted on a 35mm ARRICAM, giving the vignetted 'porthole' frame. Image circle 14.5 mm = Super 16 coverage, so on a 24.9 x 18.7 mm frame most of the picture is black. Projection assumed equidistant. Front diameter, blades and pupil visibility: assumed. Native sensor set to the 35 mm frame it was used on (not the S16 gate it was designed for), so Match Camera To Profile gives the porthole. Format: Poor Things was shot on ARRICAM LT/ST, 35 mm 4-perf, 1.66:1 (Cinematography World), so the native gate is the 1.66 extraction of Super 35: 24.89 x 15.0 mm.",
    "blade_curvature": 0.0,
-   "nominal_focal_mm": 4
+   "nominal_focal_mm": 4,
+   "use_projection_k": true,
+   "projection_k": 0.0
   },
   "L_Stereographic_10mm_FullFrame": {
    "label": "Full-frame stereographic 10mm (The Favourite '10mm' reconstruction)",
@@ -129,127 +135,9 @@
    "pupil_visible_at_image_circle": 0.5,
    "source": "Reconstruction. Robbie Ryan shot most of The Favourite on 'an extremely wide 10mm' (Nikkor + Panavision PVintage sets, 35 mm 3-perf); the exact lens is not named. The frames show ~130° across the diagonal with strongly bowed lines, which a stereographic projection r = 2f tan(theta/2) reproduces (corner of a 24.9 x 18.7 frame = 137° diagonal). Everything else assumed. Format: The Favourite was shot on a Panavision Millennium XL2, 35 mm 4-perf, released 1.85:1 (Kodak / Cinematography World interviews), so the native gate is the 1.85 extraction of Super 35: 24.89 x 13.45 mm.",
    "blade_curvature": 0.0,
-   "nominal_focal_mm": 10
-  },
-  "L_Nikkor_6mm_Fisheye_Frame": {
-   "label": "Nikon Fisheye-Nikkor 6mm f/2.8 as framed in The Favourite (1.85:1, DI blow-up)",
-   "projection": "Equidistant",
-   "max_field_angle_deg": 110,
-   "native_sensor_mm": [
-    14.4,
-    7.78
-   ],
-   "image_circle_mm": 23.0,
-   "squeeze": 1.0,
-   "front_diameter_mm": 236,
-   "iris_blades": 9,
-   "max_aperture": 2.8,
-   "pupil_visible_at_image_circle": 0.7,
-   "source": "Nikon data sheet: 220° angle of view, 23 mm image circle on 35 mm, 236 mm front diameter, f/2.8. Equidistant projection (Nikon fisheye family). Reported as the 6mm fisheye of The Favourite (Robbie Ryan, 35 mm 3-perf, Nikkor + Panavision PVintage). Unreal can render ~80° off-axis, so the outer ring of the circle is black. Blades and pupil visibility: assumed. FRAME VARIANT: the film's fisheye frames are full-frame with only the corners rolling off. A 6 mm equidistant image reaches the corner of a 1.85:1 gate only if the corner is at most ~78 deg off-axis (the most a rectilinear Unreal render can source at overscan 2): half-diagonal <= 6 mm x 1.36 rad = 8.2 mm -> gate 14.4 x 7.78 mm, i.e. the 35 mm scan blown up ~1.7x. The real DI blow-up is unknown (assumed); the framing is what matters. Use Match Camera To Profile and Fixed overscan 2.0 on the component.",
-   "blade_curvature": 0.0,
-   "nominal_focal_mm": 6
-  },
-  "L_Nikkor_8mm_Fisheye_Frame": {
-   "label": "Nikon Fisheye-Nikkor 8mm f/2.8 as framed in Poor Things (1.66:1, DI blow-up)",
-   "projection": "Equidistant",
-   "max_field_angle_deg": 90,
-   "native_sensor_mm": [
-    18.7,
-    11.27
-   ],
-   "image_circle_mm": 23.0,
-   "squeeze": 1.0,
-   "front_diameter_mm": 123,
-   "iris_blades": 9,
-   "max_aperture": 2.8,
-   "pupil_visible_at_image_circle": 0.7,
-   "source": "Nikon data sheet: 180° circular fisheye, 23 mm image circle, f/2.8, 123 mm front. Equidistant projection. An 8mm fisheye is reported for Poor Things' lab scenes. Blades and pupil visibility: assumed. Format: Poor Things was shot on ARRICAM LT/ST, 35 mm 4-perf, 1.66:1 (Cinematography World), so the native gate is the 1.66 extraction of Super 35: 24.89 x 15.0 mm. FRAME VARIANT: Poor Things' 8 mm shots (ballroom, lab - Noam Kroll's article stills) fill the 1.66 frame with the corners rolling off, which a 23 mm circle on the 4-perf gate cannot do; modelled as the largest 1.66 gate whose corners stay within 78 deg off-axis (renderable at overscan 2): half-diagonal 8 mm x 1.36 = 10.9 mm -> 18.7 x 11.27 mm, a 1.33x blow-up (assumed). Match Camera To Profile.",
-   "blade_curvature": 0.0,
-   "nominal_focal_mm": 8
-  },
-  "L_Optex_4mm_S16_Fisheye_Fit": {
-   "label": "OpTex 4mm T2 fisheye for Super 16 (Poor Things porthole) - fitted to circle",
-   "projection": "Equidistant",
-   "max_field_angle_deg": 90,
-   "native_sensor_mm": [
-    24.89,
-    15.0
-   ],
-   "image_circle_mm": 14.5,
-   "squeeze": 1.0,
-   "front_diameter_mm": 90,
-   "iris_blades": 9,
-   "max_aperture": 2.0,
-   "pupil_visible_at_image_circle": 0.6,
-   "source": "Robbie Ryan (Poor Things): a PL-mount OpTex 4mm fisheye made for 16mm/S16 (opens to T2) mounted on a 35mm ARRICAM, giving the vignetted 'porthole' frame. Image circle 14.5 mm = Super 16 coverage, so on a 24.9 x 18.7 mm frame most of the picture is black. Projection assumed equidistant. Front diameter, blades and pupil visibility: assumed. Native sensor set to the 35 mm frame it was used on (not the S16 gate it was designed for), so Match Camera To Profile gives the porthole. Format: Poor Things was shot on ARRICAM LT/ST, 35 mm 4-perf, 1.66:1 (Cinematography World), so the native gate is the 1.66 extraction of Super 35: 24.89 x 15.0 mm. FIT VARIANT (2026-09-24): the field is compressed so everything inside the physical image circle has source pixels, because Unreal renders at most ~80-85 deg off-axis from one camera. The circle is round and the size this lens makes; the picture bends harder than the real lens. Rendered at overscan 3 (centre resolution 67%). Experimental - compare against the original preset.",
-   "blade_curvature": 0.0,
-   "nominal_focal_mm": 4,
-   "use_projection_k": true,
-   "projection_k": 0.0,
-   "fit_field_to_circle": true
-  },
-  "L_Nikkor_6mm_Fisheye_Fit": {
-   "label": "Nikon Fisheye-Nikkor 6mm f/2.8 (220° circular) - fitted to circle",
-   "projection": "Equidistant",
-   "max_field_angle_deg": 110,
-   "native_sensor_mm": [
-    24.89,
-    13.45
-   ],
-   "image_circle_mm": 23.0,
-   "squeeze": 1.0,
-   "front_diameter_mm": 236,
-   "iris_blades": 9,
-   "max_aperture": 2.8,
-   "pupil_visible_at_image_circle": 0.7,
-   "source": "Nikon data sheet: 220° angle of view, 23 mm image circle on 35 mm, 236 mm front diameter, f/2.8. Equidistant projection (Nikon fisheye family). Reported as the 6mm fisheye of The Favourite (Robbie Ryan, 35 mm 3-perf, Nikkor + Panavision PVintage). Unreal can render ~80° off-axis, so the outer ring of the circle is black. Blades and pupil visibility: assumed. Format: The Favourite was shot on a Panavision Millennium XL2, 35 mm 4-perf, released 1.85:1 (Kodak / Cinematography World interviews), so the native gate is the 1.85 extraction of Super 35: 24.89 x 13.45 mm. FIT VARIANT (2026-09-24): the field is compressed so everything inside the physical image circle has source pixels, because Unreal renders at most ~80-85 deg off-axis from one camera. The circle is round and the size this lens makes; the picture bends harder than the real lens. Rendered at overscan 3 (centre resolution 67%). Experimental - compare against the original preset.",
-   "blade_curvature": 0.0,
-   "nominal_focal_mm": 6,
-   "use_projection_k": true,
-   "projection_k": 0.0,
-   "fit_field_to_circle": true
-  },
-  "L_Nikkor_8mm_Fisheye_Fit": {
-   "label": "Nikon Fisheye-Nikkor 8mm f/2.8 (180° circular) - fitted to circle",
-   "projection": "Equidistant",
-   "max_field_angle_deg": 90,
-   "native_sensor_mm": [
-    24.89,
-    15.0
-   ],
-   "image_circle_mm": 23.0,
-   "squeeze": 1.0,
-   "front_diameter_mm": 123,
-   "iris_blades": 9,
-   "max_aperture": 2.8,
-   "pupil_visible_at_image_circle": 0.7,
-   "source": "Nikon data sheet: 180° circular fisheye, 23 mm image circle, f/2.8, 123 mm front. Equidistant projection. An 8mm fisheye is reported for Poor Things' lab scenes. Blades and pupil visibility: assumed. Format: Poor Things was shot on ARRICAM LT/ST, 35 mm 4-perf, 1.66:1 (Cinematography World), so the native gate is the 1.66 extraction of Super 35: 24.89 x 15.0 mm. FIT VARIANT (2026-09-24): the field is compressed so everything inside the physical image circle has source pixels, because Unreal renders at most ~80-85 deg off-axis from one camera. The circle is round and the size this lens makes; the picture bends harder than the real lens. Rendered at overscan 3 (centre resolution 67%). Experimental - compare against the original preset.",
-   "blade_curvature": 0.0,
-   "nominal_focal_mm": 8,
-   "use_projection_k": true,
-   "projection_k": 0.0,
-   "fit_field_to_circle": true
-  },
-  "L_Stereographic_10mm_FullFrame_Fit": {
-   "label": "Full-frame stereographic 10mm (The Favourite '10mm' reconstruction) - fitted to circle",
-   "projection": "Stereographic",
-   "max_field_angle_deg": 90,
-   "native_sensor_mm": [
-    24.89,
-    13.45
-   ],
-   "image_circle_mm": 40.0,
-   "squeeze": 1.0,
-   "front_diameter_mm": 110,
-   "iris_blades": 9,
-   "max_aperture": 2.8,
-   "pupil_visible_at_image_circle": 0.5,
-   "source": "Reconstruction. Robbie Ryan shot most of The Favourite on 'an extremely wide 10mm' (Nikkor + Panavision PVintage sets, 35 mm 3-perf); the exact lens is not named. The frames show ~130° across the diagonal with strongly bowed lines, which a stereographic projection r = 2f tan(theta/2) reproduces (corner of a 24.9 x 18.7 frame = 137° diagonal). Everything else assumed. Format: The Favourite was shot on a Panavision Millennium XL2, 35 mm 4-perf, released 1.85:1 (Kodak / Cinematography World interviews), so the native gate is the 1.85 extraction of Super 35: 24.89 x 13.45 mm. FIT VARIANT (2026-09-24): the field is compressed so everything inside the physical image circle has source pixels, because Unreal renders at most ~80-85 deg off-axis from one camera. The circle is round and the size this lens makes; the picture bends harder than the real lens. Rendered at overscan 3 (centre resolution 67%). Experimental - compare against the original preset.",
-   "blade_curvature": 0.0,
    "nominal_focal_mm": 10,
    "use_projection_k": true,
-   "projection_k": 0.5,
-   "fit_field_to_circle": true
+   "projection_k": 0.5
   }
  },
  "presets": {
@@ -364,7 +252,7 @@
    }
   },
   "L_Favourite_6mm": {
-   "label": "The Favourite fisheye: Nikkor 6mm 220° equidistant on 35 mm. Circular image, black corners, heavy natural falloff. Edge from the film's frames: no hard rim, corners roll off over ~45% of the radius, top corners darker than bottom.",
+   "label": "The Favourite fisheye: Nikkor 6mm 220° equidistant on 35 mm. Circular image, black corners, heavy natural falloff. Edge from the film's frames: no hard rim, corners roll off over ~45% of the radius, top corners darker than bottom. Opens filling the frame (Image Circle > Scale 1.1 of the frame); pull Scale down for the circular look, Field = True Angles for the exact bend.",
    "profile": "L_Nikkor_6mm_Fisheye",
    "amount": 1.0,
    "breathing": 1.0,
@@ -399,13 +287,15 @@
     "chromatic_blue": 0.015
    },
    "overscan": {
-    "mode": "Fixed",
-    "fixed": 2.0
+    "mode": "Dynamic",
+    "max": 4.0
    },
-   "lock_focal": true
+   "lock_focal": true,
+   "image_circle_coverage": 1.1,
+   "field": "FitToCircle"
   },
   "L_Favourite_10mm": {
-   "label": "The Favourite ultra-wide: full-frame stereographic 10mm reconstruction. Whole frame covered, bowed lines, heavy corner falloff.",
+   "label": "The Favourite ultra-wide: full-frame stereographic 10mm reconstruction. Whole frame covered, bowed lines, heavy corner falloff. Opens filling the frame (Image Circle > Scale 1.1 of the frame); pull Scale down for the circular look, Field = True Angles for the exact bend.",
    "profile": "L_Stereographic_10mm_FullFrame",
    "amount": 1.0,
    "breathing": 1.0,
@@ -438,13 +328,15 @@
     "chromatic_blue": 0.01
    },
    "overscan": {
-    "mode": "Fixed",
-    "fixed": 2.0
+    "mode": "Dynamic",
+    "max": 4.0
    },
-   "lock_focal": true
+   "lock_focal": true,
+   "image_circle_coverage": 1.1,
+   "field": "FitToCircle"
   },
   "L_PoorThings_4mm_Porthole": {
-   "label": "Poor Things porthole: OpTex 4mm Super 16 fisheye on a 35 mm frame. Small circular image, everything else black. Edge measured from a 1.66:1 still: rolloff band 0.85-1.13 of the circle radius, blue rim at 1.05-1.08, circle 5% left / 3% high of frame centre.",
+   "label": "Poor Things porthole: OpTex 4mm Super 16 fisheye on a 35 mm frame. Small circular image, everything else black. Edge measured from a 1.66:1 still: rolloff band 0.85-1.13 of the circle radius, blue rim at 1.05-1.08, circle 5% left / 3% high of frame centre. Opens filling the frame (Image Circle > Scale 1.1 of the frame); pull Scale down for the circular look, Field = True Angles for the exact bend.",
    "profile": "L_Optex_4mm_S16_Fisheye",
    "amount": 1.0,
    "breathing": 1.0,
@@ -488,13 +380,15 @@
     "noise_detail": 0.5
    },
    "overscan": {
-    "mode": "Fixed",
-    "fixed": 2.0
+    "mode": "Dynamic",
+    "max": 4.0
    },
-   "lock_focal": true
+   "lock_focal": true,
+   "image_circle_coverage": 1.1,
+   "field": "FitToCircle"
   },
   "L_PoorThings_8mm": {
-   "label": "Poor Things lab: Nikkor 8mm 180° circular fisheye on 35 mm. Edge: same optical rolloff family as the 4 mm (assumed slightly tighter).",
+   "label": "Poor Things lab: Nikkor 8mm 180° circular fisheye on 35 mm. Edge: same optical rolloff family as the 4 mm (assumed slightly tighter). Opens filling the frame (Image Circle > Scale 1.1 of the frame); pull Scale down for the circular look, Field = True Angles for the exact bend.",
    "profile": "L_Nikkor_8mm_Fisheye",
    "amount": 1.0,
    "breathing": 1.0,
@@ -529,10 +423,12 @@
     "chromatic_blue": 0.025
    },
    "overscan": {
-    "mode": "Fixed",
-    "fixed": 2.0
+    "mode": "Dynamic",
+    "max": 4.0
    },
-   "lock_focal": true
+   "lock_focal": true,
+   "image_circle_coverage": 1.1,
+   "field": "FitToCircle"
   },
   "L_PoorThings_Petzval_58": {
    "label": "Poor Things portraits: Lomography Petzval 58 (TLS rehoused). Round Waterhouse aperture, strong swirl wide open ('a vortex'), sharp centre. Shot wide open in the film.",
@@ -598,93 +494,6 @@
    "overscan": {
     "mode": "Fixed",
     "fixed": 1.5
-   }
-  },
-  "L_Favourite_6mm_Frame": {
-   "label": "The Favourite fisheye as framed in the film: Nikkor 6mm blown up so only the corners roll off (top darker). On the component: Match Camera To Profile, Overscan Fixed 2.0.",
-   "profile": "L_Nikkor_6mm_Fisheye_Frame",
-   "amount": 1.0,
-   "breathing": 1.0,
-   "out_of_range": "Clamp",
-   "image_circle": true,
-   "image_circle_softness": 0.25,
-   "vignette": {
-    "mode": "Physical",
-    "natural_falloff": 0.7,
-    "mechanical_strength": 1.0
-   },
-   "bokeh": {
-    "mode": "Physical",
-    "cats_eye_strength": 1.0,
-    "petzval": 0.0,
-    "petzval_falloff": 1.0,
-    "swirl_fades_by_fstop": 5.6
-   },
-   "image_circle_edge": {
-    "falloff_power": 1.3,
-    "center_offset": [
-     0.0,
-     -0.04
-    ],
-    "wobble": 0.03,
-    "wobble_lobes": 2,
-    "wobble_seed": 75,
-    "edge_noise": 0.03,
-    "noise_scale": 90,
-    "scatter": 0.3,
-    "chromatic_red": -0.012,
-    "chromatic_blue": 0.012
-   },
-   "overscan": {
-    "mode": "Fixed",
-    "fixed": 2.0
-   },
-   "lock_focal": true
-  },
-  "L_PoorThings_8mm_Frame": {
-   "label": "Poor Things 8 mm Oppenheimer/Nikkor as framed in the film: full 1.66 frame, 'distinct bend', corners rolling off. Match Camera To Profile.",
-   "profile": "L_Nikkor_8mm_Fisheye_Frame",
-   "amount": 1.0,
-   "breathing": 1.0,
-   "out_of_range": "Clamp",
-   "lock_focal": true,
-   "image_circle": true,
-   "image_circle_softness": 0.4,
-   "image_circle_edge": {
-    "falloff_power": 1.2,
-    "center_offset": [
-     0.0,
-     -0.03
-    ],
-    "wobble": 0.02,
-    "wobble_lobes": 2,
-    "wobble_seed": 30,
-    "falloff_wobble": 0.3,
-    "falloff_wobble_lobes": 2,
-    "falloff_wobble_seed": 200,
-    "edge_noise": 0.048,
-    "noise_scale": 90,
-    "noise_depth": 0.3,
-    "noise_blur": 0.3,
-    "chromatic_red": -0.015,
-    "chromatic_blue": 0.015,
-    "scatter": 0.3
-   },
-   "overscan": {
-    "mode": "Fixed",
-    "fixed": 2.0
-   },
-   "vignette": {
-    "mode": "Physical",
-    "natural_falloff": 0.7,
-    "mechanical_strength": 1.0
-   },
-   "bokeh": {
-    "mode": "Physical",
-    "cats_eye_strength": 1.0,
-    "petzval": 0.0,
-    "petzval_falloff": 1.0,
-    "swirl_fades_by_fstop": 5.6
    }
   },
   "L_PoorThings_Petzval_85": {
@@ -813,177 +622,6 @@
     "petzval_falloff": 1.5,
     "swirl_fades_by_fstop": 4.0
    }
-  },
-  "L_PoorThings_4mm_Porthole_Fit": {
-   "label": "Poor Things porthole: OpTex 4mm Super 16 fisheye on a 35 mm frame. Small circular image, everything else black. Edge measured from a 1.66:1 still: rolloff band 0.85-1.13 of the circle radius, blue rim at 1.05-1.08, circle 5% left / 3% high of frame centre. (fitted to circle)",
-   "profile": "L_Optex_4mm_S16_Fisheye_Fit",
-   "amount": 1.0,
-   "breathing": 1.0,
-   "out_of_range": "Clamp",
-   "image_circle": true,
-   "image_circle_softness": 0.25,
-   "vignette": {
-    "mode": "Physical",
-    "natural_falloff": 0.6,
-    "mechanical_strength": 1.0
-   },
-   "bokeh": {
-    "mode": "Physical",
-    "cats_eye_strength": 1.0,
-    "petzval": 0.0,
-    "petzval_falloff": 1.0,
-    "swirl_fades_by_fstop": 5.6
-   },
-   "image_circle_edge": {
-    "falloff_power": 0.9,
-    "opacity": 1.0,
-    "center_offset": [
-     -0.05,
-     -0.03
-    ],
-    "ellipticity": 1.0,
-    "wobble": 0.015,
-    "wobble_lobes": 3,
-    "wobble_seed": 40,
-    "edge_noise": 0.048,
-    "noise_scale": 110,
-    "scatter": 0.5,
-    "mask_strength": 1.0,
-    "chromatic_red": -0.03,
-    "chromatic_blue": 0.03,
-    "falloff_wobble": 0.25,
-    "falloff_wobble_lobes": 3,
-    "falloff_wobble_seed": 120,
-    "noise_depth": 0.35,
-    "noise_blur": 0.25,
-    "noise_detail": 0.5
-   },
-   "overscan": {
-    "mode": "Fixed",
-    "fixed": 3.0
-   },
-   "lock_focal": true
-  },
-  "L_Favourite_6mm_Fit": {
-   "label": "The Favourite fisheye: Nikkor 6mm 220° equidistant on 35 mm. Circular image, black corners, heavy natural falloff. Edge from the film's frames: no hard rim, corners roll off over ~45% of the radius, top corners darker than bottom. (fitted to circle)",
-   "profile": "L_Nikkor_6mm_Fisheye_Fit",
-   "amount": 1.0,
-   "breathing": 1.0,
-   "out_of_range": "Clamp",
-   "image_circle": true,
-   "image_circle_softness": 0.45,
-   "vignette": {
-    "mode": "Physical",
-    "natural_falloff": 0.7,
-    "mechanical_strength": 1.0
-   },
-   "bokeh": {
-    "mode": "Physical",
-    "cats_eye_strength": 1.0,
-    "petzval": 0.0,
-    "petzval_falloff": 1.0,
-    "swirl_fades_by_fstop": 5.6
-   },
-   "image_circle_edge": {
-    "falloff_power": 1.3,
-    "center_offset": [
-     0.0,
-     -0.04
-    ],
-    "wobble": 0.03,
-    "wobble_lobes": 2,
-    "wobble_seed": 75,
-    "edge_noise": 0.054,
-    "noise_scale": 90,
-    "scatter": 0.3,
-    "chromatic_red": -0.015,
-    "chromatic_blue": 0.015
-   },
-   "overscan": {
-    "mode": "Fixed",
-    "fixed": 3.0
-   },
-   "lock_focal": true
-  },
-  "L_PoorThings_8mm_Fit": {
-   "label": "Poor Things lab: Nikkor 8mm 180° circular fisheye on 35 mm. Edge: same optical rolloff family as the 4 mm (assumed slightly tighter). (fitted to circle)",
-   "profile": "L_Nikkor_8mm_Fisheye_Fit",
-   "amount": 1.0,
-   "breathing": 1.0,
-   "out_of_range": "Clamp",
-   "image_circle": true,
-   "image_circle_softness": 0.2,
-   "vignette": {
-    "mode": "Physical",
-    "natural_falloff": 0.7,
-    "mechanical_strength": 1.0
-   },
-   "bokeh": {
-    "mode": "Physical",
-    "cats_eye_strength": 1.0,
-    "petzval": 0.0,
-    "petzval_falloff": 1.0,
-    "swirl_fades_by_fstop": 5.6
-   },
-   "image_circle_edge": {
-    "falloff_power": 1.0,
-    "center_offset": [
-     -0.02,
-     -0.02
-    ],
-    "wobble": 0.01,
-    "wobble_lobes": 3,
-    "wobble_seed": 120,
-    "edge_noise": 0.0288,
-    "noise_scale": 110,
-    "scatter": 0.4,
-    "chromatic_red": -0.025,
-    "chromatic_blue": 0.025
-   },
-   "overscan": {
-    "mode": "Fixed",
-    "fixed": 3.0
-   },
-   "lock_focal": true
-  },
-  "L_Favourite_10mm_Fit": {
-   "label": "The Favourite ultra-wide: full-frame stereographic 10mm reconstruction. Whole frame covered, bowed lines, heavy corner falloff. (fitted to circle)",
-   "profile": "L_Stereographic_10mm_FullFrame_Fit",
-   "amount": 1.0,
-   "breathing": 1.0,
-   "out_of_range": "Clamp",
-   "image_circle": true,
-   "image_circle_softness": 0.35,
-   "vignette": {
-    "mode": "Physical",
-    "natural_falloff": 0.6,
-    "mechanical_strength": 1.0
-   },
-   "bokeh": {
-    "mode": "Physical",
-    "cats_eye_strength": 1.0,
-    "petzval": 0.0,
-    "petzval_falloff": 1.0,
-    "swirl_fades_by_fstop": 8.0
-   },
-   "image_circle_edge": {
-    "falloff_power": 1.4,
-    "center_offset": [
-     0.0,
-     -0.03
-    ],
-    "wobble": 0.02,
-    "wobble_lobes": 2,
-    "wobble_seed": 10,
-    "scatter": 0.25,
-    "chromatic_red": -0.01,
-    "chromatic_blue": 0.01
-   },
-   "overscan": {
-    "mode": "Fixed",
-    "fixed": 3.0
-   },
-   "lock_focal": true
   },
   "AD_Cooke_FFi_Zoom": {
    "label": "Cooke FFi 1.8x anamorphic as a continuous zoom 32-135 mm (Andy Davis coefficients). Smooth between primes; the tiedtke ST maps are exact at the primes.",

@@ -20,7 +20,7 @@ keeping goes into the JSON first, then gets imported. Never the other way round.
 | JSON section | Generates |
 |---|---|
 | `profile_specs` | per-profile overrides applied to imported profiles (`AD_*`) |
-| `projection_profiles` | analytic fisheye profiles (`L_*`), including the `_Frame` variants |
+| `projection_profiles` | analytic fisheye profiles (`L_*`), one per lens |
 | `derived_profiles` | single-focal primes cut from a base grid (Petzval 58/85, Ultra Prime 10) |
 | `presets` | every `DL_*` preset asset |
 | `prefixes` | the naming scheme |

@@ -201,6 +201,8 @@ def import_presets(preset_file=None, save=True, only=None):
             ic.set_editor_property("circle_coverage", float(p["image_circle_coverage"]))
         else:
             ic.set_editor_property("size_mode", unreal.DynamicLensCircleSize.PHYSICAL)
+        # fisheyes: FitToCircle (round, compresses the field only when the render runs out) or TrueAngles (exact bend, oval edge)
+        ic.set_editor_property("field", unreal.DynamicLensFisheyeField.TRUE_ANGLES if p.get("field") == "TrueAngles" else unreal.DynamicLensFisheyeField.FIT_TO_CIRCLE)
         edge = ic.get_editor_property("edge")
         for k, v in ee.items():
             edge.set_editor_property(k, v)

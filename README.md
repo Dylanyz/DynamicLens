@@ -150,8 +150,8 @@ front diameter, iris blades, max aperture, **pupil visibility at the image-circl
 ## Presets shipped
 Master, Supreme (as measured), MasterHeavy, Subtle, Vintage, Lanthimos_Favourite_6mm (Nikkor 6mm 220°),
 Lanthimos_Favourite_10mm (stereographic reconstruction) and _10mm_Rect (rectilinear reconstruction),
-L_PoorThings_4mm_Porthole (OpTex 4mm S16 on 35), L_PoorThings_8mm and 8mm_Frame (Oppenheimer/Nikkor, full frame with
-rolling corners), L_PoorThings_Petzval_58 / _85 (round Waterhouse iris, swirl), L_PoorThings_UltraPrime_10mm
+L_PoorThings_4mm_Porthole (OpTex 4mm S16 on 35), L_PoorThings_8mm (Oppenheimer/Nikkor). Fisheyes open filling the frame; Image Circle > Scale takes them
+down to a circular porthole and Field switches Fit to Circle / True Angles, L_PoorThings_Petzval_58 / _85 (round Waterhouse iris, swirl), L_PoorThings_UltraPrime_10mm
 (placeholder distortion), L_PoorThings_MasterZoom_16-110, L_PoorThings_Optimo_24-290, L_PoorThings_VistaVision_LeicaR
 (the reanimation sequence; use a 1.5:1 filmback) - lens list from Noam Kroll's article on the film - plus one per tiedtke series
 (`Presets/Tiedtke/DL_T_*`), plus 22 spherical series from Andy Davis's creative lens maps

@@ -63,16 +63,24 @@ Amount, Breathing, Out Of Range mode, Wide Boost.
 made from a normal lens's data still bends convincingly.
 
 ### Image Circle
-**Enabled**, **Size**, **Scale** or **Circle Coverage**, **Softness**, and an **Edge** group:
+**Enabled**, **Scale Relative To**, **Scale**, **Field**, **Softness**, and an **Edge** group.
+One **Scale** slider shows; what 1 means depends on **Scale Relative To** (2026-09-25):
 
-- **Size = Physical** (default): the lens's own circle, times **Scale** (0.1–4). A smaller filmback
-  makes it bigger in frame, as on a real camera.
-- **Size = Coverage**: holds **Circle Coverage** = circle diameter / frame diagonal (sensor before
-  desqueeze, crop applied) whatever the filmback, focal or crop. 1 touches the corners, 0.5 is a
-  porthole that about meets the top and bottom. On fisheyes it turns field fitting on, and past the
-  lens's own field it enlarges the fisheye image (a `_Frame` filmback done inside the map). A profile
-  with no image circle uses its sensor diagonal. Debug shows the resulting **Circle Coverage** and,
-  on fisheyes, **Fit Field Scale** (1 = the true lens, lower = bent harder than it).
+- **Lens** (`SizeMode = Physical`): 1 = the lens's own circle. A smaller filmback makes it bigger in
+  frame, as on a real camera.
+- **Frame** (`SizeMode = Coverage`, the `CircleCoverage` property): circle diameter / frame diagonal
+  (sensor before desqueeze, crop applied), whatever the filmback, focal or crop. 0.6 porthole, 1 the
+  circle touches the corners, 1.1–1.3 fills the frame. The fisheye presets open at 1.1.
+- **On a fisheye, Scale scales the whole picture**, not just the mask: past the lens's own field the
+  fisheye image is enlarged with the circle, as a smaller filmback would. This replaced the `_Frame`
+  presets (and their small filmbacks).
+- **Field** (fisheyes only): *Fit to Circle* (default) compresses the field only when the render runs
+  out, so the circle is round and the right size; *True Angles* keeps the lens's exact bend and the
+  picture ends early in an oval. This replaced the `_Fit` presets.
+- Fisheye overscan is Dynamic up to 4: it renders only what the circle-and-frame needs, so a filled
+  frame renders less and stays sharper. Notes report centre sharpness for the viewport and for Movie
+  Render Graph. Debug shows **Circle Coverage** and **Fit Field Scale** (1 = the true lens).
+- A profile with no image circle uses its sensor diagonal.
 - On an anamorphic camera the lens circle is drawn as an ellipse, round on the squeezed sensor.
 
 - **Falloff Power**, **Opacity** — how hard and how black the rim is. Opacity below 1 leaves a faint

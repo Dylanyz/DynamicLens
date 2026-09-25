@@ -315,7 +315,7 @@ private:
 	bool DriveParametric(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float W, float H, float& OutNeededOverscan, FLensDistortionState& OutState);
 	bool DriveAnamorphic(UCineCameraComponent* Cam, float Focal, float W, float H, float& OutNeededOverscan, FLensDistortionState& OutState);
 	bool DriveSTMap(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float Focus, float W, float H, float WFull, float HFull, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRadius);
-	bool DriveProjection(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float W, float H, float AppliedOverscan, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRx, float& OutCircleRy);
+	bool DriveProjection(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float W, float H, TFunctionRef<float(float)> ChooseOverscan, float& OutAppliedOverscan, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRx, float& OutCircleRy);
 	void ApplyRendering(UCineCameraComponent* Cam, const FLensDistortionState& State, float AppliedOverscan);
 	void ApplyLook(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float CircleRadiusNorm, float Aspect, float CircleEllipticity, float CircleSquareness);
 	void CaptureLook(UCineCameraComponent* Cam);
@@ -365,10 +365,10 @@ private:
 	float ProjectionKeyOverscan = 0.f;
 	int32 ProjectionKeyType = -1;
 	float ProjectionKeyMaxAngle = 0.f;
-	float ProjectionNeededOverscan = 1.f;
 	float ProjectionCircleRadius = 0.f;
 	float ProjectionCircleRy = 0.f;
-	float ProjectionKeyScale = 1.f;
+	float ProjectionKeyCircle = 0.f;
+	float ProjectionKeyMag = 1.f;
 	float ProjectionKeyK = 99.f;
 	bool ProjectionKeyFit = false;
 	float ProjectionFieldScale = 1.f;

@@ -16,7 +16,7 @@ back to the JSON.
 | JSON section | Generates |
 |---|---|
 | `profile_specs` | per-profile overrides applied to imported profiles (`AD_*`) |
-| `projection_profiles` | analytic fisheye profiles (`L_*`), including the `_Frame` variants |
+| `projection_profiles` | analytic fisheye profiles (`L_*`), one per lens |
 | `derived_profiles` | single-focal primes cut from a base grid (Petzval 58/85, Ultra Prime 10) |
 | `presets` | every `DL_*` preset asset |
 | `prefixes` | the naming scheme |
@@ -29,7 +29,7 @@ back to the JSON.
 | `DL_AD_*` (parametric) | Andy Davis's measured ARRI/Zeiss Lens Files | Clean and accurate, and they **breathe** (a real focus stack). `DL_AD_Master`, `DL_AD_Supreme`. The baseline to compare against. |
 | `DL_AD_*` (ST map) | Andy Davis's creative lens maps, spherical | 22 series / 110 primes of measured spherical character, under `Profiles/AndyDavis`. Vintage Canon K-35 and FD, Nikon AI-S, Leica R, Cooke S4i (17 focals) and S7i, Leitz Thalia and Summilux-C, Tribe7 Blackwing7, Zeiss CP2/CP3/Supreme Radiance, ARRI Signature, and the modern full-frame sets. **Single focus, so no breathing.** |
 | `DL_T_*` | tiedtke ST maps, one per series | Real lenses with real flaws. Cooke FFi/SFi, Panavision C/D/E/G/Primo/AutoPanatar, Atlas Orion, Lomo Round Front, Elite MK, Kowa Cine Prominar, Iscorama Pre-36, Hawk V-Lite Vintage, Todd-AO, Angenieux Optimo, PS-Technik, ARRI/Zeiss Master Anamorphic. |
-| `DL_L_*` | Lanthimos-film reconstructions | The Favourite 6 mm and 10 mm (plus `_Frame` and `_Rect` variants), Poor Things 4 mm porthole, 8 mm, Petzval 58/85, Ultra Prime 10 mm, Master Zoom 16-110, Optimo 24-290, VistaVision Leica R. |
+| `DL_L_*` | Lanthimos-film reconstructions | The Favourite 6 mm and 10 mm (plus a `_Rect` variant), Poor Things 4 mm porthole, 8 mm, Petzval 58/85, Ultra Prime 10 mm, Master Zoom 16-110, Optimo 24-290, VistaVision Leica R. |
 | `DL_C_*` | Dylan's own looks | `DL_C_MasterHeavy`, `DL_C_Subtle`, `DL_C_Vintage`, `DL_C_Vintage_Raw`. **`DL_C_Vintage` is a favourite. Do not "correct" it without asking** — `_Raw` exists precisely to preserve the un-rescaled coefficient behaviour its look depends on. |
 
 Every number that did not come from a data sheet is marked "assumed" in the profile's Source field.
@@ -50,8 +50,9 @@ the real gap, since every `DL_T_*` is anamorphic.
 - Modern, clean, "good glass" → `DL_AD_*`.
 - Anamorphic bokeh → anything with a squeeze; check the Bokeh block's Squeeze source.
 
-The `_Frame` variants use a smaller filmback so the image circle reads larger in frame. That is the
-intended way to make a porthole bigger, alongside `Image Circle > Scale`.
+Fisheyes are one preset per lens (2026-09-25). **Image Circle > Scale** sizes the circle and the picture
+with it, porthole to filled frame; **Field** is Fit to Circle or True Angles. These replaced the old
+`_Fit` and `_Frame` presets. The fisheye presets open at Scale 1.1 of the frame, overscan Dynamic up to 4.
 
 ## Lens kits
 
@@ -61,8 +62,8 @@ log-focal space. It adds no lens data of its own: every entry is a preset that a
 
 Kits come from the `kits` section of `Tools/data/presets.json` via `dl.import_kits()` (also part of
 `dl.import_all()`), same rule as presets: never edit one only in the editor. Shipped:
-`DLK_L_PoorThings` (4, 8, 10, 58, 85 mm) and `DLK_L_Favourite` (6, 10 mm), both built from the
-original `DL_L_*` presets, not the `_Fit` variants.
+`DLK_L_PoorThings` (4, 8, 10, 58, 85 mm) and `DLK_L_Favourite` (6, 10 mm), built from the
+`DL_L_*` presets.
 
 ## Adding a lens
 

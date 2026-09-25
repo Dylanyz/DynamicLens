@@ -114,6 +114,9 @@ the circle **never** gets to the lens's own size. For the lens circle to win, Sc
 
 That's why Scale "does nothing" from 1.0 upwards on these presets.
 
+> **Historical (superseded 2026-09-25):** the `_Fit` and `_Frame` presets below were merged into one preset
+> per lens with per-camera Image Circle > Scale and Field. The numbers still describe the maths.
+
 ### Full-frame fisheye and the `_Frame` variants (non-fit)
 
 | Preset | Gate | C (physical) | data corner O=2 / 3 / 4 | corner | Data limit clears the corners at |

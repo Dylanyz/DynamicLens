@@ -223,7 +223,7 @@ public:
 	 * the circle is round and the size the lens makes, and the picture bends harder than the real lens would.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Profile|Projection", meta = (EditCondition = "Type == EDynamicLensProfileType::Projection"))
-	bool bFitFieldToCircle = false;
+	bool bFitFieldToCircle = false;   // superseded 2026-09-25 by the per-camera Image Circle > Field; no longer read, kept so old assets load
 
 	/** The projection as K, whichever way it was authored. */
 	float GetProjectionK() const;
@@ -388,14 +388,24 @@ struct DYNAMICLENS_API FDynamicLensVignette
 	float StopDownFade = 0.7f;
 };
 
-/** What sets the image circle's size. */
+/** What Image Circle > Scale is measured against. */
 UENUM(BlueprintType)
 enum class EDynamicLensCircleSize : uint8
 {
-	/** The lens's own circle (the profile's Image Circle Mm, times Scale). A smaller filmback makes it bigger in frame, as on a real camera. */
-	Physical,
-	/** Hold the circle at a fixed Circle Coverage of the frame, whatever the filmback, focal length or crop. Turns field fitting on for fisheyes. */
-	Coverage,
+	/** Scale 1 = the lens's own circle (the profile's Image Circle Mm). A smaller filmback makes it bigger in frame, as on a real camera. */
+	Physical UMETA(DisplayName = "Lens"),
+	/** Scale 1 = the circle just touches the frame corners, whatever the filmback, focal length or crop. */
+	Coverage UMETA(DisplayName = "Frame"),
+};
+
+/** Fisheyes only: how the lens's field meets what Unreal can render (~80 deg off-axis from one camera). */
+UENUM(BlueprintType)
+enum class EDynamicLensFisheyeField : uint8
+{
+	/** Compress the field just enough that the whole circle has picture: round, the right size, bends a touch harder than the real lens. Only compresses when the render runs out. */
+	FitToCircle UMETA(DisplayName = "Fit to Circle"),
+	/** Every angle where the real lens puts it. Where the render runs out the picture ends early, in an oval. */
+	TrueAngles UMETA(DisplayName = "True Angles"),
 };
 
 /** How the render is enlarged so the distorted frame has source pixels out to its corners. */
@@ -806,22 +816,29 @@ struct DYNAMICLENS_API FDynamicLensImageCircle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle")
 	bool bEnabled = true;
 
-	/** Physical = the lens's own circle, times Scale. Coverage = hold the circle at Circle Coverage of the frame. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle", meta = (EditCondition = "bEnabled", DisplayName = "Size"))
+	/** What Scale is measured against: Lens (1 = the lens's real circle) or Frame (1 = the circle touches the frame corners). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle", meta = (EditCondition = "bEnabled", DisplayName = "Scale Relative To"))
 	EDynamicLensCircleSize SizeMode = EDynamicLensCircleSize::Physical;
 
-	/** Multiplier on the circle size (1 = the profile's Image Circle Mm on this filmback). Creative control: 1.2 = 20% bigger circle, 0.8 = smaller porthole. A fisheye circle cannot grow past what the render can source; a smaller filmback (Camera > Filmback Mm), a _Fit preset or Size = Coverage does that. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle", meta = (EditCondition = "bEnabled && SizeMode == EDynamicLensCircleSize::Physical", ClampMin = "0.1", ClampMax = "4.0", UIMin = "0.5", UIMax = "2.0"))
+	/**
+	 * Size of the circle against the lens's own (1 = the profile's Image Circle Mm on this filmback): 0.6 a porthole, 1.3 bigger.
+	 * On a fisheye this scales the whole picture with the circle, as a smaller filmback would.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle", meta = (EditCondition = "bEnabled && SizeMode == EDynamicLensCircleSize::Physical", EditConditionHides, ClampMin = "0.1", ClampMax = "4.0", UIMin = "0.3", UIMax = "3.0"))
 	float Scale = 1.f;
 
 	/**
 	 * Circle diameter over the frame diagonal, measured on the sensor before desqueeze with any crop applied.
-	 * 1 = the circle touches the corners, 0.5 = a porthole that about meets the top and bottom, 1.2+ = no circle in frame.
-	 * Geometric: the soft edge starts Softness inside it. A profile with no image circle uses its sensor diagonal as the lens circle.
-	 * On a fisheye, a circle bigger than the lens's field is made by enlarging the fisheye image, as a smaller filmback would.
+	 * 0.6 = a porthole, 1 = the circle touches the corners, 1.1-1.3 = fills the frame with the corners clean.
+	 * On a fisheye this scales the whole picture with the circle, as a smaller filmback would.
+	 * A profile with no image circle uses its sensor diagonal as the lens circle.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle", meta = (EditCondition = "bEnabled && SizeMode == EDynamicLensCircleSize::Coverage", ClampMin = "0.1", ClampMax = "3.0", UIMin = "0.3", UIMax = "1.5"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle", meta = (EditCondition = "bEnabled && SizeMode == EDynamicLensCircleSize::Coverage", EditConditionHides, DisplayName = "Scale", ClampMin = "0.1", ClampMax = "3.0", UIMin = "0.3", UIMax = "1.5"))
 	float CircleCoverage = 1.f;
+
+	/** Fisheyes only. Fit to Circle: round and the right size, bends a touch harder when the render runs out. True Angles: the lens's exact bend, the picture ends early in an oval. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle")
+	EDynamicLensFisheyeField Field = EDynamicLensFisheyeField::FitToCircle;
 
 	/** Width of the rolloff band as a fraction of the circle radius (hard porthole 0.05; Poor Things 4 mm measured 0.25; The Favourite corners 0.45). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Image Circle", meta = (EditCondition = "bEnabled", ClampMin = "0.0", ClampMax = "1.0"))
