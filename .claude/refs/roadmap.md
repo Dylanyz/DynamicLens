@@ -76,6 +76,36 @@ deletes the ones he does not like.
 
 ---
 
+## Final-render validation: Movie Render Graph and Accumulation DOF
+
+**Gated on:** Dylan building his final render config (not started as of 2026-09-25). He plans to use
+**Accumulation DOF** in finals, or at least try it. Propose this when he gets there, or earlier if he
+asks for a test render.
+
+**Why.** Every verification so far was PIE, Python readbacks, or one short scratch MRG render. The
+final look will run under settings nothing here has been tested with.
+
+**What exists.** The Bokeh block's **Drive Accumulation DOF** (since v0.3.2) feeds Epic's experimental
+Accumulation DOF component on the same camera: a procedural N-gon iris from blade count and
+curvature, plus spherical aberration and coma. It has never been checked in a real render.
+
+**What to test**, on one short shot in the host project's final-style graph, scratch assets in
+`/Game/Claude/`:
+1. **Accumulation DOF + lens.** Does the iris texture show? Do cat's eye (barrel) and Petzval swirl
+   still happen? They are post-process DOF settings, which Accumulation DOF may bypass. If it does,
+   say so in the tooltips and decide whether to feed it barrel/swirl another way. Does distortion
+   and the image circle compose correctly on top?
+2. **Temporal samples 4-8** (the planned finals setting): a Dynamic overscan that changes mid-frame
+   is cached per output frame (`sequencer-integration.md`). Prefer Fixed overscan for these renders
+   and confirm there are no pops.
+3. **TSR render mode in MRG** at overscan up to 2, plus the double-overscan note in `architecture.md`.
+   TSR mode also crashes PIE (the TSR entry below), so check it only in MRG.
+4. **Cost.** Accumulation DOF is quoted at 3-10x per frame. Measure it with the lens effect on and off.
+
+**Host-project context:** CitySample keeps its render knowledge in
+`.claude/refs/final-render-config/` (MRG Python gotchas, measured performance, an Accumulation DOF
+transcript). Read its `README.md` and `01-mrg-gotchas.md` before scripting any graph.
+
 ## Preset Browser — installed, waiting on Dylan's review
 
 **Gated on:** Dylan looking at it. The code is done and in HEAD; nothing
