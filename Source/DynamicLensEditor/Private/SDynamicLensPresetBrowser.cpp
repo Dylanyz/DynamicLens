@@ -17,6 +17,7 @@
 
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
@@ -37,7 +38,8 @@ const FName SDynamicLensPresetBrowser::TabId(TEXT("DynamicLensPresetBrowser"));
 
 namespace
 {
-	const TCHAR* GConfigSection = TEXT("DynamicLens.PresetBrowser");
+	/** Shared with the hidden set, so everything the browser remembers sits in one ini section. */
+	const TCHAR* GConfigSection = DynamicLensHiddenPresets::Section;
 
 	/**
 	 * Curvature -> 0..1 bar. Full scale is 0.30, which is the widest real lens in the shipped
@@ -247,10 +249,15 @@ TSharedRef<SWidget> SDynamicLensPresetBrowser::BuildToolbar()
 					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
 					.Text_Lambda([this]()
 					{
-						int32 Shown = 0;
-						for (const FDynamicLensBrowserRowPtr& R : Rows) { if (R.IsValid() && !R->IsHeader()) ++Shown; }
-						return FText::Format(LOCTEXT("CountFmt", "{0} of {1}"),
-							FText::AsNumber(Shown), FText::AsNumber(Catalog->GetAll().Num()));
+						const int32 NumHidden = Catalog->NumHidden();
+						if (NumHidden == 0)
+						{
+							return FText::Format(LOCTEXT("CountFmt", "{0} of {1}"),
+								FText::AsNumber(ShownCount), FText::AsNumber(Catalog->GetAll().Num()));
+						}
+						return FText::Format(LOCTEXT("CountHiddenFmt", "{0} of {1}  ·  {2} hidden"),
+							FText::AsNumber(ShownCount), FText::AsNumber(Catalog->GetAll().Num()),
+							FText::AsNumber(NumHidden));
 					})
 				]
 			]
@@ -431,6 +438,16 @@ TSharedRef<SWidget> SDynamicLensPresetBrowser::BuildFilterRail()
 		]
 	];
 
+	Rail->AddSlot().AutoHeight()
+	[
+		FilterCheck(LOCTEXT("ShowHidden", "Show hidden inline"),
+			[this]() { return Filter.bShowHidden; },
+			[this](bool b) { Filter.bShowHidden = b; },
+			LOCTEXT("ShowHiddenTip",
+				"Put hidden lenses back in the list, dimmed, instead of folding them into the Hidden "
+				"section at the bottom. Hiding is yours alone: it never touches the preset asset."))
+	];
+
 	// --- maker
 	Rail->AddSlot().AutoHeight()[ SectionHeading(LOCTEXT("Maker", "MAKER")) ];
 	for (uint8 I = 0; I < (uint8)EDynamicLensFamilyFilter::Count; ++I)
@@ -587,6 +604,57 @@ TSharedRef<ITableRow> SDynamicLensPresetBrowser::GenerateRow(
 		return SNew(STableRow<FDynamicLensBrowserRowPtr>, Owner)[ SNullWidget::NullWidget ];
 	}
 
+	if (Item->IsHeader() && Item->bHiddenSection)
+	{
+		// the Hidden section folds, so lenses set aside stay out of the way until asked for
+		return SNew(STableRow<FDynamicLensBrowserRowPtr>, Owner)
+			.Padding(FMargin(0.f, 10.f, 0.f, 2.f))
+			.ShowSelection(false)
+			[
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+				.ContentPadding(FMargin(0.f))
+				.ToolTipText(LOCTEXT("HiddenSectionTip",
+					"Lenses you have hidden. They are left out of the list, the component's Preset "
+					"dropdown and A1/A2 stepping. Click to show or fold them; the eye on a row unhides it."))
+				.OnClicked_Lambda([this]()
+				{
+					bHiddenExpanded = !bHiddenExpanded;
+					RebuildRows();
+					SaveConfig();
+					return FReply::Handled();
+				})
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, 4.f, 0.f)
+					[
+						SNew(STextBlock)
+						.Font(LightFont(8))
+						.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+						.Text_Lambda([this]() { return FText::FromString(bHiddenExpanded ? TEXT("▼") : TEXT("▶")); })
+					]
+					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Font(BoldFont(9))
+						.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+						.Text(FText::FromString(Item->Header.ToUpper()))
+					]
+					+ SHorizontalBox::Slot().AutoWidth().Padding(6.f, 0.f, 6.f, 0.f).VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Font(LightFont(8))
+						.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+						.Text(FText::AsNumber(Item->HeaderCount))
+					]
+					+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
+					[
+						SNew(SSeparator).Thickness(1.f)
+					]
+				]
+			];
+	}
+
 	if (Item->IsHeader())
 	{
 		return SNew(STableRow<FDynamicLensBrowserRowPtr>, Owner)
@@ -653,7 +721,7 @@ TSharedRef<SWidget> SDynamicLensPresetBrowser::BuildPresetRowContent(FDynamicLen
 		];
 	}
 
-	return SNew(SHorizontalBox)
+	TSharedRef<SHorizontalBox> Content = SNew(SHorizontalBox)
 
 		// favourite star
 		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(2.f, 0.f, 4.f, 0.f)
@@ -736,6 +804,46 @@ TSharedRef<SWidget> SDynamicLensPresetBrowser::BuildPresetRowContent(FDynamicLen
 					.Text(FText::FromString(FString::Printf(TEXT("%.3g"), Entry->Distortion)))
 				]
 			]
+		]
+
+		// hide / unhide
+		+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(2.f, 0.f, 2.f, 0.f)
+		[
+			SNew(SButton)
+			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+			.ContentPadding(FMargin(2.f))
+			.ToolTipText_Lambda([this, Entry]()
+			{
+				return IsHidden(*Entry)
+					? LOCTEXT("UnhideTip", "Unhide: put this lens back in the list, the Preset dropdown and A1/A2 stepping.")
+					: LOCTEXT("HideTip", "Hide this lens from the list, the Preset dropdown and A1/A2 stepping. "
+					                     "Nothing is deleted and only you see the change; it moves to the Hidden section.");
+			})
+			.OnClicked_Lambda([this, Entry]()
+			{
+				ToggleHidden(Entry);
+				return FReply::Handled();
+			})
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.Image_Lambda([this, Entry]()
+				{
+					return FAppStyle::Get().GetBrush(IsHidden(*Entry) ? "Icons.Hidden" : "Icons.Visible");
+				})
+			]
+		];
+
+	// a hidden lens reads as set aside wherever it shows up
+	return SNew(SBorder)
+		.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
+		.Padding(0.f)
+		.ColorAndOpacity_Lambda([this, Entry]()
+		{
+			return IsHidden(*Entry) ? FLinearColor(1.f, 1.f, 1.f, 0.45f) : FLinearColor::White;
+		})
+		[
+			Content
 		];
 }
 
@@ -934,8 +1042,10 @@ void SDynamicLensPresetBrowser::RebuildRows()
 {
 	Rows.Reset();
 
+	TArray<FDynamicLensPresetEntryPtr> HiddenView;
 	const TArray<FDynamicLensPresetEntryPtr> View =
-		Catalog->BuildView(Filter, Sort, bSortAscending, Favourites, Recents);
+		Catalog->BuildView(Filter, Sort, bSortAscending, Favourites, Recents, &HiddenView);
+	ShownCount = View.Num();
 
 	auto GroupKeyOf = [this](const FDynamicLensPresetEntry& E) -> FString
 	{
@@ -971,6 +1081,19 @@ void SDynamicLensPresetBrowser::RebuildRows()
 			const TArray<FDynamicLensPresetEntryPtr>& Bucket = Buckets[Key];
 			Rows.Add(FDynamicLensBrowserRow::MakeHeader(Key, Bucket.Num()));
 			for (const FDynamicLensPresetEntryPtr& E : Bucket) Rows.Add(FDynamicLensBrowserRow::MakeEntry(E));
+		}
+	}
+
+	// hidden lenses that pass every other filter, folded into one section at the foot of the list
+	if (HiddenView.Num() > 0)
+	{
+		TSharedRef<FDynamicLensBrowserRow> Header =
+			FDynamicLensBrowserRow::MakeHeader(TEXT("Hidden"), HiddenView.Num());
+		Header->bHiddenSection = true;
+		Rows.Add(Header);
+		if (bHiddenExpanded)
+		{
+			for (const FDynamicLensPresetEntryPtr& E : HiddenView) Rows.Add(FDynamicLensBrowserRow::MakeEntry(E));
 		}
 	}
 
@@ -1107,6 +1230,18 @@ void SDynamicLensPresetBrowser::ToggleFavourite(FDynamicLensPresetEntryPtr Entry
 	if (Filter.bFavouritesOnly) RebuildRows();
 }
 
+bool SDynamicLensPresetBrowser::IsHidden(const FDynamicLensPresetEntry& E) const
+{
+	return Catalog.IsValid() && Catalog->IsHidden(E);
+}
+
+void SDynamicLensPresetBrowser::ToggleHidden(FDynamicLensPresetEntryPtr Entry)
+{
+	if (!Entry.IsValid() || !Catalog.IsValid()) return;
+	// the catalogue saves the set and broadcasts, so every open tab rebuilds, this one included
+	Catalog->SetHidden(Entry->Asset.PackageName, !Catalog->IsHidden(*Entry));
+}
+
 void SDynamicLensPresetBrowser::PushRecent(FName PackageName)
 {
 	Recents.Remove(PackageName);
@@ -1143,6 +1278,8 @@ void SDynamicLensPresetBrowser::SaveConfig() const
 	GConfig->SetBool(GConfigSection, TEXT("STMap"), Filter.bSTMap, Ini);
 	GConfig->SetBool(GConfigSection, TEXT("Projection"), Filter.bProjection, Ini);
 	GConfig->SetBool(GConfigSection, TEXT("FavouritesOnly"), Filter.bFavouritesOnly, Ini);
+	GConfig->SetBool(GConfigSection, TEXT("ShowHidden"), Filter.bShowHidden, Ini);
+	GConfig->SetBool(GConfigSection, TEXT("HiddenExpanded"), bHiddenExpanded, Ini);
 	GConfig->SetFloat(GConfigSection, TEXT("FocalMin"), Filter.FocalMin, Ini);
 	GConfig->SetFloat(GConfigSection, TEXT("FocalMax"), Filter.FocalMax, Ini);
 	GConfig->SetFloat(GConfigSection, TEXT("ApertureMax"), Filter.ApertureMax, Ini);
@@ -1185,6 +1322,8 @@ void SDynamicLensPresetBrowser::LoadConfig()
 	GConfig->GetBool(GConfigSection, TEXT("STMap"), Filter.bSTMap, Ini);
 	GConfig->GetBool(GConfigSection, TEXT("Projection"), Filter.bProjection, Ini);
 	GConfig->GetBool(GConfigSection, TEXT("FavouritesOnly"), Filter.bFavouritesOnly, Ini);
+	GConfig->GetBool(GConfigSection, TEXT("ShowHidden"), Filter.bShowHidden, Ini);
+	GConfig->GetBool(GConfigSection, TEXT("HiddenExpanded"), bHiddenExpanded, Ini);
 	GConfig->GetFloat(GConfigSection, TEXT("FocalMin"), Filter.FocalMin, Ini);
 	GConfig->GetFloat(GConfigSection, TEXT("FocalMax"), Filter.FocalMax, Ini);
 	GConfig->GetFloat(GConfigSection, TEXT("ApertureMax"), Filter.ApertureMax, Ini);

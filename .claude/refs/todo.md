@@ -19,6 +19,8 @@ has actually been looked at and is not about to change shape:
 
 - `README.md` — it is a user-facing feature and the public should know it is there.
 - `.claude/refs/using-the-component.md` — the **Browse** button beside the Preset field.
+  Also hiding: hidden presets leave the browser, the Preset dropdown and A1/A2 stepping, and
+  live in the per-user ini, not the asset (`DynamicLensHiddenPresets` in `DynamicLensTypes.h`).
 - `.claude/refs/presets-and-profiles.md` — how the `DL.*` Asset Registry tags are produced and what
   each one means, and the rule that browsing must never load a preset.
 - `CLAUDE.md` — one line under "Using it on a camera", step 3.

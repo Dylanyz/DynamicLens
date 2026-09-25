@@ -6,11 +6,13 @@
 
 #include "DynamicLensComponent.h"
 #include "DynamicLensEditorModule.h"
+#include "DynamicLensPresetCatalog.h"
 
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IDetailPropertyRow.h"
 #include "PropertyHandle.h"
+#include "PropertyCustomizationHelpers.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
@@ -44,11 +46,25 @@ void FDynamicLensComponentDetails::CustomizeDetails(IDetailLayoutBuilder& Detail
 	if (!Row) return;
 
 	TSharedPtr<SWidget> NameWidget;
-	TSharedPtr<SWidget> ValueWidget;
-	Row->GetDefaultWidgets(NameWidget, ValueWidget, /*bAddWidgetDecoration*/ true);
-	if (!NameWidget.IsValid() || !ValueWidget.IsValid()) return;
+	TSharedPtr<SWidget> DefaultValueWidget;
+	Row->GetDefaultWidgets(NameWidget, DefaultValueWidget, /*bAddWidgetDecoration*/ true);
+	if (!NameWidget.IsValid() || !DefaultValueWidget.IsValid()) return;
 
 	TWeakObjectPtr<UDynamicLensComponent> WeakTarget = Target;
+
+	// Our own picker in place of the default one, for the one thing the default cannot do: leave
+	// out presets hidden in the Preset Browser. Same handle, so undo, multi-edit, reset-to-default
+	// and Sequencer keying behave exactly as before. The catalogue holds the hidden set, so hiding
+	// in an open browser is reflected the next time this dropdown opens.
+	TSharedRef<FDynamicLensPresetCatalog> Catalog = FDynamicLensPresetCatalog::Get();
+	const TSharedRef<SWidget> ValueWidget = SNew(SObjectPropertyEntryBox)
+		.PropertyHandle(PresetHandle)
+		.AllowedClass(UDynamicLensPreset::StaticClass())
+		.ThumbnailPool(DetailBuilder.GetThumbnailPool())
+		.OnShouldFilterAsset_Lambda([Catalog](const FAssetData& Asset)
+		{
+			return Catalog->IsHidden(Asset.PackageName);
+		});
 
 	Row->CustomWidget(/*bShowChildren*/ true)
 		.NameContent()
@@ -63,7 +79,7 @@ void FDynamicLensComponentDetails::CustomizeDetails(IDetailLayoutBuilder& Detail
 
 			+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 			[
-				ValueWidget.ToSharedRef()
+				ValueWidget
 			]
 
 			+ SHorizontalBox::Slot().AutoWidth().Padding(4.f, 0.f, 0.f, 0.f).VAlign(VAlign_Center)

@@ -22,6 +22,8 @@ struct FDynamicLensBrowserRow
 	/** Non-empty means this row is a group header and Entry is unset. */
 	FString Header;
 	int32 HeaderCount = 0;
+	/** The Hidden section's header, which folds its section open and shut. */
+	bool bHiddenSection = false;
 	FDynamicLensPresetEntryPtr Entry;
 
 	bool IsHeader() const { return !Header.IsEmpty(); }
@@ -105,6 +107,8 @@ private:
 	// --- favourites / recents / persistence ---------------------------------------------------
 	bool IsFavourite(const FDynamicLensPresetEntry& E) const;
 	void ToggleFavourite(FDynamicLensPresetEntryPtr Entry);
+	bool IsHidden(const FDynamicLensPresetEntry& E) const;
+	void ToggleHidden(FDynamicLensPresetEntryPtr Entry);
 	void PushRecent(FName PackageName);
 	void SaveConfig() const;
 	void LoadConfig();
@@ -124,6 +128,11 @@ private:
 
 	TSet<FName> Favourites;
 	TArray<FName> Recents;
+
+	/** Whether the Hidden section at the foot of the list is open. The hidden set lives on the catalogue. */
+	bool bHiddenExpanded = false;
+	/** Presets in the main list (not the Hidden section), for the "N of M" count. */
+	int32 ShownCount = 0;
 
 	/** Cameras the browser writes to. Refreshed from the editor selection unless pinned. */
 	TArray<TWeakObjectPtr<UDynamicLensComponent>> Targets;

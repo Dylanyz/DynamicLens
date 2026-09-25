@@ -5,6 +5,7 @@
 #include "DynamicLensTypes.h"
 #include "DynamicLensLibrary.h"
 #include "Engine/Texture2D.h"
+#include "Misc/ConfigCacheIni.h"
 #if WITH_EDITOR
 #include "IPythonScriptPlugin.h"
 #endif
@@ -801,4 +802,32 @@ void UDynamicLensPreset::GetAssetRegistryTags(FAssetRegistryTagsContext Context)
 	Context.AddTag(FTag(DynamicLensTags::MapCount, FString::FromInt(MapCount), FTag::TT_Numerical));
 	Context.AddTag(FTag(DynamicLensTags::Breathes, bBreathes ? TEXT("1") : TEXT("0"), FTag::TT_Numerical));
 	Context.AddTag(FTag(DynamicLensTags::Distortion, FString::SanitizeFloat(DynamicLensDistortionMagnitude(*P)), FTag::TT_Numerical));
+}
+
+// ------------------------------------------------------------------------------------------------ hidden presets
+
+TSet<FName> DynamicLensHiddenPresets::Load()
+{
+	TSet<FName> Out;
+#if WITH_EDITOR
+	if (GConfig)
+	{
+		TArray<FString> Strings;
+		GConfig->GetArray(Section, Key, Strings, GEditorPerProjectIni);
+		for (const FString& S : Strings) { if (!S.IsEmpty()) Out.Add(FName(*S)); }
+	}
+#endif
+	return Out;
+}
+
+void DynamicLensHiddenPresets::Save(const TSet<FName>& Hidden)
+{
+#if WITH_EDITOR
+	if (!GConfig) return;
+	TArray<FString> Strings;
+	for (const FName& N : Hidden) Strings.Add(N.ToString());
+	Strings.Sort();
+	GConfig->SetArray(Section, Key, Strings, GEditorPerProjectIni);
+	GConfig->Flush(false, GEditorPerProjectIni);
+#endif
 }

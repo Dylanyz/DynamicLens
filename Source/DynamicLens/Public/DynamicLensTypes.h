@@ -968,6 +968,23 @@ namespace DynamicLensTags
 	const FName Distortion(TEXT("DL.Distortion"));
 }
 
+/**
+ * Presets a user has hidden in the Preset Browser. Personal: stored in the per-user editor config
+ * (EditorPerProjectUserSettings.ini), never on the preset asset, so hiding survives
+ * dl.import_presets() and never reaches anyone else's machine. Read by the browser, the component's
+ * Preset dropdown and the A1/A2 preset stepping, so a hidden lens drops out of all three.
+ */
+namespace DynamicLensHiddenPresets
+{
+	/** Config section and key. The section is the Preset Browser's own. */
+	inline const TCHAR* Section = TEXT("DynamicLens.PresetBrowser");
+	inline const TCHAR* Key = TEXT("Hidden");
+
+	/** Package names, e.g. /DynamicLens/Presets/DL_T_Hawk. Empty outside the editor. */
+	DYNAMICLENS_API TSet<FName> Load();
+	DYNAMICLENS_API void Save(const TSet<FName>& Hidden);
+}
+
 namespace DynamicLensMath
 {
 	/** Fraction of a disc of radius A, centred D away from a disc of radius B (the barrel opening), that lies inside B. */

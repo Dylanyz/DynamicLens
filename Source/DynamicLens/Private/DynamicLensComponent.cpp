@@ -1260,6 +1260,18 @@ void UDynamicLensComponent::StepPreset(int32 Direction)
 	Filter.bRecursiveClasses = true;
 	ARM.Get().GetAssets(Filter, Assets);
 	if (Assets.Num() == 0) return;
+	// presets hidden in the Preset Browser drop out of stepping too, unless that would leave nothing
+	// (the current preset stays in the cycle so stepping off a hidden one still knows where it is)
+	const TSet<FName> Hidden = DynamicLensHiddenPresets::Load();
+	if (Hidden.Num() > 0)
+	{
+		const FName CurPkg = Preset ? Preset->GetOutermost()->GetFName() : NAME_None;
+		TArray<FAssetData> Visible = Assets.FilterByPredicate([&](const FAssetData& A)
+		{
+			return !Hidden.Contains(A.PackageName) || A.PackageName == CurPkg;
+		});
+		if (Visible.Num() > 0) Assets = MoveTemp(Visible);
+	}
 	Assets.Sort([](const FAssetData& A, const FAssetData& B) { return A.PackageName.LexicalLess(B.PackageName); });
 	int32 Cur = -1;
 	if (Preset)

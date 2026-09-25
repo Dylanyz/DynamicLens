@@ -108,7 +108,10 @@ struct FDynamicLensPresetFilter
 	float DistortionMin = 0.f;
 
 	bool bFavouritesOnly = false;
+	/** Hidden presets inline with the rest (dimmed) instead of tucked into the Hidden section. */
+	bool bShowHidden = false;
 
+	/** Everything but hiding, which BuildView handles because hidden lenses go to their own section. */
 	bool Passes(const FDynamicLensPresetEntry& E, const TSet<FName>& Favourites) const;
 	/** True when nothing is narrowed, so the UI can offer "Clear" only when it would do something. */
 	bool IsDefault() const;
@@ -138,12 +141,26 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnCatalogChanged);
 	FOnCatalogChanged OnChanged;
 
-	/** Filtered and sorted, ready for the list view. */
+	/**
+	 * Filtered and sorted, ready for the list view. Hidden presets are left out unless the filter
+	 * shows them; when it doesn't and OutHidden is given, the hidden ones that pass every other
+	 * filter land there, sorted the same way, for the Hidden section.
+	 */
 	TArray<FDynamicLensPresetEntryPtr> BuildView(const FDynamicLensPresetFilter& Filter,
 	                                             EDynamicLensSort Sort,
 	                                             bool bAscending,
 	                                             const TSet<FName>& Favourites,
-	                                             const TArray<FName>& RecentOrder) const;
+	                                             const TArray<FName>& RecentOrder,
+	                                             TArray<FDynamicLensPresetEntryPtr>* OutHidden = nullptr) const;
+
+	/**
+	 * Hiding. Lives here rather than on a browser tab so every open tab and the component's Preset
+	 * dropdown agree; persisted through DynamicLensHiddenPresets (per-user config, never the asset).
+	 */
+	bool IsHidden(const FDynamicLensPresetEntry& E) const { return Hidden.Contains(E.Asset.PackageName); }
+	bool IsHidden(FName PackageName) const { return Hidden.Contains(PackageName); }
+	void SetHidden(FName PackageName, bool bHide);
+	int32 NumHidden() const;
 
 	/** How many presets each family has, for the counts beside the filter checkboxes. */
 	void CountByFamily(int32 OutCounts[(uint8)EDynamicLensFamilyFilter::Count]) const;
@@ -159,5 +176,6 @@ private:
 	void HandleAssetRenamed(const FAssetData& Data, const FString& OldName);
 
 	TArray<FDynamicLensPresetEntryPtr> Entries;
+	TSet<FName> Hidden;
 	bool bRegistryBound = false;
 };

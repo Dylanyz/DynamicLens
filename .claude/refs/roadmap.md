@@ -24,15 +24,14 @@ work that does not need his eyes, and queue everything visual for his return.
 | `DL_L_*_Fit` fisheyes: continuous projection K, fit-to-circle, overscan ceiling 4, 1 mm fisheye near clip | the fisheye entries below; originals untouched except the near clip |
 | `DL_AD_Cooke_FFi_Zoom` (3DE4 anamorphic, continuous 32-135 mm) | the Cooke entry below |
 | Preset keyable in Sequencer (`SetPreset`) | `sequencer-integration.md`, verified by scrubbing |
-| Preset Browser, plus `DynamicLens.PresetBrowser` console command | next section; its UI has never been seen |
+| Preset Browser, plus `DynamicLens.PresetBrowser` console command, plus hide presets | next section; its UI has now been seen by automation, not by Dylan |
 
 **2. Decisions only Dylan can make:** the six `DL_T_*` overscan ceilings (`todo.md`); the scratch
 assets from 2026-09-19 (`/Game/Cinematics/_render/zz_dltest_MRG`, `Saved/MovieRenders/dltest/` -
 nothing deleted, `Saved/` off limits); the cube-source question for a real 180 deg fisheye
 (`wide-field-source.md`).
 
-**3. Good next work that needs no eyes:** hide presets in the Preset Browser (entry below - he asked
-for it); Sequencer phase 3 lens kit (`sequencer-integration.md`); the Circle Coverage control and
+**3. Good next work that needs no eyes:** Sequencer phase 3 lens kit (`sequencer-integration.md`); the Circle Coverage control and
 anamorphic image-circle ellipse (entry at the end); LOD/Nanite compensation for fisheyes (the only
 half of "two quality bugs" still open). Each is C++: build, install, relaunch - **editor restarts are
 fine while Dylan is away** (he said so 2026-09-24), but ask again once he is back at the machine.
@@ -80,15 +79,17 @@ the layout. Expect fixes; each one costs a build plus a restart, so gather them 
 rebuilding. Once it is signed off: document it (`todo.md`) and push it to a release (Dylan,
 2026-09-24: "push preset browser to release once it's ready").
 
-**Requested addition: hide presets** (Dylan, 2026-09-24). For lenses he doesn't love but won't delete:
-a Hide action on each row (next to the favourite star), hidden presets drop out of every view, a
-**Hidden** group/section lists them with Unhide, and a **Show hidden** filter toggle brings them back
-inline. Store them like `Favourites`: a set of package names in the browser's per-user config section
-(`DynamicLens.PresetBrowser`, `SaveConfig`), never on the preset asset, so hiding is personal and
-survives `dl.import_presets()`. **Bonus, if cheap:** also hide them from the component's own Preset
-dropdown. That is an asset picker, so it needs a detail customization with an `OnShouldFilterAsset`
-that reads the same config set - `DynamicLensComponentDetails` already exists to hang it on. Fold
-into the review round below so it costs no extra restart.
+**Hide presets - built 2026-09-24 (late), installed.** An eye on every row hides a lens; hidden ones
+fold into a **Hidden** section at the foot of the list (click the header to open it, the eye unhides),
+and **Show hidden inline** puts them back in the list, dimmed. They also drop out of the component's
+Preset dropdown (an `SObjectPropertyEntryBox` with `OnShouldFilterAsset` in
+`DynamicLensComponentDetails`) and of A1/A2 stepping. The set lives in
+`DynamicLensHiddenPresets` (`DynamicLensTypes.h`), stored as `Hidden=` package names in the browser's
+`[DynamicLens.PresetBrowser]` section of `EditorPerProjectUserSettings.ini` - never on the asset, so it
+is personal and survives `dl.import_presets()`. **Verified in the live editor via the Slate inspector:**
+hiding, the count ("61 of 65 - 1 hidden"), the folded section, the dimmed row, unhiding, and stepping
+skipping a hidden lens both ways. **Not verified:** the Preset dropdown filter (automation could not
+reach the component's details row) - check it on Dylan's review.
 
 **Two traps, both hit already:**
 

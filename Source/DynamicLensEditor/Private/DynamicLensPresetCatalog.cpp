@@ -36,7 +36,7 @@ bool FDynamicLensPresetFilter::IsDefault() const
 		&& bSpherical && bAnamorphic && bParametric && bSTMap && bProjection
 		&& !bBreathes.IsSet() && !bImageCircle.IsSet() && !bPrime.IsSet()
 		&& FocalMin == 0.f && FocalMax == 0.f && ApertureMax == 0.f && DistortionMin == 0.f
-		&& !bFavouritesOnly;
+		&& !bFavouritesOnly && !bShowHidden;
 }
 
 bool FDynamicLensPresetFilter::Passes(const FDynamicLensPresetEntry& E, const TSet<FName>& Favourites) const
@@ -147,6 +147,7 @@ TSharedRef<FDynamicLensPresetCatalog> FDynamicLensPresetCatalog::Get()
 
 FDynamicLensPresetCatalog::FDynamicLensPresetCatalog()
 {
+	Hidden = DynamicLensHiddenPresets::Load();
 	BindRegistry();
 	Refresh();
 }
@@ -279,15 +280,37 @@ void FDynamicLensPresetCatalog::CountByFamily(int32 OutCounts[(uint8)EDynamicLen
 	}
 }
 
+void FDynamicLensPresetCatalog::SetHidden(FName PackageName, bool bHide)
+{
+	const bool bChanged = bHide ? !Hidden.Contains(PackageName) : Hidden.Contains(PackageName);
+	if (!bChanged) return;
+	if (bHide) Hidden.Add(PackageName);
+	else Hidden.Remove(PackageName);
+	DynamicLensHiddenPresets::Save(Hidden);
+	OnChanged.Broadcast();
+}
+
+int32 FDynamicLensPresetCatalog::NumHidden() const
+{
+	// count only presets that still exist, so a deleted asset's stale entry doesn't inflate it
+	int32 N = 0;
+	for (const FDynamicLensPresetEntryPtr& E : Entries) { if (IsHidden(*E)) ++N; }
+	return N;
+}
+
 TArray<FDynamicLensPresetEntryPtr> FDynamicLensPresetCatalog::BuildView(
 	const FDynamicLensPresetFilter& Filter, EDynamicLensSort Sort, bool bAscending,
-	const TSet<FName>& Favourites, const TArray<FName>& RecentOrder) const
+	const TSet<FName>& Favourites, const TArray<FName>& RecentOrder,
+	TArray<FDynamicLensPresetEntryPtr>* OutHidden) const
 {
 	TArray<FDynamicLensPresetEntryPtr> View;
+	TArray<FDynamicLensPresetEntryPtr> HiddenView;
 	View.Reserve(Entries.Num());
 	for (const FDynamicLensPresetEntryPtr& E : Entries)
 	{
-		if (Filter.Passes(*E, Favourites)) View.Add(E);
+		if (!Filter.Passes(*E, Favourites)) continue;
+		if (!Filter.bShowHidden && IsHidden(*E)) HiddenView.Add(E);
+		else View.Add(E);
 	}
 
 	// Recent orders by a position list rather than by any field on the entry
@@ -297,7 +320,7 @@ TArray<FDynamicLensPresetEntryPtr> FDynamicLensPresetCatalog::BuildView(
 		for (int32 I = 0; I < RecentOrder.Num(); ++I) RecentIndex.Add(RecentOrder[I], I);
 	}
 
-	View.Sort([&](const FDynamicLensPresetEntryPtr& A, const FDynamicLensPresetEntryPtr& B)
+	auto Less = [&](const FDynamicLensPresetEntryPtr& A, const FDynamicLensPresetEntryPtr& B)
 	{
 		int32 Cmp = 0;
 		switch (Sort)
@@ -332,7 +355,13 @@ TArray<FDynamicLensPresetEntryPtr> FDynamicLensPresetCatalog::BuildView(
 		// ties always fall back to the asset name, so the order never flickers between refreshes
 		if (Cmp == 0) Cmp = A->AssetName.Compare(B->AssetName, ESearchCase::IgnoreCase);
 		return bAscending ? Cmp < 0 : Cmp > 0;
-	});
+	};
 
+	View.Sort(Less);
+	if (OutHidden)
+	{
+		HiddenView.Sort(Less);
+		*OutHidden = MoveTemp(HiddenView);
+	}
 	return View;
 }
