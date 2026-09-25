@@ -19,6 +19,12 @@ editor was **closed at Dylan's request** (heat) and he expects to test in about 
 2026-09-26. **Do not relaunch the editor or start new C++ work until he has tested** - the next step
 is his review, then fixes from it, batched into one build.
 
+**2026-09-26 (planned): an agent may run the test list itself with computer use.** Dylan enabled
+computer use in the Claude app (2026-09-25) and will be off the PC. That agent may launch the editor
+(CitySample) for this, run the list below visually, take real screenshots, and **close the editor
+when done** (heat). If the screen shows the Windows lock screen, stop: never enter a password - just
+leave the list for Dylan. Report results in this block; fix nothing visual without his OK.
+
 **Dylan's test list, in this order** (given to him 2026-09-24):
 1. Preset Browser (Window > Cinematics): hide a lens, check the Hidden section, then check it is gone
    from the component's Preset dropdown - the one piece automation could not reach.
