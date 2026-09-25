@@ -102,6 +102,27 @@ curvature, plus spherical aberration and coma. It has never been checked in a re
    TSR mode also crashes PIE (the TSR entry below), so check it only in MRG.
 4. **Cost.** Accumulation DOF is quoted at 3-10x per frame. Measure it with the lens effect on and off.
 
+**What Dean Yurke's UE 5.8 Accumulation DOF video already answers** (summarised in the host
+project's `06-transcript-map.md` section 5, with timestamps; his observations, not Epic docs):
+- **Petzval swirl and cat's eye do not work under Accumulation DOF.** That largely answers test 1:
+  on a camera using it, the plugin's swirl and barrel settings do nothing. The iris texture is the
+  channel that does work, and it is the one the plugin already drives. Make the Bokeh tooltips say
+  so, and consider showing a Notes line when the component is present.
+- Its **Bokeh Texture** takes a lens-kernel image. Set **Bokeh Softness** toward 0 or the shape
+  washes out. Check the plugin's iris texture survives the softness default.
+- **Anamorphic** uses the camera's own Squeeze Factor plus a crop, so it should follow what Match
+  Camera sets (now that the Match fix is in).
+- It reads **dimmer**, so he uses manual exposure and compensates. Check the plugin's vignette on
+  top does not double the darkening.
+- **Auto Activate** on the component decides whether MRG renders it at all, which is handy for A/B.
+- His graph: Sampling Method node with temporal samples 5 (temporal count lives there, not on the
+  Deferred Renderer), TSR on, spatial samples 1, shutter Frame Open. Cost roughly 3-10x per frame.
+  Only the ratio transfers to this rig (CPU-bound).
+- He also shows `r.LensDistortion.Panini.D/.S`, Epic's own barrel warp. **Never combine it with a
+  Dynamic Lens camera**: it would distort on top of the lens profile.
+- His MRG build guide (the other Yurke video, section 2) is the node-by-node template for a final
+  graph.
+
 **Host-project context:** CitySample keeps its render knowledge in
 `.claude/refs/final-render-config/` (MRG Python gotchas, measured performance, an Accumulation DOF
 transcript). Read its `README.md` and `01-mrg-gotchas.md` before scripting any graph.
