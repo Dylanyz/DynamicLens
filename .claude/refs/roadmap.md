@@ -65,6 +65,11 @@ leave the list for Dylan. Report results in this block; fix nothing visual witho
   on 63.7 s, off 1.6 s. Accumulated render is *brighter* (mean 141 vs 107, spherical 8 spreading the
   highlights), corner/centre 0.50 vs 0.40 - no vignette stacking. The SA-8 sample-spray look is in the
   final render too, not just the preview. Output left in the session scratchpad, not in the project.
+- **Temporal / spatial samples do not break Dynamic Lens** (2026-09-25, MRG, 10 frames with a 12 deg
+  pan, Post Process Material mode, 854x480). Petzval 58, `DL_L_PoorThings_8mm_Fit` and Master
+  Anamorphic at T1S1 / T8S1 / T1S8: temporal 8 adds correct motion blur and keeps circle, bokeh and
+  distortion intact; spatial 8 matches T1S1 in structure. Spatial 8 renders ~20-27% brighter - but a
+  lens-off control does the same (76.5 -> 95.0), so that is MRG + auto-exposure, not the plugin.
 - **Harness gotcha:** `MRG_DLTest` (and so any copy) has Custom Playback Range start/end and a 30 fps
   output-rate override switched on, rendering frames ~1150-1156 - past every test sequence, so there is
   no camera cut and MRG renders an unrelated upside-down view. Turn those three overrides off first.
