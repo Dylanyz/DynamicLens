@@ -435,4 +435,5 @@ starting the research himself. Open questions for that research: what the flare 
 lens (element count, coatings, iris, a prescription?), whether that data exists for the lenses we
 ship, and how it would render in UE 5.8 (Epic's convolution bloom and lens flare post-process vs a
 custom pass). Credit any source in `SOURCES.md`, and anything used as data in `NOTICE`.
+**Researched 2026-09-25**: answers and a tiered plan in `Tools/data/research/lens-flares/README.md`.
 
