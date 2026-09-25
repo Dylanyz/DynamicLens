@@ -25,6 +25,11 @@ computer use in the Claude app (2026-09-25) and will be off the PC. That agent m
 when done** (heat). If the screen shows the Windows lock screen, stop: never enter a password - just
 leave the list for Dylan. Report results in this block; fix nothing visual without his OK.
 
+**Results, 2026-09-25 run (agent with computer use, editor unlocked):**
+- 1 Preset Browser hide: **FAIL as clicked.** The eye button shows its tooltip and highlights, but
+  four clicks never hid the lens, and nothing reached the ini. The star and search beside it work.
+  The code path (`ToggleHidden` -> `SetHidden` -> `Save`) reads correctly. Dylan to try by hand.
+
 **Dylan's test list, in this order** (given to him 2026-09-24):
 1. Preset Browser (Window > Cinematics): hide a lens, check the Hidden section, then check it is gone
    from the component's Preset dropdown - the one piece automation could not reach.
@@ -76,8 +81,12 @@ Unreal 5.8 bug with `bCropOverscan`, reproduced on a stock CineCamera - entry be
 allowed only while he was away (2026-09-24) - **ask again before any restart from now on.**
 
 **4. Do not trust automated screenshots.** The PC sits on the Windows lock screen when Dylan is away.
-Automated PIE `HighResShot`s of ST-map/projection presets collapse into a centre smear (harness
-artefact - his real renders are fine), legacy Movie Render Queue shows no lens effect, and Movie
+**The PIE "centre smear" is not the lock screen and not the plugin (proven 2026-09-25, unlocked
+screen, computer use):** in CitySample PIE, *any* CineCamera `Overscan > 0` collapses the whole frame
+into a radial smear of sky and fog - a stock CineCamera with no Dynamic Lens does it at 0.1, and it
+recovers at 0. Every Dynamic Lens preset sets overscan, so every PIE view smears. For PIE checks,
+override the component's overscan to Fixed 1.0 (edges will clamp) or verify in the editor/MRG. Open
+question: CitySample-only or engine-wide (try a blank project). Legacy Movie Render Queue shows no lens effect, and Movie
 Render Graph works but streams the showroom out. Verify with numbers read off the component
 (`needed_overscan_factor`, `last_overscan_factor`, `image_circle_radius`, `active_mask`, `notes`).
 Test assets: `/Game/DynamicLensTest/L_DLTest` (`DLTest_Cam`, a sphere grid for bokeh) in CitySample;
