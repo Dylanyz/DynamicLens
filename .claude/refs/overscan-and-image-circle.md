@@ -239,3 +239,36 @@ from the pawn renders an empty world with only the skydome.
 The component itself *does* tick in the editor with no viewport involvement, so
 `last_overscan_factor`, `needed_overscan_factor` and `image_circle_radius` can be read straight off
 the component while stepping presets. That is how the audit table above was made.
+
+## Resolution cost of fisheyes, measured 2026-09-25
+
+Source pixels per output pixel (linear) = `(Rf/O) * (S/Mag) * J(theta)`, with `Rf = min(O,2)` in the
+editor/PIE (Epic's clamp, `CameraStackTypes.cpp:539-543`), S the Fit field scale, Mag the Coverage
+magnification, J = sec^2 (radial) or tan/theta (tangential). The **centre is always the minimum**; the rim
+is 2-15x oversampled.
+
+| Preset | O | centre | ~px of detail across 1920 |
+|---|---|---|---|
+| non-Fit fisheyes (8/6/4 mm) | 2 | 1.00 | 1920 |
+| PoorThings_8mm_Fit | 3 | 0.62 | 1190 |
+| Favourite_6mm_Fit | 3 | 0.49 | 940 |
+| 8mm_Fit at Coverage 1.2 | 3 | 0.48 | 920 |
+
+- **ST-map and parametric presets lose nothing** (O <= 2, so Rf = O). Their only softness is bilinear
+  resampling, same as a Nuke STMap.
+- The editor note's `200/O` ignores S and Mag and over-reports the Fits.
+- **`ProjectionMapSize = 256` is too coarse**: up to ~2 px of position wobble near the rim at 1920 on the
+  6/8 mm Fits. 2048 drops it to ~0.14 px.
+- **Movie Render Graph has no 2x cap** on the Post Process Material path: it sets
+  `OverscanResolutionFraction = 1 + Overscan` unclamped (`MovieGraphImagePassBase.cpp:134-139`). The TSR
+  path's cap is CameraCalibrationCore's (`LensDistortionSceneViewExtension.cpp:667`).
+
+**Beating the cap in the viewport/PIE, from a plugin:** override `SceneViewInitOptions.OverscanResolutionFraction`
+per view in a scene view extension (`SetupView` for PIE/MRG, `BeginRenderViewFamily` for the level editor,
+where `ViewActor` is set too late for `SetupView`). Nothing downstream re-clamps. Cost `(O/2)^2` vs today.
+
+**Not rendering out-of-circle pixels:** only ~6% of the overscanned rect is outside the circle; the waste is the
+over-sharp rim. A camera-attached mask ring in `HiddenPrimitives` saves ~5-20%; a custom VRS image generator
+~5-15%, needs `r.VRS.Enable` (global), skips Lumen/shadows, and likely not active in MRG. Neither is worth
+building yet. Rasterisation cannot render a curved projection; "nested frusta" needs a second renderer, which
+Dylan rejected along with the cube capture (2026-09-25).
