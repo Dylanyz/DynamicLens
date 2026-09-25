@@ -336,6 +336,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<ULensDistortionModelHandlerBase> Handler;
 	UPROPERTY(Transient) TObjectPtr<ULensFile> TransientLensFile;
 	UPROPERTY(Transient) TObjectPtr<UTexture2D> ProjectionMap;
+	/** The fisheye lens file whose finished displacement is on screen; held while a rebuilt one is still processing. */
+	UPROPERTY(Transient) TObjectPtr<ULensFile> ShownLensFile;
 	/** ST maps extrapolated beyond their frame so overscan has data (built on demand, editor only). Key = map path + displacement scale. */
 	UPROPERTY(Transient) TMap<FString, FDynamicLensExtendedMap> ExtendedMaps;
 	float InfoFocal = -1.f;
@@ -372,6 +374,10 @@ private:
 	float ProjectionKeyK = 99.f;
 	bool ProjectionKeyFit = false;
 	float ProjectionFieldScale = 1.f;
+	float ShownOverscan = 1.f;
+	float ShownCircleRx = 0.f;
+	float ShownCircleRy = 0.f;
+	int32 PendingLensFileTicks = 0;
 
 	struct FLookBackup
 	{

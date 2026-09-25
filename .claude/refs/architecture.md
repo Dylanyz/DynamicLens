@@ -173,6 +173,13 @@ reporting a needed overscan of 4.0 below 12 mm.
 
 ## Gotchas that are easy to reintroduce
 
+- **A new ST-map lens file shows zero displacement for ~2 frames.** Epic derives displacement
+  asynchronously and `EvaluateDistortionForSTMaps` clears the maps while the job is in flight. On a
+  fisheye at overscan 3-4 that flashed the raw, hugely overscanned render after every rebuild (preset,
+  focal, Scale, overscan step). `DriveProjection` now holds the last finished lens file with its own
+  overscan and circle until the new one reports back (`DynamicLensLensFileReady`, 30-tick timeout).
+  `DriveSTMap` still has the short version of this on a preset switch (overscan <= 2, barely visible).
+
 - Profile specs were once ignored for ST-map profiles because validity was tested with
   `IsValidProfile`; it must be `Profile != nullptr`.
 - Textures duplicated during import exist in memory only until saved. `import_tiedtke` saves them.

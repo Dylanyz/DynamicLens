@@ -31,6 +31,21 @@
 
 namespace
 {
+	// A single-point ST-map lens file has turned its map into displacement: the derived-data job has run (not dirty) and
+	// reported back (the edge UVs it computes are filled in). Until then evaluating it clears the displacement to zero.
+	bool DynamicLensLensFileReady(ULensFile* LensFile)
+	{
+		if (!LensFile) return false;
+		for (FSTMapFocusPoint& Focus : LensFile->STMapTable.GetFocusPoints())
+		{
+			for (const FSTMapZoomPoint& Zoom : Focus.ZoomPoints)
+			{
+				if (Zoom.DerivedDistortionData.bIsDirty || Zoom.DerivedDistortionData.DistortionData.DistortedUVs.Num() == 0) return false;
+			}
+		}
+		return true;
+	}
+
 	constexpr int32 ProjectionMapSize = 1024;   // 256 put up to ~2 px of wobble into straight lines near the rim (2026-09-25)
 	// Highest overscan the component will apply (render = frame * O). Presets default to 2; 2-4 trades centre
 	// sharpness for field (Epic clamps the resolution fraction to 2, so past O=2 the centre softens by 2/O).
@@ -920,6 +935,30 @@ bool UDynamicLensComponent::DriveProjection(UCineCameraComponent* Cam, const FDy
 		LensFileSensor = FVector2D(W, H);
 		LensFileFxFy = FxFy;
 	}
+	// Epic turns a new ST map into displacement asynchronously, and a lens file with that job in flight clears the
+	// displacement to zero. With the camera already at the new overscan that showed as a flash of the raw, hugely
+	// overscanned render for ~2 frames after every rebuild: preset switch, focal, Scale, an overscan step (2026-09-25).
+	// So the finished map stays on screen, with the overscan and circle it was built for, until the new one is ready.
+	// With nothing finished to hold (the first fisheye on this camera), render plain at overscan 1 until it is ready.
+	if (TransientLensFile != ShownLensFile)
+	{
+		if (!DynamicLensLensFileReady(TransientLensFile) && ++PendingLensFileTicks < 30)
+		{
+			ULensFile* Hold = ShownLensFile ? ShownLensFile.Get() : TransientLensFile.Get();
+			if (!Hold->EvaluateDistortionData(0.f, 0.f, FVector2D(W, H), Handler))
+			{
+				return false;
+			}
+			OutState = Handler->GetCurrentDistortionState();
+			OutAppliedOverscan = ShownLensFile ? ShownOverscan : 1.f;
+			OutCircleRx = ShownLensFile ? ShownCircleRx : 0.f;
+			OutCircleRy = ShownLensFile ? ShownCircleRy : 0.f;
+			return true;
+		}
+		ShownLensFile = TransientLensFile;
+		PendingLensFileTicks = 0;
+	}
+	ShownOverscan = O; ShownCircleRx = ProjectionCircleRadius; ShownCircleRy = ProjectionCircleRy;
 	if (!TransientLensFile->EvaluateDistortionData(0.f, 0.f, FVector2D(W, H), Handler))
 	{
 		return false;
