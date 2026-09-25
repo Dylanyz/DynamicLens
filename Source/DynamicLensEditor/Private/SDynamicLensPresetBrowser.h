@@ -84,6 +84,11 @@ private:
 
 	TSharedRef<ITableRow> GenerateRow(FDynamicLensBrowserRowPtr Item, const TSharedRef<STableViewBase>& Owner);
 	TSharedRef<SWidget> BuildPresetRowContent(FDynamicLensPresetEntryPtr Entry);
+	/** A section header that folds its section open and shut when clicked. */
+	TSharedRef<ITableRow> MakeFoldingHeader(FDynamicLensBrowserRowPtr Item, const TSharedRef<STableViewBase>& Owner,
+		TFunction<bool()> IsOpen, TFunction<void()> Toggle, const FText& Tip, bool bSubdued, float TopPadding);
+	/** Config key for a group section, per grouping mode, so folding a maker does not fold anything under Optics. */
+	FString SectionKey(const FString& Header) const;
 
 	/** A labelled checkbox that drives one bool on the filter. */
 	TSharedRef<SWidget> FilterCheck(const FText& Label, TFunction<bool()> Get, TFunction<void(bool)> Set, const FText& Tooltip = FText::GetEmpty());
@@ -131,6 +136,8 @@ private:
 
 	/** Whether the Hidden section at the foot of the list is open. The hidden set lives on the catalogue. */
 	bool bHiddenExpanded = false;
+	/** Group sections the user has folded shut, keyed by SectionKey. Saved per user. */
+	TSet<FString> CollapsedSections;
 	/** Presets in the main list (not the Hidden section), for the "N of M" count. */
 	int32 ShownCount = 0;
 

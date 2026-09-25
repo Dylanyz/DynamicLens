@@ -607,65 +607,77 @@ TSharedRef<ITableRow> SDynamicLensPresetBrowser::GenerateRow(
 	if (Item->IsHeader() && Item->bHiddenSection)
 	{
 		// the Hidden section folds, so lenses set aside stay out of the way until asked for
-		return SNew(STableRow<FDynamicLensBrowserRowPtr>, Owner)
-			.Padding(FMargin(0.f, 10.f, 0.f, 2.f))
-			.ShowSelection(false)
-			[
-				SNew(SButton)
-				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
-				.ContentPadding(FMargin(0.f))
-				.ToolTipText(LOCTEXT("HiddenSectionTip",
-					"Lenses you have hidden. They are left out of the list, the component's Preset "
-					"dropdown and A1/A2 stepping. Click to show or fold them; the eye on a row unhides it."))
-				.OnClicked_Lambda([this]()
-				{
-					bHiddenExpanded = !bHiddenExpanded;
-					RebuildRows();
-					SaveConfig();
-					return FReply::Handled();
-				})
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, 4.f, 0.f)
-					[
-						SNew(STextBlock)
-						.Font(LightFont(8))
-						.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-						.Text_Lambda([this]() { return FText::FromString(bHiddenExpanded ? TEXT("▼") : TEXT("▶")); })
-					]
-					+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Font(BoldFont(9))
-						.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-						.Text(FText::FromString(Item->Header.ToUpper()))
-					]
-					+ SHorizontalBox::Slot().AutoWidth().Padding(6.f, 0.f, 6.f, 0.f).VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Font(LightFont(8))
-						.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-						.Text(FText::AsNumber(Item->HeaderCount))
-					]
-					+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
-					[
-						SNew(SSeparator).Thickness(1.f)
-					]
-				]
-			];
+		return MakeFoldingHeader(Item, Owner,
+			[this]() { return bHiddenExpanded; },
+			[this]() { bHiddenExpanded = !bHiddenExpanded; },
+			LOCTEXT("HiddenSectionTip",
+				"Lenses you have hidden. They are left out of the list, the component's Preset "
+				"dropdown and A1/A2 stepping. Click to show or fold them; the eye on a row unhides it."),
+			true, 10.f);
 	}
 
 	if (Item->IsHeader())
 	{
-		return SNew(STableRow<FDynamicLensBrowserRowPtr>, Owner)
-			.Padding(FMargin(0.f, 6.f, 0.f, 2.f))
-			.ShowSelection(false)
+		const FString Key = SectionKey(Item->Header);
+		return MakeFoldingHeader(Item, Owner,
+			[this, Key]() { return !CollapsedSections.Contains(Key); },
+			[this, Key]()
+			{
+				if (CollapsedSections.Contains(Key)) CollapsedSections.Remove(Key);
+				else CollapsedSections.Add(Key);
+			},
+			LOCTEXT("SectionTip", "Click to fold this section shut or open it again. Remembered per grouping."),
+			false, 6.f);
+	}
+
+	return SNew(STableRow<FDynamicLensBrowserRowPtr>, Owner)
+		.Padding(FMargin(2.f, 3.f))
+		.ToolTipText(FText::FromString(
+			Item->Entry->Description.IsEmpty() ? Item->Entry->Label : Item->Entry->Description))
+		[
+			BuildPresetRowContent(Item->Entry)
+		];
+}
+
+FString SDynamicLensPresetBrowser::SectionKey(const FString& Header) const
+{
+	return FString::Printf(TEXT("%d:%s"), (int32)Group, *Header);
+}
+
+TSharedRef<ITableRow> SDynamicLensPresetBrowser::MakeFoldingHeader(FDynamicLensBrowserRowPtr Item,
+	const TSharedRef<STableViewBase>& Owner, TFunction<bool()> IsOpen, TFunction<void()> Toggle,
+	const FText& Tip, bool bSubdued, float TopPadding)
+{
+	const FSlateColor TitleColour = bSubdued ? FSlateColor::UseSubduedForeground() : FSlateColor::UseForeground();
+	return SNew(STableRow<FDynamicLensBrowserRowPtr>, Owner)
+		.Padding(FMargin(0.f, TopPadding, 0.f, 2.f))
+		.ShowSelection(false)
+		[
+			SNew(SButton)
+			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+			.ContentPadding(FMargin(0.f))
+			.ToolTipText(Tip)
+			.OnClicked_Lambda([this, Toggle]()
+			{
+				Toggle();
+				RebuildRows();
+				SaveConfig();
+				return FReply::Handled();
+			})
 			[
 				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.f, 0.f, 4.f, 0.f)
+				[
+					SNew(STextBlock)
+					.Font(LightFont(8))
+					.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+					.Text_Lambda([IsOpen]() { return FText::FromString(IsOpen() ? TEXT("▼") : TEXT("▶")); })
+				]
 				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
 					.Font(BoldFont(9))
+					.ColorAndOpacity(TitleColour)
 					.Text(FText::FromString(Item->Header.ToUpper()))
 				]
 				+ SHorizontalBox::Slot().AutoWidth().Padding(6.f, 0.f, 6.f, 0.f).VAlign(VAlign_Center)
@@ -679,15 +691,7 @@ TSharedRef<ITableRow> SDynamicLensPresetBrowser::GenerateRow(
 				[
 					SNew(SSeparator).Thickness(1.f)
 				]
-			];
-	}
-
-	return SNew(STableRow<FDynamicLensBrowserRowPtr>, Owner)
-		.Padding(FMargin(2.f, 3.f))
-		.ToolTipText(FText::FromString(
-			Item->Entry->Description.IsEmpty() ? Item->Entry->Label : Item->Entry->Description))
-		[
-			BuildPresetRowContent(Item->Entry)
+			]
 		];
 }
 
@@ -1080,6 +1084,7 @@ void SDynamicLensPresetBrowser::RebuildRows()
 		{
 			const TArray<FDynamicLensPresetEntryPtr>& Bucket = Buckets[Key];
 			Rows.Add(FDynamicLensBrowserRow::MakeHeader(Key, Bucket.Num()));
+			if (CollapsedSections.Contains(SectionKey(Key))) continue;
 			for (const FDynamicLensPresetEntryPtr& E : Bucket) Rows.Add(FDynamicLensBrowserRow::MakeEntry(E));
 		}
 	}
@@ -1280,6 +1285,9 @@ void SDynamicLensPresetBrowser::SaveConfig() const
 	GConfig->SetBool(GConfigSection, TEXT("FavouritesOnly"), Filter.bFavouritesOnly, Ini);
 	GConfig->SetBool(GConfigSection, TEXT("ShowHidden"), Filter.bShowHidden, Ini);
 	GConfig->SetBool(GConfigSection, TEXT("HiddenExpanded"), bHiddenExpanded, Ini);
+	TArray<FString> CollapsedStrings = CollapsedSections.Array();
+	CollapsedStrings.Sort();
+	GConfig->SetArray(GConfigSection, TEXT("CollapsedSections"), CollapsedStrings, Ini);
 	GConfig->SetFloat(GConfigSection, TEXT("FocalMin"), Filter.FocalMin, Ini);
 	GConfig->SetFloat(GConfigSection, TEXT("FocalMax"), Filter.FocalMax, Ini);
 	GConfig->SetFloat(GConfigSection, TEXT("ApertureMax"), Filter.ApertureMax, Ini);
@@ -1324,6 +1332,9 @@ void SDynamicLensPresetBrowser::LoadConfig()
 	GConfig->GetBool(GConfigSection, TEXT("FavouritesOnly"), Filter.bFavouritesOnly, Ini);
 	GConfig->GetBool(GConfigSection, TEXT("ShowHidden"), Filter.bShowHidden, Ini);
 	GConfig->GetBool(GConfigSection, TEXT("HiddenExpanded"), bHiddenExpanded, Ini);
+	TArray<FString> CollapsedStrings;
+	GConfig->GetArray(GConfigSection, TEXT("CollapsedSections"), CollapsedStrings, Ini);
+	for (const FString& S : CollapsedStrings) CollapsedSections.Add(S);
 	GConfig->GetFloat(GConfigSection, TEXT("FocalMin"), Filter.FocalMin, Ini);
 	GConfig->GetFloat(GConfigSection, TEXT("FocalMax"), Filter.FocalMax, Ini);
 	GConfig->GetFloat(GConfigSection, TEXT("ApertureMax"), Filter.ApertureMax, Ini);

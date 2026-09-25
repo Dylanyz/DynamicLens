@@ -26,7 +26,9 @@ when done** (heat). If the screen shows the Windows lock screen, stop: never ent
 leave the list for Dylan. Report results in this block; fix nothing visual without his OK.
 
 **Results, 2026-09-25 run (agent with computer use, editor unlocked):**
-- 1 Preset Browser hide: **FAIL as clicked.** The eye button shows its tooltip and highlights, but
+- 1 Preset Browser hide: **PASS - Dylan tested by hand, works.** Synthetic clicks from computer use
+  never fired the eye button (the star beside it did), so treat that button as untestable by automation.
+  Previously logged as: **FAIL as clicked.** The eye button shows its tooltip and highlights, but
   four clicks never hid the lens, and nothing reached the ini. The star and search beside it work.
   The code path (`ToggleHidden` -> `SetHidden` -> `Save`) reads correctly. Dylan to try by hand.
 - 2 Circle Coverage: **PASS** (PIE, overscan overridden to 1.0). 0.5 = circle ~half the frame
