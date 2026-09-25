@@ -40,17 +40,12 @@ table in `build-and-install.md` before retrying.
 ## Step 3 — stop and ask
 
 **The install overwrites a DLL the running editor holds open, so the editor must be closed first.
-Ask him. Wait for a yes. Never close it yourself.** See `editor-restarts.md` for why this is absolute.
+Ask him. Wait for a yes. Never close it without one.** See `editor-restarts.md` for why.
 
-Tell him three things in one short message: what the update changes, that it is built and waiting,
-and the one command. Then stop.
-
-```powershell
-Tools\build_dynamiclens.ps1 -InstallOnly
-```
-
-He can run that himself whenever he next closes the editor, for any reason. He does not have to
-close it now, and "I'll get it on my next restart" is a complete answer. Do not ask twice.
+One short message: what the update changes, that it is built, and "is the editor free so I can
+restart and install?" **Never hand him the install command to run himself** - he has said so
+emphatically. On a yes, you close, install, relaunch and verify (`editor-restarts.md` step 5).
+On a no, it waits; do not ask twice.
 
 ## Step 4 — after he relaunches
 

@@ -897,7 +897,9 @@ bool UDynamicLensComponent::DriveProjection(UCineCameraComponent* Cam, const FDy
 		Info.DistortionMap = ProjectionMap;
 		Info.MapFormat.PixelOrigin = ECalibratedMapPixelOrigin::TopLeft;
 		Info.MapFormat.UndistortionChannels = ECalibratedMapChannels::RG;
-		Info.MapFormat.DistortionChannels = ECalibratedMapChannels::None;
+		// the post-process material samples only the distortion map, and None fills it with zero displacement: every
+		// projection preset rendered undistorted (2026-09-25). Same map in both slots, as the ST-map presets do.
+		Info.MapFormat.DistortionChannels = ECalibratedMapChannels::RG;
 		TransientLensFile->AddSTMapPoint(0.f, 0.f, Info);
 		FFocalLengthInfo FL; FL.FxFy = FxFy;
 		TransientLensFile->AddFocalLengthPoint(0.f, 0.f, FL);

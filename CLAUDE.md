@@ -97,7 +97,7 @@ Most "updates" are this, and finish in one step.
 
 ```powershell
 Tools\build_dynamiclens.ps1              # safe while the editor runs; packages to %TEMP%\dlb
-Tools\build_dynamiclens.ps1 -InstallOnly # only once Dylan has closed the editor himself
+Tools\build_dynamiclens.ps1 -InstallOnly # you run it, after Dylan says the editor is free to restart
 ```
 
 Then relaunch and re-run whatever the change depends on, commonly

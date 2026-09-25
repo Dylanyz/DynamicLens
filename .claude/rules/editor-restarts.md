@@ -18,13 +18,15 @@ sit in `%TEMP%\dlb` for days with no harm.
 1. Check before anything that needs the editor down: `Get-Process UnrealEditor`.
 2. Do every part of the job that does *not* need a restart. Content, Python, presets, profiles,
    docs and commits all work against a live editor.
-3. For the part that does, stop and say plainly what is built, what it changes, and that it is
-   waiting on him. Give him the one command and let him pick the moment:
-   ```powershell
-   Tools\build_dynamiclens.ps1 -InstallOnly
-   ```
-4. "Built, waiting for your next restart" is a complete and acceptable end state. Do not treat it
-   as a failure, and do not keep asking.
+3. For the part that does, stop and say plainly what is built and what it changes, and ask one
+   question: is the editor free so you can restart it and install?
+4. **Never tell him to run the install command himself.** His words, 2026-09-25: *"im not gonna run
+   it myself!!!!!! never tell me to do that please."* The install is your job.
+5. On a yes: save dirty packages, quit the editor (`unreal.SystemLibrary.quit_editor()` via remote
+   exec), run `Tools\build_dynamiclens.ps1 -InstallOnly`, relaunch the same `.uproject` (read the
+   command line off the running process first), wait for init, re-run dependent Python, verify.
+6. On a no or no answer, "built, waiting until the editor is free" is a complete end state. Do not
+   keep asking.
 
 `Tools/build_dynamiclens.ps1` enforces this in code: `-Install` and `-InstallOnly` throw if
 `UnrealEditor.exe` is alive rather than corrupting a locked DLL.
