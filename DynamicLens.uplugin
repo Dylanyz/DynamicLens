@@ -1,7 +1,7 @@
 {
  "FileVersion": 3,
- "Version": 7,
- "VersionName": "0.7.0",
+ "Version": 8,
+ "VersionName": "0.8.0",
  "FriendlyName": "Dynamic Lens",
  "Description": "Focal-length / focus / f-stop driven lens distortion, vignette and bokeh character for CineCameras. Add a Dynamic Lens component to a camera, pick a preset, done. Profiles fitted from measured cinema lenses.",
  "Category": "Cinematics",

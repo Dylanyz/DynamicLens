@@ -7,7 +7,7 @@ Added to a CineCameraActor. Everything below lives in the **Dynamic Lens** categ
 | Control | What it does |
 |---|---|
 | **Enabled** | Master switch. Off restores the camera untouched. |
-| **Preset** | The lens. See `presets-and-profiles.md` for the catalogue. Presets hidden in the Preset Browser are left out of this dropdown. |
+| **Preset** | The lens. See `presets-and-profiles.md` for the catalogue. **Browse** beside it opens the Preset Browser (also Window > Cinematics, or `DynamicLens.PresetBrowser`): filters, sorts, groups, favourites, a detail card with the lens's source, and click-to-apply to every selected camera in one undo. Hiding a lens there (eye) drops it from the browser, this dropdown and A1/A2 stepping; the hidden set is per user in `EditorPerProjectUserSettings.ini` (`DynamicLensHiddenPresets`, `DynamicLensTypes.h`), never on the asset. |
 | **Kit** | A case of lenses (`DLK_*`, `/DynamicLens/Kits`). Set, it picks **Preset** from the camera's focal length every frame, nearest in log-focal, so in Sequencer you key only the CineCamera's focal (Constant interpolation) and the lens follows. Overrides a Preset track and the preset buttons; Notes names the lens it picked. Keyable, to change cases between scenes. Empty = Preset as usual. |
 | **Kit Snaps Focal** | With a kit, hold the camera at the picked lens's focal. Off lets the camera sit between, though a prime preset still locks its own focal. |
 | **Profile Info** | Read-only. Lists the profile's measured focal lengths with the current one marked `[current]`. Useful for knowing whether you are inside measured data or extrapolating. |

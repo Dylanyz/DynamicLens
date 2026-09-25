@@ -69,7 +69,8 @@ Nothing to install in a project beyond enabling the plugin; it is already in the
    lenses - the ARRI/Zeiss grids are the clean baseline and breathe, and his spherical ST maps
    under `Profiles/AndyDavis` add 22 series of real character without breathing. `DL_T_*` are
    the tiedtke ST-map lenses with real character and real flaws, `DL_L_*` are the Lanthimos-film reconstructions, `DL_C_*` are Dylan's
-   own looks. Catalogue: `.claude/refs/presets-and-profiles.md`.
+   own looks. Catalogue: `.claude/refs/presets-and-profiles.md`. **Browse** beside Preset opens the
+   Preset Browser, which filters by optics rather than prefix.
 4. The component's **Camera** row drives filmback, focal length, aperture and focus without leaving
    the component. **A1/A2** step presets, **A3/A4** step focal length.
 5. Per-camera tweaks go in the **Override** blocks, which never modify the preset asset.

@@ -88,3 +88,31 @@ before handing it to Epic. See `architecture.md` for why that is necessary.
 
 The tiedtke pack is free but is **his**. The plugin ships the derived profiles with credit and a
 link; the licence carve-out in `NOTICE` covers them.
+
+## Preset Browser tags
+
+The Preset Browser lists presets from Asset Registry tags written by `UDynamicLensPreset::GetAssetRegistryTags`, and **must never load a preset to display one** (presets hard-reference profiles, ST-map profiles hard-reference ~107 MB of textures). Tag names live in `DynamicLensTags` (`DynamicLensTypes.h`) so the runtime and editor modules cannot drift: `DL.Label`, `DL.Description`, `DL.Family`, `DL.Source`, `DL.ProfilePath`, `DL.Type`, `DL.Squeeze`, `DL.FocalMin`/`DL.FocalMax`, `DL.ImageCircleMm`, `DL.MaxAperture`, `DL.SensorMm`, `DL.MapCount`, `DL.Breathes`, and `DL.Distortion` - curvature (worst departure from a straight mapping as a fraction of half the frame), not overscan.
+
+Tags are written only when an asset is saved. After any change to `GetAssetRegistryTags`, run `dl.resave_presets()` or the browser's filters go stale.
+
+**Design decisions worth not re-litigating:**
+
+- **The browser reads Asset Registry tags and never loads a preset to display one.** Presets hard-
+  reference their profile and ST-map profiles hard-reference their textures, so loading the
+  catalogue to read labels would pull ~107 MB of ST maps into memory. `DL.*` tag names live in
+  `DynamicLensTags` in `DynamicLensTypes.h` so the two modules cannot drift.
+- **Applying always goes through `UDynamicLensComponent::ApplyPreset`**, the same path the A1/A2
+  buttons use, so the Match Camera checkboxes mean the same thing however a preset was picked.
+- **The Browse button is inline in the Preset row, not a full-width row beneath it.** A custom row
+  added to a category always lands after every property in that category, which would have put it
+  below Amount Multiplier, nowhere near the preset.
+- **`DL.Distortion` is curvature, not overscan** — the worst departure from a straight mapping, as a
+  fraction of half the frame. Overscan was the obvious first choice and is wrong: it measures how far
+  a map's samples fall outside the frame, which is an artefact of how each author scaled their maps.
+  All 19 Andy Davis spherical sets reported exactly 1.0 under it. Two traps when measuring
+  curvature off an ST map, each of which yields a plausible-looking number that means nothing:
+  `ReadSTMapSamples` walks rows top-down while the maps are BottomLeft origin (unflipped, every lens
+  reads ~1.9, nearly a whole frame, and they all look alike), and the maps clamp to [0,1] where the
+  source leaves frame, so those pinned samples must be dropped or they swamp the peak. Parametric
+  profiles need `MakeMonotonic` or a large K3 runs away past the corner (Zeiss Supreme read 0.89
+  against 0.05 with it).

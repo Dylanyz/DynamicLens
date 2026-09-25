@@ -44,6 +44,9 @@ plugin or learned something about it.
 
 ## Log
 
+- 2026-09-25 — **v0.8.0 released.** Headline: the Preset Browser, and the fisheye rework (one preset per
+  lens, Image Circle Scale + Field, dynamic fisheye overscan, the distortion-map fix). Browser documented in
+  README (with `Docs/images/preset-browser.png`), `using-the-component.md` and `presets-and-profiles.md`.
 - 2026-09-15 — **v0.7.0 released.** First public release, prebuilt Win64 binaries attached. README
   install section rewritten; the old one pointed at an absolute path on one machine and promised
   binaries that .gitignore excludes, so nobody else could install it. Descriptor bumped to 0.7.0

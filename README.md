@@ -20,6 +20,32 @@ Add a **Dynamic Lens** component to a camera, pick a **preset asset**, done. Thr
 
 Everything else is derived from physics and data-sheet numbers, not tuned by eye (see *Maths* below).
 
+## Preset Browser
+
+![The Lens Presets window: filters on the left, lenses grouped by maker in the middle, the selected lens's card on the right](Docs/images/preset-browser.png)
+
+A dockable **Lens Presets** window for picking a lens by what it does rather than by its asset name. Open it from
+**Window > Cinematics > Dynamic Lens Preset Browser**, the **Browse** button beside the component's Preset field, or
+the `DynamicLens.PresetBrowser` console command.
+
+* **Filter** by maker (Andy Davis, tiedtke, Lanthimos films, custom), spherical or anamorphic, kind of distortion data
+  (parametric, ST map, projection), whether it breathes, has an image circle or is a prime, and by focal range,
+  widest aperture and minimum distortion. Search matches lens names, makers and notes.
+* **Sort** by lens name, maker, focal length, distortion, max aperture, recently used or asset name; **group** by maker,
+  spherical / anamorphic or data type, or not at all. Every group folds, and the fold state is remembered per grouping.
+* Each row shows focal coverage, data type, breathing, image-circle diameter and a **distortion bar** (how far the lens
+  departs from straight lines, as a fraction of half the frame), so a clean Master Prime and a 220° fisheye read
+  differently at a glance.
+* The **detail card** gives the lens's maker, coverage, sensor, image circle, speed, breathing and its full source
+  attribution, verbatim.
+* **Click a lens to put it on every selected camera**, in one undo step. Arrow keys step through the list. The window
+  can stay open while you work.
+* **Favourites** (star), **recents**, and **hide** (eye): hidden lenses fold into a Hidden section, and also drop out of
+  the component's Preset dropdown and Previous/Next stepping. Hiding is per user, stored in your editor settings, never
+  on the asset.
+
+The browser reads Asset Registry tags only, so it never loads a preset (or its ST-map textures) just to list it.
+
 ## Install
 
 **Requires UE 5.8** plus Camera Calibration Core, which Dynamic Lens enables itself.
@@ -68,12 +94,12 @@ dl.add_to_all_cameras("DL_Master")
 Assets land in the plugin's own content (`/DynamicLens/Profiles`, `/DynamicLens/Presets`, `/DynamicLens/Materials`).
 
 ## Component (on the camera)
-* `Enabled`, `Preset` (asset dropdown), `Profile Info` (read-only: the lens, its coverage, and exactly what Match Camera
+* `Enabled`, `Preset` (asset dropdown, plus a **Browse** button that opens the Preset Browser), `Profile Info` (read-only: the lens, its coverage, and exactly what Match Camera
   To Profile would set, plus the measured focal lengths with the current one in brackets), `Match Camera` (auto on preset
   change, which of filmback / squeeze / crop / focal length the match writes, and whether the override groups are
   refreshed with the preset's values), `Amount Multiplier` - keyable in
   Sequencer. `Kit` (optional, keyable): a case of lenses that picks the preset from the camera's focal length, so a
-  sequence keys only focal length and the lens follows; `Kit Snaps Focal` holds the camera at the picked lens. Buttons: `Previous Preset` / `Next Preset` (alphabetical through every preset asset), `Previous Focal` /
+  sequence keys only focal length and the lens follows; `Kit Snaps Focal` holds the camera at the picked lens. Buttons: `Previous Preset` / `Next Preset` (alphabetical through every preset asset not hidden in the browser), `Previous Focal` /
   `Next Focal` (step through the profile's measured focal lengths), `Match Camera To Profile`, `Copy All From Preset`,
   `Save As New Preset`.
 * Camera: the Cine Camera settings you touch most (focal length, aperture, focus method / distance / actor / offset,
