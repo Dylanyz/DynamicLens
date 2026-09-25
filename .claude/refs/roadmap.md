@@ -33,6 +33,21 @@ leave the list for Dylan. Report results in this block; fix nothing visual witho
 4. Lens kit: Kit = `DLK_L_PoorThings`, key the CineCamera focal at 8 then 58, scrub.
 5. Match Camera: spherical preset -> a `DL_T_*` with auto-match off, press Match Camera, squeeze should become 2.
 
+**Then, same session - verify the Accumulation DOF claims** (Dylan, 2026-09-25: the agent may enable
+the experimental **Accumulation Depth of Field** plugin in CitySample, restart included). They are one
+creator's observations, not Epic docs (details: the "Final-render validation" entry). On one camera in
+a scratch level under `/Game/Claude/`, with a Dynamic Lens preset that has strong swirl and cat's eye
+(`DL_L_PoorThings_Petzval_58`, read only - never edit it):
+6. Add the Accumulation DOF Camera Component, Number of Samples 256, and accumulate in the viewport.
+   Do **Petzval swirl** and **cat's eye** actually vanish? Compare against the same frame without it.
+7. Does the plugin's **iris texture** reach the component (blade shape visible at Bokeh Softness 0)?
+8. Any per-position or aberration controls on the component that could stand in for swirl / cat's
+   eye? List them. That decides whether the plugin can fake the look or should just warn.
+9. Exposure: is it dimmer, and does the plugin's vignette stack on top?
+10. One short MRG render (Sampling Method temporal 5, TSR, spatial 1) with Auto Activate on vs off.
+    Time both. Read `01-mrg-gotchas.md` first.
+Leave the plugin enabled afterwards, and record which claims held. Close the editor at the end.
+
 **The three open decisions - Dylan said "idk", so these defaults stand until he says otherwise:**
 TSR PIE crash -> leave it, use Post Process Material for PIE and TSR only for Movie Render Graph
 (still to do: say so in the Render Mode tooltip, one line, fold into the next build); static-mesh LOD
