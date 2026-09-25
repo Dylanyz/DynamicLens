@@ -58,6 +58,14 @@ leave the list for Dylan. Report results in this block; fix nothing visual witho
 - 9 Exposure: **not dimmer and no vignette stacking** in the viewport preview with CitySample's
   auto-exposure: mean 140.2 (post-process DOF) vs 139.9 (accumulated, same f/2), corner/centre 0.47
   in both. Auto-exposure could mask dimming; repeat with manual exposure before trusting it.
+- 10 MRG render, Auto Activate on vs off: **cost ~39x, not 3-10x.** `MRG_AccumTest` + `LS_AccumTest`
+  (`/Game/Claude/DynamicLens/`), 10 frames, 854x480, temporal 5, spatial 1, TSR, 256 aperture samples:
+  on 63.7 s, off 1.6 s. Accumulated render is *brighter* (mean 141 vs 107, spherical 8 spreading the
+  highlights), corner/centre 0.50 vs 0.40 - no vignette stacking. The SA-8 sample-spray look is in the
+  final render too, not just the preview. Output left in the session scratchpad, not in the project.
+- **Harness gotcha:** `MRG_DLTest` (and so any copy) has Custom Playback Range start/end and a 30 fps
+  output-rate override switched on, rendering frames ~1150-1156 - past every test sequence, so there is
+  no camera cut and MRG renders an unrelated upside-down view. Turn those three overrides off first.
 - **Crash:** pressing Play (PIE) while the viewport's Accumulate preview is on kills the editor
   inside `AccumulationDOF`/`AccumulationDOFEditor` (access violation). Epic experimental plugin; turn
   Accumulate off before PIE.
