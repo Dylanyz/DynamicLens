@@ -99,7 +99,7 @@ Assets land in the plugin's own content (`/DynamicLens/Profiles`, `/DynamicLens/
   change, which of filmback / squeeze / crop / focal length the match writes, and whether the override groups are
   refreshed with the preset's values), `Amount Multiplier` - keyable in
   Sequencer. `Kit` (optional, keyable): a case of lenses that picks the preset from the camera's focal length, so a
-  sequence keys only focal length and the lens follows; `Kit Snaps Focal` holds the camera at the picked lens. Buttons: `Previous Preset` / `Next Preset` (alphabetical through every preset asset not hidden in the browser), `Previous Focal` /
+  sequence keys only focal length and the lens follows; `Kit Snaps Focal` holds the camera at the picked lens. `Guard Focal From Overscan Feedback` (on by default) stops camera rigs that read the FOV with overscan and write it back without (Black Eye's LookAt) from zooming the camera out. Buttons: `Previous Preset` / `Next Preset` (alphabetical through every preset asset not hidden in the browser), `Previous Focal` /
   `Next Focal` (step through the profile's measured focal lengths), `Match Camera To Profile`, `Copy All From Preset`,
   `Save As New Preset`.
 * Camera: the Cine Camera settings you touch most (focal length, aperture, focus method / distance / actor / offset,

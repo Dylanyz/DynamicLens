@@ -35,6 +35,14 @@ shader for the image itself, only for the image circle.
 These are Epic behaviours that are not obvious and that the plugin works around. Do not "simplify"
 the workarounds away.
 
+- **Camera rigs that round-trip the FOV lose overscan every tick.** `UCineCameraComponent::GetHorizontalFieldOfView()`
+  includes overscan; `SetFieldOfView()` converts back to focal length without it. Black Eye's LookAt
+  (`BlackEyeLookUtils.cpp` `UpdateFrom`, v2.0) reads one and writes the other every tick, so the focal is divided by
+  `1 + Overscan` per update, twice in the frame a spawnable is cut to. Our overscan makes that visible; a locked series
+  snaps the result to a wider prime (35 → 30 mm on CitySample s3, 2026-09-28). `bGuardFocalFromOverscanFeedback`
+  restores the focal when the change matches that exact ratio; it is seeded in `OnRegister`/`BeginPlay` and allows up
+  to four shrinks during `GuardSpawnTicks`. Reported upstream; the guard is harmless once they fix it.
+
 - **`UCineCameraComponent::GetCameraView` overwrites `DepthOfFieldBladeCount` and
   `DepthOfFieldSqueezeFactor` from `LensSettings` every single frame.** Setting them on the
   post-process settings does nothing. Bokeh blades and anamorphic squeeze must be driven through

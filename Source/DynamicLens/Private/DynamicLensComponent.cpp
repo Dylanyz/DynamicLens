@@ -145,6 +145,11 @@ void UDynamicLensComponent::OnRegister()
 		// procedural camera rigs (Black Eye etc.) set FOV / focal length in the actor tick: run after it, same frame
 		AddTickPrerequisiteActor(Owner);
 	}
+	if (UCineCameraComponent* Cam = GetTargetCamera())
+	{
+		GuardLastFocal = Cam->CurrentFocalLength;   // editor-world spawnables never BeginPlay: seed the overscan guard here too
+		GuardSpawnTicks = 3;
+	}
 }
 
 void UDynamicLensComponent::BeginPlay()
@@ -153,9 +158,13 @@ void UDynamicLensComponent::BeginPlay()
 	// Movie Render Queue/Graph read the camera's overscan once when a shot starts: make sure it is already there.
 	if (UCineCameraComponent* Cam = GetTargetCamera())
 	{
+		// the overscan guard needs the camera's own focal before a rig's first tick shrinks it (a spawnable is created at the cut)
+		GuardLastFocal = Cam->CurrentFocalLength;
+		GuardSpawnTicks = 3;
 		if (bEnabled && HasLens())
 		{
 			Apply(Cam);
+			GuardLastFocal = Cam->CurrentFocalLength;
 		}
 	}
 }
@@ -333,7 +342,51 @@ void UDynamicLensComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 	{
 		ClearEffect();
 	}
+	GuardCaughtFocal = 0.f;
+	if (bGuardFocalFromOverscanFeedback)
+	{
+		GuardFocalFromOverscanFeedback(Cam);
+	}
 	Apply(Cam);
+	if (GuardCaughtFocal > 0.f)
+	{
+		Notes += FString::Printf(TEXT("Overscan guard: held %.1f mm (a rig set %.2f mm, i.e. read the FOV with overscan and wrote it back without). "),
+			Cam->CurrentFocalLength, GuardCaughtFocal);
+	}
+	GuardLastFocal = Cam->CurrentFocalLength;
+	GuardSpawnTicks = FMath::Max(GuardSpawnTicks - 1, 0);
+}
+
+void UDynamicLensComponent::GuardFocalFromOverscanFeedback(UCineCameraComponent* Cam)
+{
+	// A rig that reads GetHorizontalFieldOfView() (overscan included) and writes it back with SetFieldOfView() (which
+	// assumes none) divides the focal by exactly the overscan scalar. Derive that scalar from the camera itself, so
+	// asymmetric overscan is covered too: S = tan(FOV with overscan / 2) * 2F / cropped width.
+	const float F = Cam->CurrentFocalLength;
+	if (GuardLastFocal <= KINDA_SMALL_NUMBER || F <= KINDA_SMALL_NUMBER || Cam->Overscan <= KINDA_SMALL_NUMBER) return;
+	float W = Cam->Filmback.SensorWidth * Cam->LensSettings.SqueezeFactor;   // same cropped width as UCineCameraComponent
+	if (Cam->CropSettings.AspectRatio > 0.f && Cam->Filmback.SensorHeight > KINDA_SMALL_NUMBER)
+	{
+		const float Desqueezed = W / Cam->Filmback.SensorHeight;
+		if (Cam->CropSettings.AspectRatio < Desqueezed) W *= Cam->CropSettings.AspectRatio / Desqueezed;
+	}
+	if (W <= KINDA_SMALL_NUMBER) return;
+	const float S = 2.f * F * FMath::Tan(FMath::DegreesToRadians(Cam->GetHorizontalFieldOfView()) * 0.5f) / W;
+	if (S <= 1.f + KINDA_SMALL_NUMBER) return;
+	// One shrink per rig update. Right after spawn a rig can update more than once in a frame, so a few are allowed there;
+	// later only one, which keeps a real focal change that happens to sit near last/S^2 from being undone.
+	const int32 MaxShrinks = GuardSpawnTicks > 0 ? 4 : 1;
+	float Shrunk = GuardLastFocal;
+	for (int32 K = 1; K <= MaxShrinks; ++K)
+	{
+		Shrunk /= S;
+		if (FMath::IsNearlyEqual(F, Shrunk, Shrunk * 1e-3f))
+		{
+			GuardCaughtFocal = F;
+			Cam->SetCurrentFocalLength(GuardLastFocal);
+			return;
+		}
+	}
 }
 
 void UDynamicLensComponent::MatchCameraToProfile()
@@ -1338,6 +1391,7 @@ void UDynamicLensComponent::SetBokehQualityRequest(bool bWant)
 
 void UDynamicLensComponent::ClearEffect()
 {
+	GuardLastFocal = 0.f;   // nothing to guard until the next Apply leaves a focal on the camera
 	UCineCameraComponent* Cam = AppliedCamera.IsValid() ? AppliedCamera.Get() : GetTargetCamera();
 	if (Cam)
 	{

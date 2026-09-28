@@ -85,6 +85,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens", meta = (EditCondition = "Kit != nullptr"))
 	bool bKitSnapsFocal = true;
 
+	/**
+	 * Undo a focal length change that is exactly "last focal / camera overscan". That change comes from a rig reading the
+	 * camera's FOV with overscan and writing it back without (Black Eye's LookAt does this every tick, BlackEyeLookUtils.cpp
+	 * UpdateFrom), which zooms the camera out a little each frame; on a locked series it then snaps to a wider prime.
+	 * Any other focal change (Sequencer, the slider, a kit) passes through. Notes says when it steps in.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Lens")
+	bool bGuardFocalFromOverscanFeedback = true;
+
 	UFUNCTION(BlueprintSetter)
 	void SetKit(UDynamicLensKit* NewKit);
 
@@ -402,4 +411,11 @@ private:
 	float LastCircleEllipticity = -1.f;
 	float LastCircleSquareness = -1.f;
 	bool bHasLastEval = false;
+
+	/** Focal length this component left on the camera last tick, and what the overscan guard caught this tick (0 = nothing). */
+	float GuardLastFocal = 0.f;
+	float GuardCaughtFocal = 0.f;
+	/** Ticks left in the spawn window, where a rig may run several updates in one frame (Black Eye does two at a cut). */
+	int32 GuardSpawnTicks = 0;
+	void GuardFocalFromOverscanFeedback(UCineCameraComponent* Cam);
 };
