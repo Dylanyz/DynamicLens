@@ -1,48 +1,44 @@
 # Maintenance — keeping these docs true
 
-Last updated: 2026-09-15
+Last updated: 2026-10-06
 
 DynamicLens is under active development, so `CLAUDE.md`, `.claude/rules/` and `.claude/refs/` go
-stale faster than the code. The checklist below is MANDATORY after any session that changed the
-plugin or learned something about it.
+stale faster than the code. After any session that changed the plugin or learned something about it,
+run the shared wrap-up checklist in the plugin hub (`refs/maintenance.md`: README and refs agree,
+Dylan's rules, script `Verified:` lines, prune, project facts stay out), then these DynamicLens items.
+Both are mandatory.
 
-## Wrap-up checklist
+## DynamicLens checklist
 
-1. **Plugin behaviour changed?** Update the affected file in `.claude/refs/` *and* `README.md`.
-   The README is the public explanation; these refs are the working notes. They must not disagree.
-2. **New control added?** Add it to `using-the-component.md` with what it is *for*, not just
+1. **New control added?** Add it to `using-the-component.md` with what it is *for*, not just
    its range. Dylan describes looks, not parameters, so the docs should too.
-3. **New engine internal discovered** — an Epic behaviour that had to be worked around — goes in the
+2. **New engine internal discovered** — an Epic behaviour that had to be worked around — goes in the
    "Engine internals this fights" section of `architecture.md`, together with the symptom that
-   revealed it. These are the expensive facts, and the ones most likely to be "simplified" away by a
-   later agent who does not know why the workaround is there.
-4. **A rule Dylan states about how to work** goes in `.claude/rules/`, quoted, with the why.
-   Refs describe the plugin; rules constrain the agent.
-5. **Build recipe changed or verified on a new engine?** Update the header block and the `Verified:`
-   date in `Tools/build_dynamiclens.ps1`.
-6. **New third-party data source?** `NOTICE` in the same commit, as a credit and as an excluded
-   path, then mirror it in `presets-and-profiles.md`. See `../rules/licensing-and-credits.md`.
-7. **Prune** what the session disproved. Delete it, do not strike it through, and log it below.
-8. **Project-specific facts never live here.** Which preset a given film used belongs in that
-   film project's own `.claude/`. This repo documents the plugin only.
+   revealed it (an engine-true fact also goes to `/ue-docs`). These are the expensive facts, and the
+   ones most likely to be "simplified" away by a later agent who does not know why the workaround is there.
+3. **New third-party data source?** `NOTICE` in the same commit, as a credit and as an excluded
+   path, then mirror it in `presets-and-profiles.md` and `SOURCES.md`. See `../rules/licensing-and-credits.md`.
+4. **Which preset a given film used** belongs in that film project's own `.claude/`.
 
 ## Watch list
 
-- **Engine version.** Everything here is UE 5.8, with the junction at
-  `UE_5.8\Engine\Plugins\Marketplace\DynamicLens`. Moving to 5.9 needs a new junction, a rebuild,
+- **Engine version.** Everything here is UE 5.8. Moving to 5.9 needs a new junction, a rebuild,
   and a re-verify of the Epic internals in `architecture.md`, the most version-fragile part.
 - **`CameraCalibrationCore`.** If Epic fixes the displacement-value rescale in
   `BlendDisplacementMaps.usf`, or raises the default displacement map resolution, both the module's
   startup fixup and the camera-frame-units workaround can be retired.
 - **Open items Dylan has raised but that are not done:** asymmetric overscan for fisheyes, tiedtke
   zoom lenses, an anamorphic parametric fit, and polish for a possible Fab release.
-- **Licence.** Apache-2.0 as of 2026-09-11. MPL-2.0 is a one-file swap if he ever wants
-  modifications forced back open.
-- **Discoverability.** A `CLAUDE.md` in this repo only loads when the working directory is inside
-  it. Agents working in a *film* project need a pointer there; CitySample has one. Add one to each
-  new film project rather than duplicating any of this content into it.
 
 ## Log
+
+- 2026-10-06 — **Moved into the plugin hub** (`Desktop\Coding\ueplugins\DynamicLens`, junction re-pointed).
+  The shared build/install, editor-restart and update-runbook rules and `refs/hot-swap.md` were removed
+  (now plugin hub `refs/` and `/ue-agent-control` `launch-close.md`); the DynamicLens-only parts (what is
+  live without a build, the post-install re-imports, the failure rows) moved into `CLAUDE.md` "Iterating".
+  `Tools/build_dynamiclens.ps1` regenerated from the shared template (gains the `BuildId` check). The
+  .NET installer command in the old rule had a corrupted path (`\v` stored as a vertical-tab byte);
+  the plugin hub copy is the verified one.
 
 - 2026-09-25 — **v0.8.0 released.** Headline: the Preset Browser, and the fisheye rework (one preset per
   lens, Image Circle Scale + Field, dynamic fisheye overscan, the distortion-map fix). Browser documented in
@@ -63,7 +59,7 @@ plugin or learned something about it.
   tiedtke's and Andy Davis's data carved out.
 - 2026-09-15 — **Builds were blocked, now fixed.** Was: no .NET Framework SDK, so UBT cannot
   instantiate SwarmInterface and `BuildPlugin` fails with a RulesError before compiling. Fixed by adding the .NET
-  Framework 4.8 SDK component to VS 18 Build Tools (exact command in rules/build-and-install.md). Also on this date a
+  Framework 4.8 SDK component to VS 18 Build Tools (exact command now in the plugin hub's refs/build-install.md). Also on this date a
   build attempt destroyed the waiting 09-07 package, because the script wiped the package dir
   before building; it now stages and swaps only on success. The 09-07 work (Image Circle Scale,
   Chromatic Amount) was rebuilt the same day from source and is waiting to be installed.

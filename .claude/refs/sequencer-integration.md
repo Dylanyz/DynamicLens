@@ -303,6 +303,6 @@ Rules:
 | 3 (optional) | `UDynamicLensKit`, `Kit` + `bKitSnapsFocal` on the component, the `kits` JSON section and `dl.import_kits()` | C++ build + restart; the Python part is live | `dl.import_kits()` |
 | 4 (optional) | Editor-module niceties from §4 | C++ build + restart | - |
 
-Every phase touches `Source/`, so per `.claude/rules/updating-the-plugin.md` each one is: build
+Every phase touches `Source/`, so per `CLAUDE.md` "Iterating" each one is: build
 with the editor up, then stop and ask Dylan before install. Phases 1 and 2 are small enough to
 ship in one build.

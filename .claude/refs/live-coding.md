@@ -58,7 +58,7 @@ This matters for comparing the two layouts, and it cuts against the project-plug
 
 ## Why the engine layout stays
 
-21 of the 22 Unreal projects on this machine are Blueprint-only; only CitySample is C++. Making the
+22 of the 23 Unreal projects on this machine are Blueprint-only (2026-10-06); only CitySample is C++. Making the
 plugin a project plugin would turn each of those into a code project that prompts to compile on
 first launch and after every engine hotfix, and refuses to open without a working toolchain. Against
 that, the gain is hot-patching for the subset of changes that are body-only.
@@ -74,6 +74,6 @@ at both an engine path and a project path fails to load it.
 ## What was streamlined instead
 
 `Tools\build_dynamiclens.ps1 -Status` answers "where is this up to and what is next" in one
-read-only call. The runbook is `../rules/updating-the-plugin.md`, and its first step is the useful
+read-only call. The runbook is `CLAUDE.md` "Iterating", and its first step is the useful
 one: most updates are preset, profile, material or Python changes, which are already live with no
 build and no restart at all.

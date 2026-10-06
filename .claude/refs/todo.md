@@ -7,8 +7,9 @@ right move is to pick one up and do it.
 Same disposal rule as the roadmap: **delete an entry when it is done**, do not tick it off. Git
 history is the record.
 
-Anything here that touches `Source/` still needs a build, and installing still needs Dylan to close
-the editor himself — `.claude/rules/editor-restarts.md`. Batch C++ items so he restarts once.
+Anything here that touches `Source/` still needs a build, and installing needs the editor closed (ask
+Dylan whether it is free; the agent then closes, installs and relaunches: `/ue-agent-control`). Batch C++
+items so he restarts once.
 
 ---
 

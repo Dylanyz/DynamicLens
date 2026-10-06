@@ -9,17 +9,15 @@ data, not invented. Open source, Apache-2.0, at https://github.com/Dylanyz/Dynam
 install is a **directory junction to this folder**, not a copy. So editing a `.uasset` or a `.py`
 here edits the live plugin, with no sync step. Only C++ needs a build.
 
+Building, installing, Live Coding, the licensing pattern and the wrap-up checklist are shared by all of
+Dylan's plugins and live in the plugin hub (`../CLAUDE.md`, loaded automatically, and `../.claude/refs/`);
+closing the editor for an install is `/ue-agent-control`. This file holds only what is DynamicLens's.
+
 ## Hard rules
 
-1. **Never restart, close or relaunch the Unreal editor without asking Dylan and getting a yes.**
-   He is usually mid-shot with unsaved work. `.claude/rules/editor-restarts.md`.
-2. **Never touch `Saved/` or `Intermediate/`**, here or in any Unreal project. They are not yours,
-   they are not tracked, and deleting from them loses work that cannot be recovered.
-3. **Ask before deleting anything**, with specifics on what and why. Never run a recursive delete
-   on an assumption.
-4. **Never put third-party lens data under this repo's licence.** `Content/Profiles/Tiedtke/**` and
+1. **Never put third-party lens data under this repo's licence.** `Content/Profiles/Tiedtke/**` and
    `Tools/data/raw/**` belong to tiedtke and Andy Davis. `.claude/rules/licensing-and-credits.md`.
-5. **`Tools/data/presets.json` is the source of truth**, not the generated assets. An editor-only
+2. **`Tools/data/presets.json` is the source of truth**, not the generated assets. An editor-only
    tweak dies at the next import. `.claude/rules/preset-data-flow.md`.
 
 ## Start here (progressive disclosure)
@@ -31,18 +29,18 @@ here edits the live plugin, with no sync step. Only C++ needs a build.
 - The preset/profile data model, the lens catalogue, adding a lens → `.claude/refs/presets-and-profiles.md`
 - Where the Lanthimos lens numbers came from, measured vs assumed → `Tools/data/research/lanthimos-lenses.md`
 - Whether a restart can be avoided, and the restructure that would help → `.claude/refs/live-coding.md`
-- Installing a DLL under a live editor, and why we don't → `.claude/refs/hot-swap.md`
+  (measured here); installing a DLL under a live editor, and why we don't → plugin hub `refs/live-coding.md`
 - Work that is researched and waiting on something → `.claude/refs/roadmap.md`. Check it when a
   big piece of work lands; an entry may have just become proposable. **It opens with a handoff
   block; read that first if you are picking this repo up cold.**
 - Short jobs that are already decided and blocked on nobody → `.claude/refs/todo.md`. Unlike the
   roadmap, these are meant to be picked up and done, not proposed.
 - Proving a look works (stills, per-frame checks, the traps) → `.claude/refs/visual-verification.md`
-- Keeping these docs true → `.claude/refs/maintenance.md`
+- Keeping these docs true → plugin hub `refs/maintenance.md`, then this repo's `.claude/refs/maintenance.md`
 - Where the data and the *ideas* came from, and how each was used → `SOURCES.md` (public)
 
-Behaviour rules auto-load from `.claude/rules/`: editor restarts, the build/install cycle, the
-preset data flow, licensing and credits. Read them; they are the ones that bite.
+Behaviour rules auto-load from `.claude/rules/`: the preset data flow, licensing and credits. Read them;
+they are the ones that bite.
 
 ## Layout
 
@@ -81,37 +79,44 @@ Fisheyes are one preset per lens. **Image Circle > Scale** sizes the circle and,
 whole picture with it (porthole ↔ filled frame); **Field** picks Fit to Circle or True Angles. The old
 `_Fit` and `_Frame` variants are those two controls — `.claude/refs/using-the-component.md`.
 
-## Iterating
+## Iterating ("update the plugin")
 
-**If Dylan says "update the plugin", follow `.claude/rules/updating-the-plugin.md` step by step.**
-Start with the one call that tells you where things stand:
+Start with `Tools\build_dynamiclens.ps1 -Status` (read-only, safe with the editor open). Then say which
+kind of change it is; most "updates" are not C++ and finish in one step with nobody closing anything:
 
-```powershell
-Tools\build_dynamiclens.ps1 -Status      # read-only, safe with the editor open
+| If the change is | Then |
+|---|---|
+| A preset or profile value, a new lens | edit `Tools/data/presets.json`, then `dl.import_presets()`. Live, no restart. |
+| The image-circle look (HLSL) | `dl.build_image_circle_material(force=True)`. Live, no restart. |
+| Editor tooling in `dynamiclens_tools.py` | re-import the module in the editor. Live. |
+| A new control, new maths, anything in `Source/` | build, then install (plugin hub `refs/build-install.md`; closing the editor: `/ue-agent-control`). Package dir `%TEMP%\dlb`. |
+
+**After an install,** re-run whatever the change depends on, then confirm it landed:
+
+```python
+import dynamiclens_tools as dl
+dl.build_image_circle_material(force=True)   # only if the material HLSL changed
+dl.import_presets()                          # REQUIRED if any preset field was added or renamed
+dl.status()
 ```
 
-**Content, Python, presets, profiles: no build, no restart.** Edit and it takes effect in the live
-editor. Preset and profile changes come from `Tools/data/presets.json` via `dl.import_presets()`.
-Most "updates" are this, and finish in one step.
+**The re-import is not optional when a field was added.** A new field reads as zero in existing assets,
+so without it every shipped preset silently loses the new behaviour (exactly what happened when chromatic
+aberration became an amount over per-channel offsets). `dl.import_presets()` **overwrites** preset
+assets: if Dylan has hand-tweaked one in the editor, ask first and get the tweak into `presets.json`.
+Then verify in the editor, at more than one focal length, that the change does what he asked.
 
-**C++ changes need a build, and installing the result needs the editor closed:**
-
-```powershell
-Tools\build_dynamiclens.ps1              # safe while the editor runs; packages to %TEMP%\dlb
-Tools\build_dynamiclens.ps1 -InstallOnly # you run it, after Dylan says the editor is free to restart
-```
-
-Then relaunch and re-run whatever the change depends on, commonly
-`dl.build_image_circle_material(force=True)` and `dl.import_presets()`.
-
-**Never close or restart the editor without Dylan's yes** - then do it yourself, never hand him the command. See `.claude/rules/editor-restarts.md`.
+| Failure (DynamicLens only; shared rows: plugin hub `build-install.md`) | Cause | Fix |
+|---|---|---|
+| New property exists but does nothing | preset assets predate it | `dl.import_presets()` |
+| Post-process chain goes blank after a material rebuild | orphaned parentless MID | `ClearEffect()`, or reselect the camera |
+| Neon speckle in a band around the rim, only in Movie Render Graph renders | image-circle HLSL sampled the scene with viewport UV instead of buffer UV | fixed 2026-09-18; any new scene sample in that HLSL needs `ViewportUVToSceneTextureUV` + `ClampSceneTextureUV` |
+| Movie Render Graph render is ~Overscan x tighter than the viewport | Post Process Material render mode: MRG applies camera overscan twice on the `bCropOverscan == false` path | set the component's **Render Mode** to Temporal Super Resolution; see the overscan section in `.claude/refs/architecture.md` |
 
 ## Editor Python
 
-Run through `unreal-py` (`editor_run_python`) or a remote-exec helper. `import dynamiclens_tools as dl` first.
-The host project's own rules apply when driving its editor: read its `.claude/rules/ue-python-patterns.md`
-and `ue-visual-verification.md` (e.g. CitySample's) - this repo does not load them. With no MCP, remote exec
-works via the `/dyl-ue-setup` skill's `scripts/rexec.py`. Scratch assets go in the project's `/Game/Claude/`.
+Run through `unreal-py` (`editor_run_python`) or remote exec (`/ue-agent-control`). `import dynamiclens_tools as dl`
+first. Scratch assets go in the project's `/Game/Claude/`.
 
 | Call | Does |
 |---|---|

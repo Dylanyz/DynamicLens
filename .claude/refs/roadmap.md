@@ -331,7 +331,7 @@ measured off clamped texels. Same class of bug as the earlier Cooke FFi edge sme
 1. Get the camera settings from the film project's shot (filmback, crop, squeeze, overscan mode).
 2. Reproduce with those numbers on `DLTest_Cam`.
 3. Fix goes in `BuildExtendedSTMap` (clamp detection or guard band). C++, so build, then install on
-   Dylan's next restart per `.claude/rules/updating-the-plugin.md`. Confirm on the Cooke FFi too.
+   Dylan's next restart per `CLAUDE.md` "Iterating". Confirm on the Cooke FFi too.
 
 ## ST-map and projection distortion collapse to a centre smear in automated PIE
 
