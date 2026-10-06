@@ -17,3 +17,6 @@ UE_Placeholder.uasset
 # reproducible from a clean clone. See NOTICE and SOURCES.md.
 !Tools/data/stmaps/**/*.exr
 
+
+# archived auto-memory (2026-10-04), local only
+.claude/archive/
