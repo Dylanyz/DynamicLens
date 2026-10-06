@@ -19,3 +19,11 @@ Cineovision (0.75), Todd-AO, E Series, Elite MK, D Series and Hawk show a rounde
 is just the render running out at Max Overscan 1.5; 2.0 removes it (`.claude/refs/image-circle-guide.md`).
 It changes the look of shipped presets, so **ask Dylan first**, then set it where the tiedtke presets
 are generated and re-import.
+
+## Set CreationMethod = Instance when the library adds the component (from BlackEyeCustom, 2026-10-06)
+
+`DynamicLensLibrary.cpp:24-26` adds the component with `NewObject` + `AddInstanceComponent` + `RegisterComponent` but
+leaves `CreationMethod` at its default, Native. Tools that copy "user-added" components by `CreationMethod` skip it
+(BlackEyeCustom's Fast Bake had to also check the instance-component list). One line before `AddInstanceComponent`:
+`Comp->CreationMethod = EComponentCreationMethod::Instance;` (what the editor's Add Component button does). C++,
+so build + install with the next batch.
