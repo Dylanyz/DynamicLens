@@ -1,5 +1,5 @@
-# Copyright 2026 Dylan G (Mad Rice). Licensed under the Apache License, Version 2.0.
-# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 Dylan Gitalis. Source-available under CPAL-1.0 with the Commons Clause; see LICENSE.
+# SPDX-License-Identifier: CPAL-1.0 AND LicenseRef-Commons-Clause-1.0
 # Third-party lens data under Content/Profiles/Tiedtke and Tools/data/raw is NOT covered; see NOTICE.
 
 """DynamicLens editor tools (auto on sys.path because this is the plugin's Content/Python folder).
@@ -510,7 +510,7 @@ def import_andy_stmaps(root=None, save=True, series_filter=None):
 
     Defaults to the maps shipped in Tools/data/stmaps/andy_spherical, so a clean clone can rebuild
     every profile with no extra downloads. Andy Davis gave permission to redistribute them; they
-    remain his, under his terms, not Apache-2.0 - see NOTICE and SOURCES.md. Pass `root` (or set
+    remain his, under his terms, not this repo's licence - see NOTICE and SOURCES.md. Pass `root` (or set
     $DYNAMICLENS_ANDY_DIR) to import from a different set, e.g. maps you re-prepared at full
     resolution with Tools/prep_andy_stmaps.py.
 
@@ -894,15 +894,15 @@ def rename_assets_v06():
 # consumer (the preset browser, a docs page) never has to re-derive provenance from a name.
 ORIGINS = {
     "AD": {"author": "Andy Davis", "org": "Imagery for Media", "url": "https://imag4media.com/vfx-rnd/",
-           "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"},
+           "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"},
     "T": {"author": "tiedtke", "org": "Real Cinema Lenses",
           "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
-          "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"},
-    "L": {"author": "Dylan G (Mad Rice)", "org": "DynamicLens",
+          "licence": "tiedtke's own terms - redistributed here with permission, NOT under this repo's licence"},
+    "L": {"author": "Dylan Gitalis", "org": "DynamicLens",
           "url": "https://github.com/Dylanyz/DynamicLens",
-          "licence": "Apache-2.0 (reconstruction of a film's look, not measured third-party data)"},
-    "C": {"author": "Dylan G (Mad Rice)", "org": "DynamicLens",
-          "url": "https://github.com/Dylanyz/DynamicLens", "licence": "Apache-2.0"},
+          "licence": "CPAL-1.0 + Commons Clause (reconstruction of a film's look, not measured third-party data)"},
+    "C": {"author": "Dylan Gitalis", "org": "DynamicLens",
+          "url": "https://github.com/Dylanyz/DynamicLens", "licence": "CPAL-1.0 + Commons Clause"},
 }
 
 TYPE_NAME = {
@@ -1088,7 +1088,7 @@ def export_catalogue(path=None, save=True):
         },
         "_licence": "This file describes third-party measured data. See NOTICE and SOURCES.md: "
                     "tiedtke's and Andy Davis's lens data is redistributed with permission under "
-                    "their own terms, NOT under this repo's Apache-2.0 licence.",
+                    "their own terms, NOT under this repo's licence.",
         "counts": {
             "presets": len(entries),
             "anamorphic": sum(1 for e in entries if (e["profile"] or {}).get("anamorphic")),

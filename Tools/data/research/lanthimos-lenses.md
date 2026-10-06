@@ -68,8 +68,8 @@ These are the only numbers here that were *measured* rather than read off a data
   radius, top corners darker than bottom. Recorded as the preset's `image_circle_edge` values
   rather than as a separate measurement.
 
-**No film frames are stored in this repo.** They are copyrighted and this repo is public and
-Apache-2.0 (`.claude/rules/licensing-and-credits.md`). What is kept is the measurement and enough
+**No film frames are stored in this repo.** They are copyrighted and this repo is public
+(`.claude/rules/licensing-and-credits.md`). What is kept is the measurement and enough
 description to repeat it from a frame you supply. The method: crop to the active image, blur the
 luminance heavily, fit a circle to an iso-contour, then take the radial mean of luminance and of the
 blue fraction in units of that radius.

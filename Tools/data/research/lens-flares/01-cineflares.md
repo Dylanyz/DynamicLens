@@ -75,11 +75,11 @@ lens prescription.
 | Terms | Personal, non-transferable, non-exclusive licence. Content may be used for education and research in personal and commercial work. It may **not** be sold, distributed, sublicensed or **incorporated into separate products**, and test files may not be redistributed, including on stock sites. The terms were last updated 2023-11-09, while the site was still in beta. | /termsofuse |
 
 **Using it as data in DynamicLens:** the terms rule it out without a separate written licence. The
-repo is public and Apache-2.0, and shipping flare plates, or anything fitted from them, would count
+repo is public, and shipping flare plates, or anything fitted from them, would count
 as "incorporating the contents in separate products". The route to that is a raw-file licence
 through contact@cineflares.com, which would need explicit permission to redistribute. Even with
 permission, the data would follow the same carve-out as the tiedtke and Andy Davis data: its own
-terms, not Apache (see `.claude/rules/licensing-and-credits.md`).
+terms, not this repo's licence (see `.claude/rules/licensing-and-credits.md`).
 
 **Using it as visual reference** means a PRO subscriber watches the clips and hand-tunes our own
 parametric model to match. This fits "educational and research purposes" and ships none of their
@@ -170,7 +170,7 @@ colour reproduction, flare pattern and iris geometry (FAQ, "Why is the focus pri
    no prescriptions, no ghost parameters and no downloadable plates, and its terms forbid putting the
    content into another product. Nothing from it can ship in this public repo without a written
    licence from TrueLens Productions that explicitly allows redistribution. Even then, that data would
-   sit outside Apache-2.0 in a `NOTICE` carve-out, like the tiedtke and Andy Davis data.
+   sit outside this repo's licence in a `NOTICE` carve-out, like the tiedtke and Andy Davis data.
 2. **It is an excellent matching target.** Their setup is a white point source at infinity, at every
    stop from wide open to T4, one camera, repeatable motion. That is easy to reproduce in UE: a small
    emissive light on black, the same focal length and T-stop, swept across the frame. One PRO

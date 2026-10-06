@@ -1,9 +1,9 @@
 # DynamicLens — measured lens character for Unreal CineCameras
 
-A C++ UE 5.8 plugin by Dylan G (Mad Rice). Add a **Dynamic Lens** component to a CineCameraActor,
+A C++ UE 5.8 plugin by Dylan Gitalis (Mad Rice). Add a **Dynamic Lens** component to a CineCameraActor,
 pick a preset, and the camera gets the distortion, image circle, vignette and bokeh of a real lens,
 driven live by focal length, focus distance and f-stop. Profiles are fitted from measured cinema-lens
-data, not invented. Open source, Apache-2.0, at https://github.com/Dylanyz/DynamicLens.
+data, not invented. Source-available (CPAL-1.0 + Commons Clause), at https://github.com/Dylanyz/DynamicLens.
 
 **This repo *is* the installed plugin.** `Engine\Plugins\Marketplace\DynamicLens` in the engine
 install is a **directory junction to this folder**, not a copy. So editing a `.uasset` or a `.py`

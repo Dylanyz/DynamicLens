@@ -411,6 +411,13 @@ given a real image circle.
 
 ---
 
+## Visible licence credit in the plugin - decided 2026-10-06, ready to build
+
+CPAL section 14 / LICENSE Exhibit B: show "Dylan Gitalis · https://youtube.com/@madricetv" with a link to
+https://github.com/Dylanyz/DynamicLens prominently in the plugin's UI (the component's Details panel and
+the Preset Browser), keep tiedtke and Andy Davis named next to their lenses, and log the credit once at
+module startup. C++: build, then install when the editor is free. Details: plugin hub `refs/licensing.md`.
+
 ## Ideas - not researched yet (Dylan, 2026-09-25)
 
 Recorded so they are not lost. Neither has been researched, so neither is proposable yet. Research

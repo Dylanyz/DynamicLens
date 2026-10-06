@@ -1,12 +1,12 @@
 DynamicLens
-Copyright 2026 Dylan G (Mad Rice)
+Dylan Gitalis
+https://youtube.com/@madricetv
 https://github.com/Dylanyz/DynamicLens
 
-This product includes software developed by Dylan G (Mad Rice).
-
-Licensed under the Apache License, Version 2.0. See LICENSE for the full
-terms. If you redistribute DynamicLens, in source or binary form, this
-NOTICE file must travel with it (Apache-2.0 section 4d).
+Copyright (c) 2026 Dylan Gitalis. Source-available under the Common Public
+Attribution License 1.0 (CPAL-1.0) with the Commons Clause; see LICENSE.
+Keep this NOTICE, and the attribution in LICENSE Exhibit B, with any copy you
+distribute. Versions released before 2026-10-06 were Apache-2.0.
 
 
 ATTRIBUTION
@@ -52,13 +52,13 @@ THIRD-PARTY CONTENT NOT COVERED BY THIS LICENSE
 tiedtke and Andy Davis have each given permission for their lens data to
 be redistributed as part of this repository, so everything needed to
 rebuild the plugin ships with it. That permission is to REDISTRIBUTE, not
-to relicense: the Apache License covers the DynamicLens source code,
+to relicense: this repo's licence covers the DynamicLens source code,
 tools, materials and preset data authored for this plugin, and does NOT
 cover measured lens data, which remains its original author's:
 
 * Content/Profiles/Tiedtke/**  (Lens Files, profiles and ST-map textures)
       From tiedtke's Real Cinema Lenses pack, redistributed with his
-      permission under his terms, not under Apache-2.0.
+      permission under his terms, not under this repo's licence.
 
 * Tools/data/raw/**  and the AD_* profile grids derived from it
       Derived from Andy Davis's VFX RnD Lens Files, including the
@@ -68,7 +68,7 @@ cover measured lens data, which remains its original author's:
   Tools/data/stmaps/**  (the half-res ST maps they are built from)
       From Andy Davis's creative lens maps (spherical), downsampled for
       import and redistributed with his permission under his terms, not
-      under Apache-2.0. See https://imag4media.com/vfx-rnd/.
+      under this repo's licence. See https://imag4media.com/vfx-rnd/.
 
 The permission above was given to this project. If you fork or
 redistribute DynamicLens, and especially if you do so commercially, it

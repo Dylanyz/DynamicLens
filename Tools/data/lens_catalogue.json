@@ -4,7 +4,7 @@
   "edge_shift_pct": "How much the lens bends the image, ignoring any uniform scale. STMap: the swing in the radial ratio between the tightest and widest sample of the strongest map. Parametric: |K1+K2+K3| at the normalised corner. Projection: not defined. The two derivations rank consistently but are NOT the same quantity - do not plot an ST-map lens and a parametric one on one bar without saying so.",
   "scale": "Roughly: under 5 is a well corrected modern prime, 10-20 is strong character, over 20 is a vintage anamorphic."
  },
- "_licence": "This file describes third-party measured data. See NOTICE and SOURCES.md: tiedtke's and Andy Davis's lens data is redistributed with permission under their own terms, NOT under this repo's Apache-2.0 licence.",
+ "_licence": "This file describes third-party measured data. See NOTICE and SOURCES.md: tiedtke's and Andy Davis's lens data is redistributed with permission under their own terms, NOT under this repo's licence.",
  "counts": {
   "presets": 59,
   "anamorphic": 20,
@@ -91,7 +91,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "ARRI Signature Prime (spherical, T1.8)",
    "description": "ARRI Signature Prime (spherical, T1.8). Modern large-format ARRI. Gentle, deliberately non-clinical. Measured ST maps at 18, 25, 35, 47, 58, 75 mm (the nearest is used). Single focus, so no breathing.",
@@ -149,7 +149,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Camtech Falcon FF (spherical, T2)",
    "description": "Camtech Falcon FF (spherical, T2). Rehoused full-frame glass. Measured ST maps at 200 mm (the nearest is used). Single focus, so no breathing.",
@@ -202,7 +202,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Canon CN-E Prime (spherical, T1.3)",
    "description": "Canon CN-E Prime (spherical, T1.3). Modern Canon cine prime, clean. Measured ST maps at 20, 24, 35, 50, 85 mm (the nearest is used). Single focus, so no breathing.",
@@ -259,7 +259,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Canon FD (spherical, T1.4)",
    "description": "Canon FD (spherical, T1.4). Vintage Canon stills glass, rehoused. Real character. Measured ST maps at 24, 35, 55, 85 mm (the nearest is used). Single focus, so no breathing.",
@@ -315,7 +315,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Canon K-35 (spherical, T1.3)",
    "description": "Canon K-35 (spherical, T1.3). The 1970s K-35s. Warm, soft-cornered, heavy character. Measured ST maps at 18, 24, 35, 55, 85 mm (the nearest is used). Single focus, so no breathing.",
@@ -372,7 +372,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Canon Sumire Prime (spherical, T1.3)",
    "description": "Canon Sumire Prime (spherical, T1.3). CN-E optics detuned for a softer, warmer rendering. Measured ST maps at 24, 35, 50 mm (the nearest is used). Single focus, so no breathing.",
@@ -427,7 +427,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Cooke Anamorphic/i Full Frame Plus 1.8x (continuous zoom 32-135 mm)",
    "description": "Cooke FFi 1.8x anamorphic as a continuous zoom 32-135 mm (Andy Davis coefficients). Smooth between primes; the tiedtke ST maps are exact at the primes.",
@@ -485,7 +485,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Cooke S4/i (spherical, T2)",
    "description": "Cooke S4/i (spherical, T2). The Cooke Look. 17 focal lengths, the widest coverage here. Measured ST maps at 10, 12, 14, 16, 18, 21, 25, 27, 32, 40, 50, 65, 75, 100, 135, 150, 180 mm (the nearest is used). Single focus, so no breathing.",
@@ -554,7 +554,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Cooke S7/i (spherical, T2)",
    "description": "Cooke S7/i (spherical, T2). Full-frame Cooke. Measured ST maps at 25, 32, 50, 75 mm (the nearest is used). Single focus, so no breathing.",
@@ -610,7 +610,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Leica R (spherical, T1.4)",
    "description": "Leica R (spherical, T1.4). Vintage Leica stills glass, rehoused for cine. Measured ST maps at 35, 50, 80 mm (the nearest is used). Single focus, so no breathing.",
@@ -665,7 +665,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Leitz / Leica Summilux-C (spherical, T1.4)",
    "description": "Leitz / Leica Summilux-C (spherical, T1.4). Fast, clean, low distortion S35. Measured ST maps at 18, 21, 25, 29, 35, 50 mm (the nearest is used). Single focus, so no breathing.",
@@ -723,7 +723,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Leitz Thalia (spherical, T2.2)",
    "description": "Leitz Thalia (spherical, T2.2). Large-format Leitz, vintage Leica optics recomputed. Measured ST maps at 35, 45, 70 mm (the nearest is used). Single focus, so no breathing.",
@@ -778,7 +778,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "ARRI / Zeiss Master Prime (spherical, T1.3)",
    "description": "ARRI/Zeiss Master Prime, as measured. Physical vignette and cat's eye, no swirl.",
@@ -873,7 +873,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Nikon AI-S (spherical, T1.4)",
    "description": "Nikon AI-S (spherical, T1.4). Vintage Nikon stills glass, rehoused. Measured ST maps at 35, 50, 58, 85 mm (the nearest is used). Single focus, so no breathing.",
@@ -929,7 +929,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Rokinon / Samyang Xeen (spherical, T1.5)",
    "description": "Rokinon / Samyang Xeen (spherical, T1.5). Budget full-frame cine prime. Measured ST maps at 24, 35, 50, 85 mm (the nearest is used). Single focus, so no breathing.",
@@ -985,7 +985,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Schneider Xenon FF (spherical, T2.1)",
    "description": "Schneider Xenon FF (spherical, T2.1). Full-frame Schneider, neutral. Measured ST maps at 18, 25, 35, 50, 75 mm (the nearest is used). Single focus, so no breathing.",
@@ -1042,7 +1042,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Sigma Cine FF Classic (spherical, T1.5)",
    "description": "Sigma Cine FF Classic (spherical, T1.5). Sigma FF with the Classic flare/contrast treatment. Measured ST maps at 35, 50 mm (the nearest is used). Single focus, so no breathing.",
@@ -1096,7 +1096,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Sigma Cine FF High Speed (spherical, T1.5)",
    "description": "Sigma Cine FF High Speed (spherical, T1.5). Fast, clean, modern full frame. Measured ST maps at 14, 20, 24, 35, 50, 85 mm (the nearest is used). Single focus, so no breathing.",
@@ -1154,7 +1154,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Zeiss Supreme Prime (spherical, T1.5, full frame)",
    "description": "Zeiss Supreme Prime, as measured. Physical vignette and cat's eye, no swirl.",
@@ -1247,7 +1247,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Tokina Vista (spherical, T1.5)",
    "description": "Tokina Vista (spherical, T1.5). Fast full-frame prime. Measured ST maps at 25, 35, 50, 85 mm (the nearest is used). Single focus, so no breathing.",
@@ -1303,7 +1303,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Tokina Vista One (spherical, T1.5)",
    "description": "Tokina Vista One (spherical, T1.5). Vista optics with a softened, lower-contrast rendering. Measured ST maps at 18, 25, 35, 50, 85 mm (the nearest is used). Single focus, so no breathing.",
@@ -1360,7 +1360,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Tribe7 Blackwing7 (spherical, T1.9)",
    "description": "Tribe7 Blackwing7 (spherical, T1.9). Deliberately characterful modern glass. Measured ST maps at 37, 57, 77 mm (the nearest is used). Single focus, so no breathing.",
@@ -1415,7 +1415,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Zeiss Compact Prime CP.2 (spherical, T1.5)",
    "description": "Zeiss Compact Prime CP.2 (spherical, T1.5). Workhorse full-frame Zeiss. Measured ST maps at 35, 50, 85 mm (the nearest is used). Single focus, so no breathing.",
@@ -1470,7 +1470,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Zeiss Compact Prime CP.3 (spherical, T2.1)",
    "description": "Zeiss Compact Prime CP.3 (spherical, T2.1). CP.2 successor, cleaner. Measured ST maps at 18, 25, 35, 50, 85 mm (the nearest is used). Single focus, so no breathing.",
@@ -1527,7 +1527,7 @@
     "author": "Andy Davis",
     "org": "Imagery for Media",
     "url": "https://imag4media.com/vfx-rnd/",
-    "licence": "Andy Davis's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "Andy Davis's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Zeiss Supreme Prime Radiance (spherical, T1.5)",
    "description": "Zeiss Supreme Prime Radiance (spherical, T1.5). Supreme optics with Radiance coatings. Distortion measurably differs from our AD_ZEISS_Supreme grid (mean 3.4 px at 50 mm), so it is its own profile, not a re-badge. Measured ST maps at 18, 21, 25, 29, 35, 40, 50, 65, 85, 100, 135, 150 mm (the nearest is used). Single focus, so no breathing.",
@@ -1588,10 +1588,10 @@
    "folder": "/DynamicLens/Presets",
    "prefix": "C",
    "origin": {
-    "author": "Dylan G (Mad Rice)",
+    "author": "Dylan Gitalis",
     "org": "DynamicLens",
     "url": "https://github.com/Dylanyz/DynamicLens",
-    "licence": "Apache-2.0"
+    "licence": "CPAL-1.0 + Commons Clause"
    },
    "display_name": "ARRI / Zeiss Master Prime (spherical, T1.3)",
    "description": "Master Prime x1.6 with extra barrel under 24 mm and strong breathing. Extrapolates below 12 mm; corners go black past the overscan limit.",
@@ -1683,10 +1683,10 @@
    "folder": "/DynamicLens/Presets",
    "prefix": "C",
    "origin": {
-    "author": "Dylan G (Mad Rice)",
+    "author": "Dylan Gitalis",
     "org": "DynamicLens",
     "url": "https://github.com/Dylanyz/DynamicLens",
-    "licence": "Apache-2.0"
+    "licence": "CPAL-1.0 + Commons Clause"
    },
    "display_name": "Zeiss Supreme Prime (spherical, T1.5, full frame)",
    "description": "Supreme x0.5, no breathing, light vignette, clean modern look.",
@@ -1776,10 +1776,10 @@
    "folder": "/DynamicLens/Presets",
    "prefix": "C",
    "origin": {
-    "author": "Dylan G (Mad Rice)",
+    "author": "Dylan Gitalis",
     "org": "DynamicLens",
     "url": "https://github.com/Dylanyz/DynamicLens",
-    "licence": "Apache-2.0"
+    "licence": "CPAL-1.0 + Commons Clause"
    },
    "display_name": "ARRI / Zeiss Master Prime (spherical, T1.3)",
    "description": "Master profile with a mild Petzval swirl, stronger cat's eye and vignette. Below 12 mm the 12 mm coefficients are applied unscaled (raw clamp), so the barrel keeps growing as you zoom out and the edge mask sweeps in - the look Dylan liked; physically the wide end is a guess.",
@@ -1871,10 +1871,10 @@
    "folder": "/DynamicLens/Presets",
    "prefix": "C",
    "origin": {
-    "author": "Dylan G (Mad Rice)",
+    "author": "Dylan Gitalis",
     "org": "DynamicLens",
     "url": "https://github.com/Dylanyz/DynamicLens",
-    "licence": "Apache-2.0"
+    "licence": "CPAL-1.0 + Commons Clause"
    },
    "display_name": "ARRI / Zeiss Master Prime (spherical, T1.3)",
    "description": "Identical to DL_C_Vintage (kept from when Vintage used the rescaled clamp).",
@@ -1966,10 +1966,10 @@
    "folder": "/DynamicLens/Presets",
    "prefix": "L",
    "origin": {
-    "author": "Dylan G (Mad Rice)",
+    "author": "Dylan Gitalis",
     "org": "DynamicLens",
     "url": "https://github.com/Dylanyz/DynamicLens",
-    "licence": "Apache-2.0 (reconstruction of a film's look, not measured third-party data)"
+    "licence": "CPAL-1.0 + Commons Clause (reconstruction of a film's look, not measured third-party data)"
    },
    "display_name": "Full-frame stereographic 10mm (The Favourite '10mm' reconstruction)",
    "description": "The Favourite ultra-wide: full-frame stereographic 10mm reconstruction. Whole frame covered, bowed lines, heavy corner falloff. Opens filling the frame (Image Circle > Scale 1.1 of the frame); pull Scale down for the circular look, Field = True Angles for the exact bend.",
@@ -2015,10 +2015,10 @@
    "folder": "/DynamicLens/Presets",
    "prefix": "L",
    "origin": {
-    "author": "Dylan G (Mad Rice)",
+    "author": "Dylan Gitalis",
     "org": "DynamicLens",
     "url": "https://github.com/Dylanyz/DynamicLens",
-    "licence": "Apache-2.0 (reconstruction of a film's look, not measured third-party data)"
+    "licence": "CPAL-1.0 + Commons Clause (reconstruction of a film's look, not measured third-party data)"
    },
    "display_name": "ARRI / Zeiss Master Prime (spherical, T1.3)",
    "description": "The Favourite ultra-wide, rectilinear version: Master Prime profile extrapolated to 10 mm with extra barrel. Full frame, no circle, moderate overscan.",
@@ -2110,10 +2110,10 @@
    "folder": "/DynamicLens/Presets",
    "prefix": "L",
    "origin": {
-    "author": "Dylan G (Mad Rice)",
+    "author": "Dylan Gitalis",
     "org": "DynamicLens",
     "url": "https://github.com/Dylanyz/DynamicLens",
-    "licence": "Apache-2.0 (reconstruction of a film's look, not measured third-party data)"
+    "licence": "CPAL-1.0 + Commons Clause (reconstruction of a film's look, not measured third-party data)"
    },
    "display_name": "Nikon Fisheye-Nikkor 6mm f/2.8 (220\u00b0 circular)",
    "description": "The Favourite fisheye: Nikkor 6mm 220\u00b0 equidistant on 35 mm. Circular image, black corners, heavy natural falloff. Edge from the film's frames: no hard rim, corners roll off over ~45% of the radius, top corners darker than bottom. Opens filling the frame (Image Circle > Scale 1.1 of the frame); pull Scale down for the circular look, Field = True Angles for the exact bend.",
@@ -2159,10 +2159,10 @@
    "folder": "/DynamicLens/Presets",
    "prefix": "L",
    "origin": {
-    "author": "Dylan G (Mad Rice)",
+    "author": "Dylan Gitalis",
     "org": "DynamicLens",
     "url": "https://github.com/Dylanyz/DynamicLens",
-    "licence": "Apache-2.0 (reconstruction of a film's look, not measured third-party data)"
+    "licence": "CPAL-1.0 + Commons Clause (reconstruction of a film's look, not measured third-party data)"
    },
    "display_name": "OpTex 4mm T2 fisheye for Super 16 (Poor Things porthole)",
    "description": "Poor Things porthole: OpTex 4mm Super 16 fisheye on a 35 mm frame. Small circular image, everything else black. Edge measured from a 1.66:1 still: rolloff band 0.85-1.13 of the circle radius, blue rim at 1.05-1.08, circle 5% left / 3% high of frame centre. Opens filling the frame (Image Circle > Scale 1.1 of the frame); pull Scale down for the circular look, Field = True Angles for the exact bend.",
@@ -2208,10 +2208,10 @@
    "folder": "/DynamicLens/Presets",
    "prefix": "L",
    "origin": {
-    "author": "Dylan G (Mad Rice)",
+    "author": "Dylan Gitalis",
     "org": "DynamicLens",
     "url": "https://github.com/Dylanyz/DynamicLens",
-    "licence": "Apache-2.0 (reconstruction of a film's look, not measured third-party data)"
+    "licence": "CPAL-1.0 + Commons Clause (reconstruction of a film's look, not measured third-party data)"
    },
    "display_name": "Nikon Fisheye-Nikkor 8mm f/2.8 (180\u00b0 circular)",
    "description": "Poor Things lab: Nikkor 8mm 180\u00b0 circular fisheye on 35 mm. Edge: same optical rolloff family as the 4 mm (assumed slightly tighter). Opens filling the frame (Image Circle > Scale 1.1 of the frame); pull Scale down for the circular look, Field = True Angles for the exact bend.",
@@ -2257,10 +2257,10 @@
    "folder": "/DynamicLens/Presets",
    "prefix": "L",
    "origin": {
-    "author": "Dylan G (Mad Rice)",
+    "author": "Dylan Gitalis",
     "org": "DynamicLens",
     "url": "https://github.com/Dylanyz/DynamicLens",
-    "licence": "Apache-2.0 (reconstruction of a film's look, not measured third-party data)"
+    "licence": "CPAL-1.0 + Commons Clause (reconstruction of a film's look, not measured third-party data)"
    },
    "display_name": "ARRI / Zeiss Master Prime (spherical, T1.3)",
    "description": "Poor Things zoom shots: ARRI/Zeiss Master Zoom 16.5-110 T2.6 - 'virtually no distortion or breathing'. Master Prime grid scaled down; zoom freely.",
@@ -2352,10 +2352,10 @@
    "folder": "/DynamicLens/Presets",
    "prefix": "L",
    "origin": {
-    "author": "Dylan G (Mad Rice)",
+    "author": "Dylan Gitalis",
     "org": "DynamicLens",
     "url": "https://github.com/Dylanyz/DynamicLens",
-    "licence": "Apache-2.0 (reconstruction of a film's look, not measured third-party data)"
+    "licence": "CPAL-1.0 + Commons Clause (reconstruction of a film's look, not measured third-party data)"
    },
    "display_name": "ARRI / Zeiss Master Prime (spherical, T1.3)",
    "description": "Poor Things long zooms: Angenieux Optimo 24-290 T2.8. Low distortion, mild breathing (Master Prime grid scaled); zoom freely.",
@@ -2447,10 +2447,10 @@
    "folder": "/DynamicLens/Presets",
    "prefix": "L",
    "origin": {
-    "author": "Dylan G (Mad Rice)",
+    "author": "Dylan Gitalis",
     "org": "DynamicLens",
     "url": "https://github.com/Dylanyz/DynamicLens",
-    "licence": "Apache-2.0 (reconstruction of a film's look, not measured third-party data)"
+    "licence": "CPAL-1.0 + Commons Clause (reconstruction of a film's look, not measured third-party data)"
    },
    "display_name": "Lomography Petzval 58 Bokeh Control (TLS rehoused) - Poor Things",
    "description": "Poor Things portraits: Lomography Petzval 58 (TLS rehoused). Round Waterhouse aperture, strong swirl wide open ('a vortex'), sharp centre. Shot wide open in the film.",
@@ -2527,10 +2527,10 @@
    "folder": "/DynamicLens/Presets",
    "prefix": "L",
    "origin": {
-    "author": "Dylan G (Mad Rice)",
+    "author": "Dylan Gitalis",
     "org": "DynamicLens",
     "url": "https://github.com/Dylanyz/DynamicLens",
-    "licence": "Apache-2.0 (reconstruction of a film's look, not measured third-party data)"
+    "licence": "CPAL-1.0 + Commons Clause (reconstruction of a film's look, not measured third-party data)"
    },
    "display_name": "Lomography Petzval 85 Art Lens (TLS rehoused) - Poor Things",
    "description": "Poor Things portraits: Lomography Petzval 85 (TLS rehoused). Round Waterhouse aperture, swirl wide open, sharp centre.",
@@ -2607,10 +2607,10 @@
    "folder": "/DynamicLens/Presets",
    "prefix": "L",
    "origin": {
-    "author": "Dylan G (Mad Rice)",
+    "author": "Dylan Gitalis",
     "org": "DynamicLens",
     "url": "https://github.com/Dylanyz/DynamicLens",
-    "licence": "Apache-2.0 (reconstruction of a film's look, not measured third-party data)"
+    "licence": "CPAL-1.0 + Commons Clause (reconstruction of a film's look, not measured third-party data)"
    },
    "display_name": "ARRI / Zeiss Ultra Prime 10mm T2.1 - Poor Things",
    "description": "Poor Things wide: ARRI/Zeiss Ultra Prime 10mm T2.1, rectilinear. Distortion placeholder (Master Prime at 12 mm) until a 10 mm grid exists.",
@@ -2687,10 +2687,10 @@
    "folder": "/DynamicLens/Presets",
    "prefix": "L",
    "origin": {
-    "author": "Dylan G (Mad Rice)",
+    "author": "Dylan Gitalis",
     "org": "DynamicLens",
     "url": "https://github.com/Dylanyz/DynamicLens",
-    "licence": "Apache-2.0 (reconstruction of a film's look, not measured third-party data)"
+    "licence": "CPAL-1.0 + Commons Clause (reconstruction of a film's look, not measured third-party data)"
    },
    "display_name": "Zeiss Supreme Prime (spherical, T1.5, full frame)",
    "description": "Poor Things reanimation sequence: Beaumont VistaVision (8-perf) with adapted Leica APO-Summicron-R / Telyt-R 19-135 mm. Clean full-frame glass: Supreme grid at 0.6, native 36.7 x 25.5 (~VistaVision 37.7 x 25.1). Use a 1.5:1 filmback.",
@@ -2783,7 +2783,7 @@
     "author": "tiedtke",
     "org": "Real Cinema Lenses",
     "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
-    "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "tiedtke's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "AngenieuxOptimo 44-440mm 2x anamorphic (tiedtke ST maps)",
    "description": "tiedtke AngenieuxOptimo 44-440mm 2x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.",
@@ -2836,7 +2836,7 @@
     "author": "tiedtke",
     "org": "Real Cinema Lenses",
     "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
-    "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "tiedtke's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Arri-Zeiss MasterAnamorphic 2x anamorphic (tiedtke ST maps)",
    "description": "tiedtke Arri-Zeiss MasterAnamorphic 2x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.",
@@ -2892,7 +2892,7 @@
     "author": "tiedtke",
     "org": "Real Cinema Lenses",
     "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
-    "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "tiedtke's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Atlas Orion 2x anamorphic (tiedtke ST maps)",
    "description": "tiedtke Atlas Orion 2x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.",
@@ -2948,7 +2948,7 @@
     "author": "tiedtke",
     "org": "Real Cinema Lenses",
     "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
-    "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "tiedtke's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Cineovision 2x anamorphic (tiedtke ST maps)",
    "description": "tiedtke Cineovision 2x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.",
@@ -3004,7 +3004,7 @@
     "author": "tiedtke",
     "org": "Real Cinema Lenses",
     "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
-    "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "tiedtke's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Cooke FFi 1.8x anamorphic (tiedtke ST maps)",
    "description": "tiedtke Cooke FFi 1.8x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.",
@@ -3063,7 +3063,7 @@
     "author": "tiedtke",
     "org": "Real Cinema Lenses",
     "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
-    "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "tiedtke's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Cooke SFi 2x anamorphic (tiedtke ST maps)",
    "description": "tiedtke Cooke SFi 2x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.",
@@ -3119,7 +3119,7 @@
     "author": "tiedtke",
     "org": "Real Cinema Lenses",
     "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
-    "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "tiedtke's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Elite MK 2x anamorphic (tiedtke ST maps)",
    "description": "tiedtke Elite MK 2x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.",
@@ -3176,7 +3176,7 @@
     "author": "tiedtke",
     "org": "Real Cinema Lenses",
     "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
-    "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "tiedtke's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Hawk V-Lite Vintage 2x anamorphic (tiedtke ST maps)",
    "description": "tiedtke Hawk V-Lite Vintage 2x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.",
@@ -3232,7 +3232,7 @@
     "author": "tiedtke",
     "org": "Real Cinema Lenses",
     "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
-    "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "tiedtke's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Iscorama Pre36 1.5x anamorphic (tiedtke ST maps)",
    "description": "tiedtke Iscorama Pre36 1.5x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.",
@@ -3287,7 +3287,7 @@
     "author": "tiedtke",
     "org": "Real Cinema Lenses",
     "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
-    "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "tiedtke's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Kowa CineProminar 2x anamorphic (tiedtke ST maps)",
    "description": "tiedtke Kowa CineProminar 2x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.",
@@ -3343,7 +3343,7 @@
     "author": "tiedtke",
     "org": "Real Cinema Lenses",
     "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
-    "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "tiedtke's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Lomo RoundFront 2x anamorphic (tiedtke ST maps)",
    "description": "tiedtke Lomo RoundFront 2x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.",
@@ -3399,7 +3399,7 @@
     "author": "tiedtke",
     "org": "Real Cinema Lenses",
     "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
-    "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "tiedtke's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "PS Technik 35-70mm 1.5x anamorphic (tiedtke ST maps)",
    "description": "tiedtke PS Technik 35-70mm 1.5x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.",
@@ -3452,7 +3452,7 @@
     "author": "tiedtke",
     "org": "Real Cinema Lenses",
     "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
-    "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "tiedtke's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Panavision AutoPanatar 2x anamorphic (tiedtke ST maps)",
    "description": "tiedtke Panavision AutoPanatar 2x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.",
@@ -3507,7 +3507,7 @@
     "author": "tiedtke",
     "org": "Real Cinema Lenses",
     "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
-    "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "tiedtke's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Panavision C Series 2x anamorphic (tiedtke ST maps)",
    "description": "tiedtke Panavision C Series 2x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.",
@@ -3572,7 +3572,7 @@
     "author": "tiedtke",
     "org": "Real Cinema Lenses",
     "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
-    "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "tiedtke's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Panavision D Series 2x anamorphic (tiedtke ST maps)",
    "description": "tiedtke Panavision D Series 2x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.",
@@ -3625,7 +3625,7 @@
     "author": "tiedtke",
     "org": "Real Cinema Lenses",
     "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
-    "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "tiedtke's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Panavision E Series 2x anamorphic (tiedtke ST maps)",
    "description": "tiedtke Panavision E Series 2x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.",
@@ -3686,7 +3686,7 @@
     "author": "tiedtke",
     "org": "Real Cinema Lenses",
     "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
-    "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "tiedtke's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Panavision G Series 2x anamorphic (tiedtke ST maps)",
    "description": "tiedtke Panavision G Series 2x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.",
@@ -3744,7 +3744,7 @@
     "author": "tiedtke",
     "org": "Real Cinema Lenses",
     "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
-    "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "tiedtke's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Panavision Primo 2x anamorphic (tiedtke ST maps)",
    "description": "tiedtke Panavision Primo 2x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.",
@@ -3801,7 +3801,7 @@
     "author": "tiedtke",
     "org": "Real Cinema Lenses",
     "url": "https://tiedtke.gumroad.com/l/realcinemalenses",
-    "licence": "tiedtke's own terms - redistributed here with permission, NOT Apache-2.0"
+    "licence": "tiedtke's own terms - redistributed here with permission, NOT under this repo's licence"
    },
    "display_name": "Todd AO HighSpeed 2x anamorphic (tiedtke ST maps)",
    "description": "tiedtke Todd AO HighSpeed 2x anamorphic ST maps, exact at the measured focal lengths (nearest is used). Use Match Camera To Profile for the native 2.39 frame.",

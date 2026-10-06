@@ -1,20 +1,20 @@
 # Licensing and credits — what may and may not be licensed
 
-The repo is **public** and **Apache-2.0**. `LICENSE` and `NOTICE` at the root are the authority.
+The repo is **public** and **source-available: CPAL-1.0 + Commons Clause** (since 2026-10-06; earlier
+releases Apache-2.0). `LICENSE` and `NOTICE` at the root are the authority.
 
 ## The three names that must always travel together
 
-- **Dylan G (Mad Rice)** — the plugin.
+- **Dylan Gitalis** (youtube.com/@madricetv, github.com/Dylanyz/DynamicLens) — the plugin.
 - **tiedtke** — the *Real Cinema Lenses* ST maps. https://tiedtke.gumroad.com/l/realcinemalenses
 - **Andy Davis (Imagery for Media)** — the VFX RnD Lens Files distortion grids. https://imag4media.com/
 
-Apache-2.0 section 4d is what makes this stick: anyone redistributing the plugin has to carry
-`NOTICE`, which names all three. That is the whole reason Apache was chosen over MPL. Dylan's goal
-is attribution, not forcing modifications back open.
+`NOTICE` names all three and must travel with every distributed copy; CPAL Exhibit B makes Dylan's
+credit a visible condition. Why this licence: plugin hub `refs/licensing.md`.
 
 ## The carve-out — never relicense someone else's measurements
 
-Apache-2.0 covers the source, tools, materials and the preset data written for this plugin. It does
+The licence covers the source, tools, materials and the preset data written for this plugin. It does
 **not** cover:
 
 | Path | Belongs to |

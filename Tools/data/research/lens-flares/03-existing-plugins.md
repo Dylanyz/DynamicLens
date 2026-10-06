@@ -89,7 +89,11 @@ lens flares included. Cinematic Lens Flares is the only one to discuss the Path 
 in 2016 and EP2702565 as withdrawn, per Google Patents. So the ray-traced-ghost method is not
 patent-encumbered as far as can be seen; still worth a one-line check before shipping.
 
-## Licence compatibility with Apache-2.0
+## Licence compatibility with this repo
+
+Written when the repo was Apache-2.0. Since 2026-10-06 it is CPAL-1.0 + Commons Clause: permissive code
+below (Apache-2.0, BSD, MIT) can still be included with its own notices kept; GPL code still cannot (the
+UE EULA lists it as non-compatible).
 
 | Source | Use as code | Use as idea |
 |---|---|---|

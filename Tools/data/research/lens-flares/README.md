@@ -54,5 +54,5 @@ Mirrors how distortion already works: bake offline, evaluate live, JSON as sourc
   check again before shipping).
 - realflare is GPL-3.0 and several UE flare repos have no licence: ideas only, not code.
 - PhotonsToPhotos prescriptions are all rights reserved; lens-designs.com and nzhagen/LensLibrary
-  are the permissive ones. Maurer 2024's dataset is partly CC BY-SA: keep it out of Apache paths.
+  are the permissive ones. Maurer 2024's dataset is partly CC BY-SA: keep it out of this repo's licensed paths.
 - Any source used goes into `SOURCES.md`; anything used as data into `NOTICE`.

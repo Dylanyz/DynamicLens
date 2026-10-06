@@ -272,12 +272,18 @@ Tools/data/presets.json      profile specs, fisheye profiles, presets, lens kits
 
 ## License
 
-Apache License 2.0 - see [LICENSE](LICENSE). Use it in anything, commercial work included,
-closed-source included. The one condition is that the credits travel with it: if you
-redistribute DynamicLens in source or binary form, keep [NOTICE](NOTICE) with it and name
-tiedtke and Andy Davis alongside me wherever you credit the plugin.
+**Source-available, free for filmmakers.** CPAL-1.0 with the Commons Clause: see [LICENSE](LICENSE)
+and [NOTICE](NOTICE). Use DynamicLens for anything, paid and monetized films included, with no credit
+owed in your work. Modify it privately however you like. If you publish or share a modified copy, it
+stays under this licence with its source and keeps the credits: me, and tiedtke and Andy Davis for
+their lens data. Nobody may sell or repackage it.
 
-**The measured lens data is not mine to relicense.** Apache-2.0 covers the source, tools,
+Dylan Gitalis · [youtube.com/@madricetv](https://youtube.com/@madricetv) ·
+[github.com/Dylanyz/DynamicLens](https://github.com/Dylanyz/DynamicLens)
+
+Releases before 2026-10-06 were Apache-2.0 and stay under that licence.
+
+**The measured lens data is not mine to relicense.** This licence covers the source, tools,
 materials and the preset data written for this plugin. It does *not* cover:
 
 | Path | Belongs to | Terms |
