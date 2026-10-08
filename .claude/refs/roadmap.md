@@ -270,7 +270,7 @@ and in `NeedFor`.
 ## Sequencer cuts: what is left after the shared cache - 2026-10-08
 
 Built and measured overnight 2026-10-08 (`architecture.md` "Shared cache"; test scene `/Game/Claude/DLCut` in a blank 5.8 test project,
-, rebuilt by `Tools/cut_stutter_repro.py`, timed by `Tools/cut_frametime_log.py`): ST-map and fisheye
+rebuilt by `Tools/cut_stutter_repro.py`, timed by `Tools/cut_frametime_log.py`): ST-map and fisheye
 cuts now cost what a camera without DynamicLens costs (~11 ms vs 35 / 59 / 16.5 ms before), undistorted frames only on a
 lens's first use per session, the Sequencer toolbar ▸ Prewarm Lenses button. Not yet tried on CitySample itself.
 Each item below is Dylan's call:
