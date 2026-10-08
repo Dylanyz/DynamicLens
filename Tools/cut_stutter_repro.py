@@ -12,6 +12,7 @@ Angle kinds (three angles each):
     st     Black Eye camera + DynamicLens, ST-map preset (Panavision C, 35 mm)
     twin   as st, plus a plain CineCamera "_Bake" twin that also carries DynamicLens (the Fast Bake layout)
     param  Black Eye camera + DynamicLens, parametric preset (DL_AD_Master)
+    fish   Black Eye camera + DynamicLens, projection (fisheye) preset (DL_L_Favourite_10mm)
     off    Black Eye camera, no DynamicLens
 Masters: M_<kind> cuts between that kind's angles; M_mix cuts across all of them.
 Re-running rebuilds everything in the folder except the level.
@@ -45,6 +46,7 @@ PRESETS = {
     "st": "/DynamicLens/Presets/Tiedtke/DL_T_Panavision_C_Series",
     "twin": "/DynamicLens/Presets/Tiedtke/DL_T_Panavision_C_Series",
     "param": "/DynamicLens/Presets/DL_AD_Master",
+    "fish": "/DynamicLens/Presets/DL_L_Favourite_10mm",
 }
 SPOTS = [(-1900, -1500, 450), (1900, -1300, 500), (200, 2100, 400)]
 
@@ -93,7 +95,7 @@ def spawned(seq, binding):
 
 # --- angles -------------------------------------------------------------------------------------------------
 angles = {}
-for kind in ("st", "twin", "param", "off"):
+for kind in ("st", "twin", "param", "fish", "off"):
     for k, spot in enumerate(SPOTS):
         name = f"LS_DLCut_{kind}_{'ABC'[k]}"
         seq = new_sequence(name)

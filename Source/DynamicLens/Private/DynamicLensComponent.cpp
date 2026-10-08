@@ -893,17 +893,30 @@ bool UDynamicLensComponent::DriveProjection(UCineCameraComponent* Cam, const FDy
 		|| !FMath::IsNearlyEqual(ProjectionKeyOverscan, O, 1e-3f) || ProjectionKeyType != (int32)Proj || !FMath::IsNearlyEqual(ProjectionKeyMaxAngle, ThetaMax, 1e-4f)
 		|| !FMath::IsNearlyEqual(ProjectionKeyCircle, LensCircleMm, 1e-4f) || !FMath::IsNearlyEqual(ProjectionKeyMag, Mag, 1e-4f)
 		|| !FMath::IsNearlyEqual(ProjectionKeyK, K, 1e-4f) || ProjectionKeyFit != bFit;
-	if (bDirty)
+	// Built maps are shared by every camera for the session (a camera spawned at a Sequencer cut finds its map, and the
+	// lens file that renders it, already done). The key is everything the map depends on.
+	const FString ProjectionKey = FString::Printf(TEXT("%.4f|%.4f|%.4f|%.4f|%d|%.5f|%.5f|%.5f|%.5f|%d"), Focal, W, H, O, (int32)Proj, ThetaMax, LensCircleMm, Mag, K, bFit ? 1 : 0);
+	FDynamicLensProjectionMap Shared;
+	if (bDirty && FDynamicLensCache::Get().FindProjectionMap(ProjectionKey, Shared))
 	{
-		if (!ProjectionMap)
-		{
-			ProjectionMap = UTexture2D::CreateTransient(ProjectionMapSize, ProjectionMapSize, PF_G32R32F);
-			ProjectionMap->SRGB = false;
-			ProjectionMap->Filter = TF_Bilinear;
-			ProjectionMap->AddressX = TA_Clamp;
-			ProjectionMap->AddressY = TA_Clamp;
-			ProjectionMap->NeverStream = true;
-		}
+		ProjectionMap = Shared.Texture;
+		ProjectionFieldScale = Shared.FieldScale;
+		ProjectionCircleRadius = Shared.CircleRx;
+		ProjectionCircleRy = Shared.CircleRy;
+		ProjectionKeyFocal = Focal; ProjectionKeySensor = FVector2D(W, H); ProjectionKeyOverscan = O;
+		ProjectionKeyType = (int32)Proj; ProjectionKeyMaxAngle = ThetaMax; ProjectionKeyCircle = LensCircleMm; ProjectionKeyMag = Mag;
+		ProjectionKeyK = K; ProjectionKeyFit = bFit;
+		TransientLensFile = nullptr;
+	}
+	else if (bDirty)
+	{
+		// always a new texture: the previous one may be on screen in another camera
+		ProjectionMap = UTexture2D::CreateTransient(ProjectionMapSize, ProjectionMapSize, PF_G32R32F);
+		ProjectionMap->SRGB = false;
+		ProjectionMap->Filter = TF_Bilinear;
+		ProjectionMap->AddressX = TA_Clamp;
+		ProjectionMap->AddressY = TA_Clamp;
+		ProjectionMap->NeverStream = true;
 		// the rectilinear source covers |x| <= O*W/2, |y| <= O*H/2 (mm on the sensor plane, focal length f)
 		const float LimX = O * 0.5f * W, LimY = O * 0.5f * H;
 
@@ -969,6 +982,7 @@ bool UDynamicLensComponent::DriveProjection(UCineCameraComponent* Cam, const FDy
 		ProjectionKeyType = (int32)Proj; ProjectionKeyMaxAngle = ThetaMax; ProjectionKeyCircle = LensCircleMm; ProjectionKeyMag = Mag;
 		ProjectionKeyK = K; ProjectionKeyFit = bFit;
 		TransientLensFile = nullptr;
+		FDynamicLensCache::Get().AddProjectionMap(ProjectionKey, FDynamicLensProjectionMap{ ProjectionMap, ProjectionFieldScale, ProjectionCircleRadius, ProjectionCircleRy });
 	}
 
 	// what the centre of the picture is sampled at, in source pixels per output pixel: the viewport renders at most 2x the
@@ -991,20 +1005,14 @@ bool UDynamicLensComponent::DriveProjection(UCineCameraComponent* Cam, const FDy
 	const FVector2D FxFy(Focal / W, Focal / H);
 	if (!TransientLensFile || LensFileSTMapIndex != -2 || !LensFileSensor.Equals(FVector2D(W, H), 1e-3) || !LensFileFxFy.Equals(FxFy, 1e-4))
 	{
-		TransientLensFile = NewObject<ULensFile>(this, NAME_None, RF_Transient);
-		TransientLensFile->LensInfo.LensModel = USphericalLensModel::StaticClass();
-		TransientLensFile->LensInfo.SensorDimensions = FVector2D(W, H);
-		TransientLensFile->DataMode = ELensDataMode::STMap;
-		FSTMapInfo Info;
-		Info.DistortionMap = ProjectionMap;
-		Info.MapFormat.PixelOrigin = ECalibratedMapPixelOrigin::TopLeft;
-		Info.MapFormat.UndistortionChannels = ECalibratedMapChannels::RG;
+		FCalibratedMapFormat Format;
+		Format.PixelOrigin = ECalibratedMapPixelOrigin::TopLeft;
+		Format.UndistortionChannels = ECalibratedMapChannels::RG;
 		// the post-process material samples only the distortion map, and None fills it with zero displacement: every
 		// projection preset rendered undistorted (2026-09-25). Same map in both slots, as the ST-map presets do.
-		Info.MapFormat.DistortionChannels = ECalibratedMapChannels::RG;
-		TransientLensFile->AddSTMapPoint(0.f, 0.f, Info);
-		FFocalLengthInfo FL; FL.FxFy = FxFy;
-		TransientLensFile->AddFocalLengthPoint(0.f, 0.f, FL);
+		Format.DistortionChannels = ECalibratedMapChannels::RG;
+		TransientLensFile = FDynamicLensCache::Get().FindOrCreateSTMapLensFile(ProjectionMap, Format, FVector2D(W, H), FxFy);
+		if (!TransientLensFile) return false;
 		LensFileSTMapIndex = -2;
 		LensFileSensor = FVector2D(W, H);
 		LensFileFxFy = FxFy;

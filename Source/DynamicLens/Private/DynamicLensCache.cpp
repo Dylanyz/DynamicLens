@@ -14,6 +14,9 @@
 static TAutoConsoleVariable<int32> CVarCacheMaxMapMB(
 	TEXT("DynamicLens.Cache.MaxMapMB"), 512,
 	TEXT("Memory the shared cache of extended ST maps may use before the least recently used ones are dropped (MB). A map is 3-7 MB."));
+static TAutoConsoleVariable<int32> CVarCacheMaxProjectionMaps(
+	TEXT("DynamicLens.Cache.MaxProjectionMaps"), 32,
+	TEXT("Fisheye maps kept (8 MB each). Dragging a fisheye slider makes one per step; least recently used go first."));
 static TAutoConsoleVariable<int32> CVarCacheMaxLensFiles(
 	TEXT("DynamicLens.Cache.MaxLensFiles"), 12,
 	TEXT("Shared ST-map lens files kept ready (each holds ten displacement render targets at DisplacementMapResolution). Least recently used go first."));
@@ -84,6 +87,21 @@ ULensFile* FDynamicLensCache::FindOrCreateSTMapLensFile(UTexture* MapToUse, cons
 	return LensFile;
 }
 
+bool FDynamicLensCache::FindProjectionMap(const FString& Key, FDynamicLensProjectionMap& Out)
+{
+	FProjectionEntry* Found = Projections.Find(Key);
+	if (!Found || !Found->Map.Texture) return false;
+	Found->LastUsed = ++UseCounter;
+	Out = Found->Map;
+	return true;
+}
+
+void FDynamicLensCache::AddProjectionMap(const FString& Key, const FDynamicLensProjectionMap& Map)
+{
+	Projections.Add(Key, FProjectionEntry{ Map, ++UseCounter });
+	Trim();
+}
+
 void FDynamicLensCache::Trim()
 {
 	// cameras keep their own reference to what they use, so dropping an entry never pulls it from under one
@@ -97,6 +115,13 @@ void FDynamicLensCache::Trim()
 		Total -= Maps[*Oldest].Bytes;
 		Maps.Remove(FString(*Oldest));
 	}
+	const int32 MaxProjections = FMath::Max(CVarCacheMaxProjectionMaps.GetValueOnGameThread(), 1);
+	while (Projections.Num() > MaxProjections)
+	{
+		const FString* Oldest = nullptr; uint64 Best = MAX_uint64;
+		for (const TPair<FString, FProjectionEntry>& It : Projections) { if (It.Value.LastUsed < Best) { Best = It.Value.LastUsed; Oldest = &It.Key; } }
+		Projections.Remove(FString(*Oldest));
+	}
 	const int32 MaxFiles = FMath::Max(CVarCacheMaxLensFiles.GetValueOnGameThread(), 1);
 	while (LensFiles.Num() > MaxFiles)
 	{
@@ -109,6 +134,7 @@ void FDynamicLensCache::Trim()
 void FDynamicLensCache::Clear()
 {
 	Maps.Reset();
+	Projections.Reset();
 	LensFiles.Reset();
 }
 
@@ -116,11 +142,12 @@ FString FDynamicLensCache::Describe() const
 {
 	int64 Bytes = 0;
 	for (const TPair<FString, FMapEntry>& It : Maps) Bytes += It.Value.Bytes;
-	return FString::Printf(TEXT("DynamicLens cache: %d extended ST maps (%.1f MB), %d lens files"), Maps.Num(), Bytes / (1024.0 * 1024.0), LensFiles.Num());
+	return FString::Printf(TEXT("DynamicLens cache: %d extended ST maps (%.1f MB), %d fisheye maps, %d lens files"), Maps.Num(), Bytes / (1024.0 * 1024.0), Projections.Num(), LensFiles.Num());
 }
 
 void FDynamicLensCache::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	for (TPair<FString, FMapEntry>& It : Maps) Collector.AddReferencedObject(It.Value.Map.Texture);
+	for (TPair<FString, FProjectionEntry>& It : Projections) Collector.AddReferencedObject(It.Value.Map.Texture);
 	for (TPair<FString, FLensFileEntry>& It : LensFiles) Collector.AddReferencedObject(It.Value.LensFile);
 }
