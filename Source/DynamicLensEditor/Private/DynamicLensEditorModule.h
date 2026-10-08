@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: CPAL-1.0 AND LicenseRef-Commons-Clause-1.0
 // Third-party lens data under Content/Profiles/Tiedtke and Tools/data/raw is NOT covered; see NOTICE.
 
-// Editor-only half of DynamicLens: the Preset Browser tab and the component's details panel.
+// Editor-only half of DynamicLens: the Preset Browser tab, the component's details panel and the Sequencer Prewarm button.
 #pragma once
 
 #include "CoreMinimal.h"

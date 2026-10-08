@@ -16,6 +16,9 @@
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "Styling/AppStyle.h"
+#include "ToolMenus.h"
+#include "SequencerToolMenuContext.h"
+#include "IPythonScriptPlugin.h"
 
 #define LOCTEXT_NAMESPACE "DynamicLensEditor"
 
@@ -37,6 +40,44 @@ namespace
 		TEXT("DynamicLens.PresetBrowser"),
 		TEXT("Open the Dynamic Lens Preset Browser."),
 		FConsoleCommandDelegate::CreateLambda([]() { FDynamicLensEditorModule::OpenPresetBrowser(); }));
+
+	/** Ready every lens the focused edit's shots use (dynamiclens_tools.prewarm), so the first cut to each angle is smooth. */
+	void Prewarm()
+	{
+		if (IPythonScriptPlugin* Py = IPythonScriptPlugin::Get())
+		{
+			Py->ExecPythonCommand(TEXT("import dynamiclens_tools as dl; dl.prewarm()"));
+		}
+	}
+
+	FAutoConsoleCommand GPrewarmCommand(
+		TEXT("DynamicLens.Prewarm"),
+		TEXT("Ready every lens the focused Sequencer edit's shots use, before playback."),
+		FConsoleCommandDelegate::CreateLambda([]() { Prewarm(); }));
+
+	const FName MenuOwner(TEXT("DynamicLensEditor"));
+
+	void ExtendSequencerToolbar()
+	{
+		const FToolMenuOwnerScoped Owner(MenuOwner);
+		UToolMenu* Toolbar = UToolMenus::Get()->ExtendMenu(TEXT("Sequencer.MainToolBar"));
+		Toolbar->AddDynamicSection(TEXT("DynamicLensPrewarm"), FNewToolMenuDelegate::CreateLambda([](UToolMenu* Menu)
+		{
+			if (!Menu->FindContext<USequencerToolMenuContext>())
+			{
+				return;
+			}
+			FToolMenuSection& Section = Menu->AddSection(TEXT("DynamicLensPrewarm"));
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(TEXT("DynamicLensPrewarm"),
+				FUIAction(FExecuteAction::CreateLambda([]() { Prewarm(); })),
+				LOCTEXT("PrewarmLabel", "Prewarm Lenses"),
+				LOCTEXT("PrewarmTip", "Dynamic Lens: ready every lens this edit's shots use, so even the first cut to each angle "
+				                      "plays without a stutter or a pop. Lenses stay ready until the editor closes."),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.CameraComponent")));
+		}));
+	}
+
+	FDelegateHandle ToolMenusStartup;
 }
 
 void FDynamicLensEditorModule::StartupModule()
@@ -49,11 +90,15 @@ void FDynamicLensEditorModule::StartupModule()
 		UDynamicLensComponent::StaticClass()->GetFName(),
 		FOnGetDetailCustomizationInstance::CreateStatic(&FDynamicLensComponentDetails::MakeInstance));
 	PropertyModule.NotifyCustomizationModuleChanged();
+
+	ToolMenusStartup = UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateStatic(&ExtendSequencerToolbar));
 }
 
 void FDynamicLensEditorModule::ShutdownModule()
 {
 	UnregisterTabSpawner();
+	UToolMenus::UnRegisterStartupCallback(ToolMenusStartup);
+	UToolMenus::UnregisterOwner(MenuOwner);
 
 	if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
 	{

@@ -27,6 +27,8 @@ public class DynamicLensEditor : ModuleRules
 			"AssetRegistry",
 			"CinematicCamera",
 			"DynamicLens",
+			"Sequencer",
+			"PythonScriptPlugin",
 		});
 	}
 }
