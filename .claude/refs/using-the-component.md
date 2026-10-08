@@ -31,6 +31,13 @@ Details panels sort `CallInEditor` buttons alphabetically, hence the prefixes.
 | **Save As New Preset** | Writes the current resolved settings, overrides included, to a new preset asset. |
 | **Resolve Settings** / **Update Profile Info** / **Clear Effect** | Diagnostics and reset. |
 
+## Sequencer toolbar
+
+**Prewarm Lenses** (in the toolbar's overflow menu when the Sequencer panel is narrow, beside Black Eye's Bake Edit):
+steps the focused edit to each of its shots once, so every lens they use is built before you press play and even the
+first cut to each angle is smooth. For editing a master that cuts between many spawned angles. Lenses stay built
+until the editor closes. Same as `dl.prewarm()` and the `DynamicLens.Prewarm` console command.
+
 ## Camera (quick settings)
 
 A flat row on the component so you do not have to jump to the camera: focal length, aperture, focus

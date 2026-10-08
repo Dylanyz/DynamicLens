@@ -111,6 +111,8 @@ Then verify in the editor, at more than one focal length, that the change does w
 | New property exists but does nothing | preset assets predate it | `dl.import_presets()` |
 | Post-process chain goes blank after a material rebuild | orphaned parentless MID | `ClearEffect()`, or reselect the camera |
 | Neon speckle in a band around the rim, only in Movie Render Graph renders | image-circle HLSL sampled the scene with viewport UV instead of buffer UV | fixed 2026-09-18; any new scene sample in that HLSL needs `ViewportUVToSceneTextureUV` + `ClampSceneTextureUV` |
+| Stutter, and the lens popping on, at Sequencer cuts | each cut spawns the camera; ST-map and fisheye maps + lens files were rebuilt per camera | fixed 2026-10-08 by the shared cache (`architecture.md`); the first cut to a lens per session: Prewarm Lenses. `DynamicLens.Cache.Status` shows what is held |
+| Focal length creeps down on a Black Eye camera after preset changes | `ClearEffect` dropped the overscan guard's seed | fixed 2026-10-08 (Apply seeds it); a focal typed on the camera with a zoom preset still loses one factor (roadmap) |
 | Movie Render Graph render is ~Overscan x tighter than the viewport | Post Process Material render mode: MRG applies camera overscan twice on the `bCropOverscan == false` path | set the component's **Render Mode** to Temporal Super Resolution; see the overscan section in `.claude/refs/architecture.md` |
 
 ## Editor Python
@@ -132,6 +134,7 @@ first. Scratch assets go in the project's `/Game/Claude/`.
 | `dl.resave_presets()` | re-save all 60 presets so their Asset Registry tags are rewritten. **Required after any C++ change to `GetAssetRegistryTags`**, or the Preset Browser filters go stale. `import_presets()` only covers the 19 in `presets.json`. |
 | `dl.reset_asset(path)` | restore one asset to its shipped values |
 | `dl.add_to_all_cameras(preset=...)` | bulk-add the component |
+| `dl.prewarm(sequence=None)` | ready every lens the focused edit's shots use (= Sequencer toolbar ▸ Prewarm Lenses, `DynamicLens.Prewarm`) |
 
 ## Where new things go
 

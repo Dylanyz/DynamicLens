@@ -20,10 +20,11 @@ is just the render running out at Max Overscan 1.5; 2.0 removes it (`.claude/ref
 It changes the look of shipped presets, so **ask Dylan first**, then set it where the tiedtke presets
 are generated and re-import.
 
-## Set CreationMethod = Instance when the library adds the component (from BlackEyeCustom, 2026-10-06)
+## Panavision C 30 mm map is sample-identical to the 20 mm one
 
-`DynamicLensLibrary.cpp:24-26` adds the component with `NewObject` + `AddInstanceComponent` + `RegisterComponent` but
-leaves `CreationMethod` at its default, Native. Tools that copy "user-added" components by `CreationMethod` skip it
-(BlackEyeCustom's Fast Bake had to also check the instance-component list). One line before `AddInstanceComponent`:
-`Comp->CreationMethod = EComponentCreationMethod::Instance;` (what the editor's Add Component button does). C++,
-so build + install with the next batch.
+Found 2026-10-08 (`UDynamicLensLibrary.ReadSTMapSamples` 9x5 on both, every value equal; their extended maps give the same
+overscan). tiedtke's own lens files point at different textures (`Panavision_C_Series_2x_20mm` / `_30mm`, the 30 mm
+lens file is named `..._30mm_`), and his pack's two `.uasset`s differ in size only by what the names would. So it is
+probably in his data, not our import. Check: load both pack textures in a project that has the pack (search the
+Unreal Projects folder for `Content/Lenses/2x/Panavision_C_Series_2x`) and compare samples. If his data, tell Dylan (scene 4 of
+his current film shoots this lens at 30 mm) and tiedtke; if ours, re-import the 30 mm.

@@ -231,6 +231,11 @@ displacement map resolution from Epic's 256 to 2048 at startup when a project st
   render at 2x the frame; the component's notes give the number); Movie Render Graph is not capped. A 16:9
   source runs out vertically first — use a 4:3 / open-gate filmback (Match Camera To Profile) for the biggest circle.
 * Editor viewport needs Realtime on (Ctrl+R) for the component to tick; renders always tick.
+* Sequencer cuts between shots that spawn their own cameras: ST-map and fisheye lenses are built once per editor
+  session and shared by every camera, so a cut costs nothing extra after a lens's first use. **Sequencer toolbar ▸
+  Prewarm Lenses** (or `DynamicLens.Prewarm`) readies every lens an edit uses before you play it. Console:
+  `DynamicLens.Cache.Status`, `DynamicLens.Cache.Clear`, caps `DynamicLens.Cache.MaxMapMB` / `MaxProjectionMaps` /
+  `MaxLensFiles`.
 * Black Eye cameras: their actors are Cine Camera actors and the dynamic FOV is written to the cine camera's focal length,
   so add the component to the Black Eye camera blueprint like any other camera. The component ticks after its owning
   actor, so the distortion follows the FOV in the same frame.

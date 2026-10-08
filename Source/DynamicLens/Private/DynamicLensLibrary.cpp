@@ -22,6 +22,7 @@ UDynamicLensComponent* UDynamicLensLibrary::AddToActor(AActor* Actor, UDynamicLe
 	{
 		Actor->Modify();
 		Comp = NewObject<UDynamicLensComponent>(Actor, UDynamicLensComponent::StaticClass(), TEXT("DynamicLens"), RF_Transactional);
+		Comp->CreationMethod = EComponentCreationMethod::Instance;   // what the editor's Add Component does; tools copying user-added components look for it
 		Actor->AddInstanceComponent(Comp);
 		Comp->RegisterComponent();
 	}

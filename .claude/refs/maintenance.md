@@ -32,6 +32,12 @@ Both are mandatory.
 
 ## Log
 
+- 2026-10-08 — **Overnight: Sequencer cut stutter and pop fixed, focal-loss bug found.** Shared cache
+  (`Private/DynamicLensCache.*`) for ST-map extended maps, fisheye maps and lens files; ST-map hold while a lens file
+  derives; guard seeded in `Apply`; Sequencer ▸ Prewarm Lenses; `CreationMethod = Instance` in `AddToActor`. Measured in
+  `MDR_58_tester` with the new `Tools/cut_*` scripts. Docs: `architecture.md` (engine internals + "Shared cache"),
+  README known limits, `using-the-component.md`, CLAUDE.md rows, roadmap (what is left), todo (Panavision C 30 = 20).
+
 - 2026-10-06 — **Moved into the plugin hub** (`Desktop\Coding\ueplugins\DynamicLens`, junction re-pointed).
   The shared build/install, editor-restart and update-runbook rules and `refs/hot-swap.md` were removed
   (now plugin hub `refs/` and `/ue-agent-control` `launch-close.md`); the DynamicLens-only parts (what is

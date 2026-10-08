@@ -42,6 +42,20 @@ the workarounds away.
   snaps the result to a wider prime (35 → 30 mm on CitySample s3, 2026-09-28). `bGuardFocalFromOverscanFeedback`
   restores the focal when the change matches that exact ratio; it is seeded in `OnRegister`/`BeginPlay` and allows up
   to four shrinks during `GuardSpawnTicks`. Reported upstream; the guard is harmless once they fix it.
+  **The seed is set at the end of every `Apply`, not only in the tick** (2026-10-08). `ClearEffect` zeroes it, and a
+  preset change (button, Preset Browser, Sequencer Preset key, kit) runs `ClearEffect` then `Apply` outside the tick,
+  so the rig's next update went unguarded: each preset change lost one overscan factor (35 → 34.31 → 33.64 mm at
+  1.02 on `DL_AD_Master`, reproduced with `Tools/focal_loss_probe.py`-style edits). Still open: a focal typed on the
+  camera itself is shrunk by the rig before our tick sees it, so the guard compares against the old focal and misses
+  it once (roadmap). Two more Black Eye facts from its source: a fresh BEC rewrites its FOV on its first tick
+  (35 → 18.35 mm with no DynamicLens on it), and Follow's `PostEditChangeProperty` (`OrientationReferenceMode`,
+  `bEnableFollow`) calls `SnapComponentsToTargetsNow`, an extra LookAt update outside the tick.
+
+- **A new `ULensFile` is expensive and blank for ~2 frames.** `PostInitProperties` creates eight 2048 px RG16F
+  intermediate displacement maps, its first `Tick` creates two more and pushes a GPU job (`LensFile.cpp:1084-1141`),
+  and until the job reports back `EvaluateDistortionForSTMaps` renders no distortion (`LensFile.cpp:531`). Built per
+  camera, every Sequencer cut paid that plus the ~25 ms CPU extended-map build: measured 2 undistorted frames and
+  +24 ms per ST-map camera per cut (+48 ms with a Fast Bake twin). Hence the shared cache below.
 
 - **`UCineCameraComponent::GetCameraView` overwrites `DepthOfFieldBladeCount` and
   `DepthOfFieldSqueezeFactor` from `LensSettings` every single frame.** Setting them on the
@@ -186,7 +200,23 @@ reporting a needed overscan of 4.0 below 12 mm.
   fisheye at overscan 3-4 that flashed the raw, hugely overscanned render after every rebuild (preset,
   focal, Scale, overscan step). `DriveProjection` now holds the last finished lens file with its own
   overscan and circle until the new one reports back (`DynamicLensLensFileReady`, 30-tick timeout).
-  `DriveSTMap` still has the short version of this on a preset switch (overscan <= 2, barely visible).
+  `DriveSTMap` does the same since 2026-10-08 (`ShownSTLensFile`); with nothing finished to hold it renders plain at
+  overscan 1, not zoomed out without the lens. With the shared cache this only happens on a lens's first use.
+
+## Shared cache (Sequencer cuts)
+
+Production angles spawn their cameras at every cut, so anything a component builds for itself is rebuilt per cut.
+`FDynamicLensCache` (`Private/DynamicLensCache.*`) keeps the two expensive ST-map pieces for the editor session,
+shared by every camera: extended maps (key: map path + source `GetId()` + origin + displacement scale) and lens files
+(key: map + format + lens sensor + FxFy). Least recently used go first past `DynamicLens.Cache.MaxMapMB` (512) and
+`DynamicLens.Cache.MaxLensFiles` (12); components keep their own reference, so a trim never pulls one from under a
+camera. `DynamicLens.Cache.Status` / `.Clear` in the console. Measured in `MDR_58_tester` with
+`Tools/cut_stutter_repro.py` + `Tools/cut_frametime_log.py`: an ST-map cut went from 35 ms to 11.6 ms (no-lens baseline
+11 ms), with a twin from 59 ms to 12 ms, and undistorted frames from 2 per cut to 2 per session.
+**Prewarm** (`dl.prewarm()`, Sequencer toolbar ▸ Prewarm Lenses, `DynamicLens.Prewarm`) steps the focused edit to each
+shot once so the first cut is clean too. It does not run by itself on sequence open (roadmap). Parametric presets
+don't need it (measured: no extra cost per cut). Fisheye (projection) presets still build their map and lens file per
+camera, so they likely still hitch and hold at every cut: not measured yet (roadmap).
 
 - Profile specs were once ignored for ST-map profiles because validity was tested with
   `IsValidProfile`; it must be `Profile != nullptr`.
