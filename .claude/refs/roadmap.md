@@ -269,20 +269,21 @@ and in `NeedFor`.
 
 ## Sequencer cuts: what is left after the shared cache - 2026-10-08
 
-Built and measured overnight 2026-10-08 (`architecture.md` "Shared cache"; test scene `MDR_58_tester`
-`/Game/Claude/DLCut`, rebuilt by `Tools/cut_stutter_repro.py`, timed by `Tools/cut_frametime_log.py`): ST-map and fisheye
+Built and measured overnight 2026-10-08 (`architecture.md` "Shared cache"; test scene `/Game/Claude/DLCut` in a blank 5.8 test project,
+, rebuilt by `Tools/cut_stutter_repro.py`, timed by `Tools/cut_frametime_log.py`): ST-map and fisheye
 cuts now cost what a camera without DynamicLens costs (~11 ms vs 35 / 59 / 16.5 ms before), undistorted frames only on a
 lens's first use per session, the Sequencer toolbar ▸ Prewarm Lenses button. Not yet tried on CitySample itself.
 Each item below is Dylan's call:
 
 1. **Prewarm by itself when an edit opens.** Hook `ISequencerModule::RegisterOnSequencerCreated` and run `dl.prewarm()`.
    Gated on Dylan: it moves the playhead through every shot once on open (restored after), spawning each angle's
-   scene for a frame, which on a CitySample master may be a visible second or two. The button covers it meanwhile.
+   scene for a frame, which on a CitySample master may be a visible second or two. **Declined by Dylan 2026-10-08**
+   ("No."): the button stays the way in. Don't re-propose unless he raises it.
 2. **Keep built maps across restarts** in Unreal's local Derived Data Cache (shared by projects, outside git). Only
    if the first use per session still bothers him: one extended map costs ~25 ms warm, 75-210 ms on a cold source read
    (measured with `UDynamicLensLibrary::BuildExtendedSTMap` from Python).
 3. **A focal key change on a Black Eye camera loses one overscan factor for as long as the new key holds.**
-   Reproduced 2026-10-08 (`MDR_58_tester` `LS_DLCut_param_A`, `DL_AD_Master`, focal keyed 35 then 50 at frame 100,
+   Reproduced 2026-10-08 (a blank 5.8 test project `LS_DLCut_param_A`, `DL_AD_Master`, focal keyed 35 then 50 at frame 100,
    constant): 35.000 until the change, then 49.020 to the end. Sequencer rewrites 50 every frame without the
    property-changed event, Black Eye divides it by 1.02, and the guard sees the same 49.02 it left last frame, so no
    change. Only the first key value is right (it was seeded at spawn). Locked prime series snap back to the prime,

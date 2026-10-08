@@ -212,7 +212,7 @@ Production angles spawn their cameras at every cut, so anything a component buil
 shared by every camera: extended maps (key: map path + source `GetId()` + origin + displacement scale) and lens files
 (key: map + format + lens sensor + FxFy). Least recently used go first past `DynamicLens.Cache.MaxMapMB` (512) and
 `DynamicLens.Cache.MaxLensFiles` (12); components keep their own reference, so a trim never pulls one from under a
-camera. `DynamicLens.Cache.Status` / `.Clear` in the console. Measured in `MDR_58_tester` with
+camera. `DynamicLens.Cache.Status` / `.Clear` in the console. Measured in a blank 5.8 test project with
 `Tools/cut_stutter_repro.py` + `Tools/cut_frametime_log.py`: an ST-map cut went from 35 ms to 11.6 ms (no-lens baseline
 11 ms), with a twin from 59 ms to 12 ms, and undistorted frames from 2 per cut to 2 per session.
 **Prewarm** (`dl.prewarm()`, Sequencer toolbar ▸ Prewarm Lenses, `DynamicLens.Prewarm`) steps the focused edit to each

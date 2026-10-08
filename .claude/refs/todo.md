@@ -25,6 +25,6 @@ are generated and re-import.
 Found 2026-10-08 (`UDynamicLensLibrary.ReadSTMapSamples` 9x5 on both, every value equal; their extended maps give the same
 overscan). tiedtke's own lens files point at different textures (`Panavision_C_Series_2x_20mm` / `_30mm`, the 30 mm
 lens file is named `..._30mm_`), and his pack's two `.uasset`s differ in size only by what the names would. So it is
-probably in his data, not our import. Check: load both pack textures in a project that has the pack (search the
-Unreal Projects folder for `Content/Lenses/2x/Panavision_C_Series_2x`) and compare samples. If his data, tell Dylan (scene 4 of
-his current film shoots this lens at 30 mm) and tiedtke; if ours, re-import the 30 mm.
+probably in his data, not our import. Check: load both pack textures in a project that has the pack (search for
+`Content/Lenses/2x/Panavision_C_Series_2x`) and compare samples. If his data, tell Dylan (a film
+in production shoots this lens at 30 mm) and tiedtke; if ours, re-import the 30 mm.
