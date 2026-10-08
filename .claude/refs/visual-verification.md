@@ -60,3 +60,8 @@ fisheye crops off a wide frame. That is a real-lens crop, not a bug.
   so wait a second before judging a frame.
 - **Test level:** `/Game/DynamicLensTest/L_DLTest`, camera `DLTest_Cam`. The white dot grid in its sky
   is scene geometry, and a useful straight-line chart.
+- **Counting frames drawn without the lens** (the "pop" at a Sequencer cut): screenshots can't do it. A
+  `take_high_res_screenshot` requested from a tick callback lands a frame or more late and misses the first one.
+  Instead turn on `log LogCameraCalibrationCore Verbose` and count "still being computed. Clearing render target for
+  no distortion" lines: one per camera per editor frame drawn undistorted (2 per cut before the 2026-10-08 cache).
+  Cut timing: `Tools/cut_frametime_log.py` on the `Tools/cut_stutter_repro.py` masters.
