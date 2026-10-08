@@ -321,6 +321,56 @@ def status():
     return out
 
 
+# --------------------------------------------------------------------------------------- prewarm
+
+def prewarm(sequence=None):
+    """Ready every lens an edit's shots use before you play it, so even the first cut to each angle is smooth.
+
+    Steps the open Sequencer to the first section of each shot in the edit's Cinematic Shot tracks, one shot per
+    editor tick, so its cameras spawn and build their lens into the shared cache (DynamicLens.Cache.Status), then
+    puts the playhead back. sequence: a LevelSequence or its path, opened first; default the focused sequence.
+    Returns at once; the log says when it is done.
+    """
+    seqlib = unreal.LevelSequenceEditorBlueprintLibrary
+    if sequence is not None:
+        seq = unreal.load_asset(sequence) if isinstance(sequence, str) else sequence
+        seqlib.open_level_sequence(seq)
+    edit = seqlib.get_focused_level_sequence()
+    if not edit:
+        _log("prewarm: no sequence open")
+        return
+    times, seen = [], set()
+    for track in edit.find_tracks_by_type(unreal.MovieSceneCinematicShotTrack):
+        for s in track.get_sections():
+            inner = s.get_sequence()
+            if inner and s.is_active() and inner.get_path_name() not in seen:
+                seen.add(inner.get_path_name())
+                times.append(s.get_start_frame())
+    if not times:
+        _log(f"prewarm: {edit.get_name()} has no shots")
+        return
+    was_playing = seqlib.is_playing()
+    seqlib.pause()
+    back = seqlib.get_current_time()
+    state = {"i": 0}
+
+    def tick(_dt):
+        i = state["i"]
+        state["i"] += 1
+        if i < len(times):
+            seqlib.set_current_time(times[i])   # the cameras it spawns build their lens on the next world tick
+            return
+        if i == len(times) + 1:                  # one tick for the last shot's cameras
+            seqlib.set_current_time(back)
+            if was_playing:
+                seqlib.play()
+            unreal.unregister_slate_post_tick_callback(handle)
+            _log(f"prewarm: {len(times)} shots of {edit.get_name()} ready")
+            unreal.SystemLibrary.execute_console_command(None, "DynamicLens.Cache.Status")
+
+    handle = unreal.register_slate_post_tick_callback(tick)
+
+
 # --------------------------------------------------------------------------------------- tiedtke ST maps
 
 # tiedtke's Lens Files ship with the plugin (he gave permission), so the import works from a
