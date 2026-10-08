@@ -323,7 +323,8 @@ private:
 	void EnsureHandler();
 	bool DriveParametric(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float W, float H, float& OutNeededOverscan, FLensDistortionState& OutState);
 	bool DriveAnamorphic(UCineCameraComponent* Cam, float Focal, float W, float H, float& OutNeededOverscan, FLensDistortionState& OutState);
-	bool DriveSTMap(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float Focus, float W, float H, float WFull, float HFull, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRadius);
+	/** OutHoldOverscan > 0: the lens file is still deriving and something else is on screen at that overscan. */
+	bool DriveSTMap(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float Focus, float W, float H, float WFull, float HFull, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRadius, float& OutHoldOverscan);
 	bool DriveProjection(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float W, float H, TFunctionRef<float(float)> ChooseOverscan, float& OutAppliedOverscan, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRx, float& OutCircleRy);
 	void ApplyRendering(UCineCameraComponent* Cam, const FLensDistortionState& State, float AppliedOverscan);
 	void ApplyLook(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float CircleRadiusNorm, float Aspect, float CircleEllipticity, float CircleSquareness);
@@ -347,8 +348,11 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTexture2D> ProjectionMap;
 	/** The fisheye lens file whose finished displacement is on screen; held while a rebuilt one is still processing. */
 	UPROPERTY(Transient) TObjectPtr<ULensFile> ShownLensFile;
-	/** ST maps extrapolated beyond their frame so overscan has data (built on demand, editor only). Key = map path + displacement scale. */
-	UPROPERTY(Transient) TMap<FString, FDynamicLensExtendedMap> ExtendedMaps;
+	/** The ST-map lens file whose finished displacement is on screen; held while a new one is still deriving. Lens
+	 *  files and extended maps themselves are shared by every camera (FDynamicLensCache). */
+	UPROPERTY(Transient) TObjectPtr<ULensFile> ShownSTLensFile;
+	float ShownSTOverscan = 1.f;
+	int32 PendingSTTicks = 0;
 	float InfoFocal = -1.f;
 	bool bPushingCamera = false;
 	UPROPERTY(Transient) TObjectPtr<UTexture2D> IrisTexture;

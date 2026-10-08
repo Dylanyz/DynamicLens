@@ -24,6 +24,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
 #include "DynamicLensLibrary.h"
+#include "DynamicLensCache.h"
 #include "AssetRegistry/AssetData.h"
 #include "Models/SphericalLensModel.h"
 #include "SphericalLensDistortionModelHandler.h"
@@ -581,9 +582,18 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	else if (Type == EDynamicLensProfileType::STMap && Profile)
 	{
 		float Circle = 0.f;
-		if (DriveSTMap(Cam, Eval, Focal, Focus, W, H, WFull, HFull, Needed, State, Circle))
+		float HoldOverscan = 0.f;
+		if (DriveSTMap(Cam, Eval, Focal, Focus, W, H, WFull, HFull, Needed, State, Circle, HoldOverscan))
 		{
-			Applied = (Resolved.Overscan.Mode == EDynamicLensOverscanMode::Fixed) ? Resolved.Overscan.FixedOverscan : DynamicApplied(Needed);
+			if (HoldOverscan > 0.f)
+			{
+				Applied = HoldOverscan;   // a lens file still deriving: what is on screen keeps its own overscan
+			}
+			else
+			{
+				Applied = (Resolved.Overscan.Mode == EDynamicLensOverscanMode::Fixed) ? Resolved.Overscan.FixedOverscan : DynamicApplied(Needed);
+				ShownSTOverscan = Applied;
+			}
 			// the edge of what the render can show, computed every frame at the overscan ceiling so it exists
 			// continuously (outside the corners while there are pixels, sweeping inward at the picture's own rate as
 			// the lens asks for more than the ceiling gives) instead of switching on at the corners
@@ -687,6 +697,10 @@ void UDynamicLensComponent::Apply(UCineCameraComponent* Cam)
 	CircleCoverage = (Eval.ImageCircleRadiusNorm > 0.f) ? Eval.ImageCircleRadiusNorm * W / CamSqueeze / SensorDiag : 0.f;
 	FitFieldScale = (Type == EDynamicLensProfileType::Projection) ? ProjectionFieldScale : 1.f;
 	ProfileCoverage = Profile ? Profile->Coverage : TEXT("no profile");
+	// Every Apply leaves the camera's focal for the overscan guard, not just the tick: ClearEffect drops the seed, and a
+	// preset change (button, Preset Browser, Sequencer key, kit) runs ClearEffect then Apply outside the tick, so the
+	// rig's next update was unguarded and each preset change lost one overscan factor (35 -> 34.31 mm at 1.02, 2026-10-08).
+	GuardLastFocal = Cam->CurrentFocalLength;
 }
 
 bool UDynamicLensComponent::DriveParametric(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float W, float H, float& OutNeededOverscan, FLensDistortionState& OutState)
@@ -730,8 +744,9 @@ bool UDynamicLensComponent::DriveAnamorphic(UCineCameraComponent* Cam, float Foc
 	return true;
 }
 
-bool UDynamicLensComponent::DriveSTMap(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float Focus, float W, float H, float WFull, float HFull, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRadius)
+bool UDynamicLensComponent::DriveSTMap(UCineCameraComponent* Cam, const FDynamicLensEval& Eval, float Focal, float Focus, float W, float H, float WFull, float HFull, float& OutNeededOverscan, FLensDistortionState& OutState, float& OutCircleRadius, float& OutHoldOverscan)
 {
+	OutHoldOverscan = 0.f;
 	const UDynamicLensProfile* Profile = Resolved.Distortion.Profile;
 	const int32 Index = Profile->FindNearestSTMap(Focal);
 	if (Index < 0) return false;
@@ -757,19 +772,12 @@ bool UDynamicLensComponent::DriveSTMap(UCineCameraComponent* Cam, const FDynamic
 	float Scale = 1.f;
 	float NeededMap = Entry.NeededOverscan;   // in the map's own units (fallback: measured at import)
 	const FVector2D DispScale(LensSensor.X / W, LensSensor.Y / H);   // map sensor / camera sensor
+	// shared by every camera for the session: Sequencer spawns a camera at every cut, and rebuilding this per camera
+	// was a ~24 ms hitch each time (measured 2026-10-08, Panavision C 35 mm)
+	FDynamicLensExtendedMap Extended;
+	if (FDynamicLensCache::Get().FindOrBuildExtendedMap(Cast<UTexture2D>(Entry.Map), Entry.MapFormat.PixelOrigin == ECalibratedMapPixelOrigin::BottomLeft, DispScale, Extended))
 	{
-		const FString Key = FString::Printf(TEXT("%s|%.4f|%.4f"), *GetPathNameSafe(Entry.Map), DispScale.X, DispScale.Y);
-		if (FDynamicLensExtendedMap* Found = ExtendedMaps.Find(Key))
-		{
-			if (Found->Texture) { MapToUse = Found->Texture; Scale = Found->Extend; NeededMap = Found->NeededOverscan; }
-		}
-		else
-		{
-			FDynamicLensExtendedMap New;
-			New.Texture = UDynamicLensLibrary::BuildExtendedSTMap(Cast<UTexture2D>(Entry.Map), Entry.MapFormat.PixelOrigin == ECalibratedMapPixelOrigin::BottomLeft, DispScale, 2.f, 1024, New.NeededOverscan, New.Extend);
-			ExtendedMaps.Add(Key, New);
-			if (New.Texture) { MapToUse = New.Texture; Scale = New.Extend; NeededMap = New.NeededOverscan; }
-		}
+		MapToUse = Extended.Texture; Scale = Extended.Extend; NeededMap = Extended.NeededOverscan;
 	}
 	const bool bExtended = (MapToUse != Entry.Map);
 	LensSensor *= Scale;
@@ -777,20 +785,33 @@ bool UDynamicLensComponent::DriveSTMap(UCineCameraComponent* Cam, const FDynamic
 
 	if (!TransientLensFile || LensFileSTMapIndex != Index || !LensFileSensor.Equals(LensSensor, 1e-3) || !LensFileFxFy.Equals(FxFy, 1e-4))
 	{
-		TransientLensFile = NewObject<ULensFile>(this, NAME_None, RF_Transient);
-		TransientLensFile->LensInfo.LensModel = USphericalLensModel::StaticClass();
-		TransientLensFile->LensInfo.SensorDimensions = LensSensor;
-		TransientLensFile->LensInfo.SqueezeFactor = 1.f;
-		TransientLensFile->DataMode = ELensDataMode::STMap;
-		FSTMapInfo Info;
-		Info.DistortionMap = MapToUse;
-		Info.MapFormat = Entry.MapFormat;
-		TransientLensFile->AddSTMapPoint(0.f, 0.f, Info);
-		FFocalLengthInfo FL; FL.FxFy = FxFy;
-		TransientLensFile->AddFocalLengthPoint(0.f, 0.f, FL);
+		// shared too: a lens file that another camera already used has its displacement derived, so a spawned camera
+		// shows the lens on its first frame instead of ~2 frames of undistorted picture
+		TransientLensFile = FDynamicLensCache::Get().FindOrCreateSTMapLensFile(MapToUse, Entry.MapFormat, LensSensor, FxFy);
+		if (!TransientLensFile) return false;
 		LensFileSTMapIndex = Index;
 		LensFileSensor = LensSensor;
 		LensFileFxFy = FxFy;
+	}
+	// A lens file whose displacement is still being derived renders as no distortion. Keep the last finished one on
+	// screen with its own overscan; with none, render plain at overscan 1 rather than zoomed out without the lens.
+	if (TransientLensFile != ShownSTLensFile)
+	{
+		if (!DynamicLensLensFileReady(TransientLensFile) && ++PendingSTTicks < 30)
+		{
+			ULensFile* Hold = ShownSTLensFile ? ShownSTLensFile.Get() : TransientLensFile.Get();
+			if (!Hold->EvaluateDistortionData(0.f, 0.f, FVector2D(W, H), Handler))
+			{
+				return false;
+			}
+			OutState = Handler->GetCurrentDistortionState();
+			OutHoldOverscan = ShownSTLensFile ? ShownSTOverscan : 1.f;
+			OutNeededOverscan = OutHoldOverscan;
+			OutCircleRadius = 0.f;
+			return true;
+		}
+		ShownSTLensFile = TransientLensFile;
+		PendingSTTicks = 0;
 	}
 	if (!TransientLensFile->EvaluateDistortionData(0.f, 0.f, FVector2D(W, H), Handler))
 	{
