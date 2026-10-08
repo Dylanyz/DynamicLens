@@ -291,9 +291,9 @@ Each item below is Dylan's call:
    Fix plan: a second tick function on the component (`FDynamicLensPreRigTick`), made a prerequisite of the owner's
    tick (`Owner->PrimaryActorTick.AddPrerequisite`), that snapshots `Cam->CurrentFocalLength` before the rig runs; the
    main tick then restores the snapshot when the focal equals `Snapshot / S^k`, and the old last-frame comparison goes.
-   The risk is ordering against Sequencer: in the editor it evaluates in the Slate tick, after the world tick, so the
-   snapshot sees the key; at runtime (PIE, Movie Render Graph) the sequence tick manager runs in TG_PrePhysics like
-   the camera, so the snapshot tick must also come after it (find its tick function, or move the snapshot into a
+   The risk is ordering against Sequencer, and none of this is verified yet: in the editor Sequencer probably
+   evaluates outside the world tick, so the snapshot would see the key; at runtime (PIE, Movie Render Graph) the
+   sequence tick manager runs in the world tick, so the snapshot tick must come after it (find its tick function, or move the snapshot into a
    `UMovieSceneSequenceTickManager` post-evaluation callback if one exists in 5.8). Verify in all three with the
    keyed-focal test above before shipping.
 
