@@ -270,6 +270,56 @@ preset switch. At overscan <= 2 it is barely visible, but it is the same bug. Re
 
 ---
 
+## Shared lens cache + prewarm: no stutter or pop at Sequencer cuts - planned 2026-10-07
+
+**Gated on:** the isolation test below. Then propose; C++ (build, restart).
+
+**Report (Dylan, CitySample `s4_master3-3_v01`):** cutting between angles, DynamicLens "pops on" with a
+pause/stutter.
+
+**Confirmed (read-only, 2026-10-07):** each angle LS owns its cameras as spawnables (Black Eye camera +
+Fast Bake `_Bake` twin), so every cut destroys and respawns both. Both carry DynamicLens
+(`DL_T_Panavision_C_Series`, ST map 3656x1556, Post Process Material, Dynamic overscan max 1.5). Every
+cache is a component member (`ExtendedMaps`, `TransientLensFile`, `Handler`, `CircleMID`), so each spawn
+rebuilds from zero: `BuildExtendedSTMap` single-threaded on the game thread over the full source mip, twice
+per cut (both cameras), then a fresh lens file shows zero displacement until Epic's async derive reports
+(the gotcha in `architecture.md`, unheld on the ST path).
+**Hypothesis:** that build is the stutter and the derive gap is the pop. Not timed. Competing cause: the
+editor log shows PSO creation hitches.
+
+**Plan (agreed shape with Dylan):**
+1. **Shared cache, always on, no setting.** Module-level, keyed by map identity + source version (re-import
+   invalidates) + algorithm version. Split `BuildExtendedSTMap`: the slow stage (source read + extrapolated
+   field, `Extend`, `NeededOverscan`) is sensor-independent, one per map; the fast stage (`DisplacementScale`
+   output pass, ParallelFor) is per sensor size, kept in memory. Also share the *ready* `ULensFile` per
+   (map, sensor, FxFy), so a new camera skips the derive gap. LRU cap ~512 MB. Never cleared on sequence close.
+2. **Slow stage persisted in Unreal's DDC** (local, shared across projects, outside git; verify the
+   installed-engine path in `/ue-docs`). Not as plugin assets: ~0.7-1.2 GB for all 195 maps, git bloat.
+3. **Prewarm on sequence open:** walk Cinematic Shot sections (no sub tracks, like Fast Bake's planner),
+   collect each shot's camera presets, ready every focal of each series used, amortised over frames.
+4. **Debounced re-scan** ~1 s after edits stop: diff needed lenses against the cache, build only new ones
+   (a trim does nothing). Event gaps (e.g. a preset changed inside an angle while the master is open) cost
+   one hitch, not every cut.
+5. **Sequencer toolbar "Refresh DynamicLens"** beside Black Eye's Bake Edit, plus console + `dl.prewarm()`;
+   toast with the result. Status line in Profile Info and `dl.status()`.
+Test after build: trim, swap in an angle, change an angle's preset, locked-series focal change, restart;
+play the master after each. Parametric presets need none of this; fisheyes could join the cache later.
+If the measured build is tiny, ship 1 + 5 only.
+
+**Isolation test (needs the editor to itself; nothing in real shots changes):**
+1. *Replay:* log frame time + Sequencer frame per tick (Python `register_slate_post_tick_callback`) while
+   playing a cut-heavy range of the master twice. Spikes at cuts on both passes = per-spawn cost; gone on pass
+   2 = PSO.
+2. *Attribution:* same range under an Insights trace with `stat namedevents`, so the DynamicLens component
+   tick shows by name; compare it with the whole spike. Also tells Black Eye spawn cost apart.
+3. *A/B, only if 2 is unclear:* duplicates in `/Game/Claude/LagTest/` (already holds `T_s4_master3_3a`):
+   DynamicLens off vs a `DL_AD_*` parametric preset vs Panavision.
+4. *Pop:* per-frame viewport captures across one cut (`visual-verification.md`).
+5. *Build cost:* step 2 gives the whole per-spawn tick. The slow/fast stage split needs
+   `TRACE_CPUPROFILER_EVENT_SCOPE`s (C++), so add them with the cache build, not for the test.
+
+---
+
 ## Two quality bugs on the fisheyes, unrelated to distortion
 
 **Gated on:** nothing. Both are small and both are worth doing whatever else happens.
