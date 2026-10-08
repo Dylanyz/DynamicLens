@@ -422,4 +422,9 @@ private:
 	/** Ticks left in the spawn window, where a rig may run several updates in one frame (Black Eye does two at a cut). */
 	int32 GuardSpawnTicks = 0;
 	void GuardFocalFromOverscanFeedback(UCineCameraComponent* Cam);
+#if WITH_EDITOR
+	/** Re-seeds the guard when the camera's focal is edited directly. */
+	void OnObjectPropertyChanged(UObject* Object, FPropertyChangedEvent& Event);
+	FDelegateHandle CameraEditHandle;
+#endif
 };

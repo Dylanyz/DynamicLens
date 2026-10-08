@@ -134,9 +134,26 @@ UCineCameraComponent* UDynamicLensComponent::GetTargetCamera() const
 
 void UDynamicLensComponent::OnUnregister()
 {
+#if WITH_EDITOR
+	FCoreUObjectDelegates::OnObjectPropertyChanged.Remove(CameraEditHandle);
+	CameraEditHandle.Reset();
+#endif
 	ClearEffect();
 	Super::OnUnregister();
 }
+
+#if WITH_EDITOR
+void UDynamicLensComponent::OnObjectPropertyChanged(UObject* Object, FPropertyChangedEvent& Event)
+{
+	// A focal typed on the camera (Details, Python, Undo) is the new intended focal. Seed the overscan guard with it now:
+	// a rig's next update divides it by the overscan before this component ticks, and against the old seed the guard
+	// took that for a real change (35 -> 34.31 mm on a zoom preset, 2026-10-08).
+	if (Object && Object == GetTargetCamera() && Event.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UCineCameraComponent, CurrentFocalLength))
+	{
+		GuardLastFocal = static_cast<UCineCameraComponent*>(Object)->CurrentFocalLength;
+	}
+}
+#endif
 
 void UDynamicLensComponent::OnRegister()
 {
@@ -151,6 +168,12 @@ void UDynamicLensComponent::OnRegister()
 		GuardLastFocal = Cam->CurrentFocalLength;   // editor-world spawnables never BeginPlay: seed the overscan guard here too
 		GuardSpawnTicks = 3;
 	}
+#if WITH_EDITOR
+	if (!CameraEditHandle.IsValid())
+	{
+		CameraEditHandle = FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &UDynamicLensComponent::OnObjectPropertyChanged);
+	}
+#endif
 }
 
 void UDynamicLensComponent::BeginPlay()
@@ -1574,7 +1597,11 @@ void UDynamicLensComponent::PushCameraQuick(UCineCameraComponent* Cam)
 #if WITH_EDITOR
 	Cam->Modify();
 #endif
-	if (!FMath::IsNearlyEqual(Cam->CurrentFocalLength, Camera.FocalLengthMm)) Cam->SetCurrentFocalLength(Camera.FocalLengthMm);
+	if (!FMath::IsNearlyEqual(Cam->CurrentFocalLength, Camera.FocalLengthMm))
+	{
+		Cam->SetCurrentFocalLength(Camera.FocalLengthMm);
+		GuardLastFocal = Camera.FocalLengthMm;   // the new intended focal, as for an edit on the camera itself
+	}
 	Cam->CurrentAperture = Camera.Aperture;
 	Cam->FocusSettings.FocusMethod = Camera.FocusMethod;
 	Cam->FocusSettings.ManualFocusDistance = Camera.ManualFocusDistance;
