@@ -45,9 +45,11 @@ the workarounds away.
   **The seed is set at the end of every `Apply`, not only in the tick** (2026-10-08). `ClearEffect` zeroes it, and a
   preset change (button, Preset Browser, Sequencer Preset key, kit) runs `ClearEffect` then `Apply` outside the tick,
   so the rig's next update went unguarded: each preset change lost one overscan factor (35 → 34.31 → 33.64 mm at
-  1.02 on `DL_AD_Master`, reproduced with `Tools/focal_loss_probe.py`-style edits). Still open: a focal typed on the
-  camera itself is shrunk by the rig before our tick sees it, so the guard compares against the old focal and misses
-  it once (roadmap). Two more Black Eye facts from its source: a fresh BEC rewrites its FOV on its first tick
+  1.02 on `DL_AD_Master`, reproduced with `Tools/focal_loss_probe.py`-style edits). **A focal edited on the camera**
+  (Details, Python, Undo; `FCoreUObjectDelegates::OnObjectPropertyChanged`, editor only) or pushed from the Camera row
+  re-seeds it too: the rig shrank the new focal before our tick and the guard, holding the old seed, let it through
+  (35 → 34.31 mm). Still open: a focal *keyed in Sequencer* is written every frame without that event, so after a key
+  change the camera sits one overscan factor short for as long as the key holds (reproduced, roadmap). Two more Black Eye facts from its source: a fresh BEC rewrites its FOV on its first tick
   (35 → 18.35 mm with no DynamicLens on it), and Follow's `PostEditChangeProperty` (`OrientationReferenceMode`,
   `bEnableFollow`) calls `SnapComponentsToTargetsNow`, an extra LookAt update outside the tick.
 

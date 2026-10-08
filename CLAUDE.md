@@ -112,7 +112,7 @@ Then verify in the editor, at more than one focal length, that the change does w
 | Post-process chain goes blank after a material rebuild | orphaned parentless MID | `ClearEffect()`, or reselect the camera |
 | Neon speckle in a band around the rim, only in Movie Render Graph renders | image-circle HLSL sampled the scene with viewport UV instead of buffer UV | fixed 2026-09-18; any new scene sample in that HLSL needs `ViewportUVToSceneTextureUV` + `ClampSceneTextureUV` |
 | Stutter, and the lens popping on, at Sequencer cuts | each cut spawns the camera; ST-map and fisheye maps + lens files were rebuilt per camera | fixed 2026-10-08 by the shared cache (`architecture.md`); the first cut to a lens per session: Prewarm Lenses. `DynamicLens.Cache.Status` shows what is held |
-| Focal length creeps down on a Black Eye camera after preset changes | `ClearEffect` dropped the overscan guard's seed | fixed 2026-10-08 (Apply seeds it); a focal typed on the camera with a zoom preset still loses one factor (roadmap) |
+| Focal length creeps down on a Black Eye camera after preset changes | `ClearEffect` dropped the overscan guard's seed | fixed 2026-10-08 (Apply, and an edit of the camera's focal, seed it); a focal *keyed in Sequencer* still sits one factor short after a key change on zoom presets (reproduced, roadmap) |
 | Movie Render Graph render is ~Overscan x tighter than the viewport | Post Process Material render mode: MRG applies camera overscan twice on the `bCropOverscan == false` path | set the component's **Render Mode** to Temporal Super Resolution; see the overscan section in `.claude/refs/architecture.md` |
 
 ## Editor Python

@@ -281,11 +281,21 @@ Each item below is Dylan's call:
 2. **Keep built maps across restarts** in Unreal's local Derived Data Cache (shared by projects, outside git). Only
    if the first use per session still bothers him: one extended map costs ~25 ms warm, 75-210 ms on a cold source read
    (measured with `UDynamicLensLibrary::BuildExtendedSTMap` from Python).
-3. **A focal typed on the camera is still shrunk once** on a Black Eye camera with a zoom (unlocked) preset: Black
-   Eye's next update divides it by the overscan before our tick, and the guard compares against the old focal.
-   Locked prime series snap straight back. Fix idea: a second tick function on the component, set as a prerequisite
-   of the owner's tick, that snapshots the focal before the rig runs; the main tick then restores `Snapshot` when the
-   focal equals `Snapshot / S^k`. Needs care with where Sequencer evaluates (editor vs PIE vs Movie Render Graph).
+3. **A focal key change on a Black Eye camera loses one overscan factor for as long as the new key holds.**
+   Reproduced 2026-10-08 (`MDR_58_tester` `LS_DLCut_param_A`, `DL_AD_Master`, focal keyed 35 then 50 at frame 100,
+   constant): 35.000 until the change, then 49.020 to the end. Sequencer rewrites 50 every frame without the
+   property-changed event, Black Eye divides it by 1.02, and the guard sees the same 49.02 it left last frame, so no
+   change. Only the first key value is right (it was seeded at spawn). Locked prime series snap back to the prime,
+   which hides it there (production Panavision C at 1.04: 50 -> 48.08 snaps to 50; a 30 -> 35 key change also
+   recovers). Zoom presets, kits off, and Movie Render Graph renders are affected.
+   Fix plan: a second tick function on the component (`FDynamicLensPreRigTick`), made a prerequisite of the owner's
+   tick (`Owner->PrimaryActorTick.AddPrerequisite`), that snapshots `Cam->CurrentFocalLength` before the rig runs; the
+   main tick then restores the snapshot when the focal equals `Snapshot / S^k`, and the old last-frame comparison goes.
+   The risk is ordering against Sequencer: in the editor it evaluates in the Slate tick, after the world tick, so the
+   snapshot sees the key; at runtime (PIE, Movie Render Graph) the sequence tick manager runs in TG_PrePhysics like
+   the camera, so the snapshot tick must also come after it (find its tick function, or move the snapshot into a
+   `UMovieSceneSequenceTickManager` post-evaluation callback if one exists in 5.8). Verify in all three with the
+   keyed-focal test above before shipping.
 
 ---
 
